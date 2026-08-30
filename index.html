@@ -138,6 +138,66 @@ function warning(){
  const bad=DATA.hj.run?.status==='recovered_partial'||DATA.hc.run?.status==='recovered_partial';
  return bad?'<div class="notice">⚠️ 当前首屏包含从既有对话恢复的历史记录。001–003豪竞Top1仍明确标记“未恢复”，不会根据赛果倒推。以后正式赛前冻结会按时间戳进入网站。</div>':'';
 }
+
+function bjtToday(){
+ const ps=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+ const o={};ps.forEach(x=>o[x.type]=x.value);return o.year+'-'+o.month+'-'+o.day;
+}
+function numSP(r){
+ const vals=[r?.official_sp,r?.sp,r?.source_status?.official_sp,r?.source_status?.sporttery_sp,r?.source_status?.sp];
+ for(const v of vals){const n=Number(v);if(Number.isFinite(n)&&n>1)return n}
+ return null;
+}
+function playScore(r){
+ let s=0,a=r.anchor_status||'',c=r.confidence_label||'',dq=r.dq||'',fh=r.final_handling||'';
+ if(/A档核心/.test(a))s+=9; else if(/^Anchor$/.test(a))s+=8; else if(/Anchor候选/.test(a))s+=6; else if(/B候选/.test(a))s+=4;
+ if(/高\+/.test(c))s+=5; else if(/高/.test(c))s+=4; else if(/中高/.test(c))s+=2;
+ if(/^A/.test(dq))s+=3; else if(/^B/.test(dq))s+=2; else if(/^C|^D/.test(dq))s-=8;
+ if(/PASS|观察/.test(fh))s-=12;
+ if(/高/.test(r.hur||''))s-=4;if(/高/.test(r.dtr||''))s-=4;if(/高/.test(r.dlr||''))s-=3;
+ return s;
+}
+function validPlayRow(r){
+ return ['主胜','平','客胜'].includes(r.top1)&&!/PASS|观察/.test(r.final_handling||'')&&!/^C|^D/.test(r.dq||'');
+}
+function buildTodayPlays(hj){
+ const run=hj.run||{},rows=hj.rows||[],today=bjtToday(),saved=run.raw_summary?.recommended_plays;
+ if(saved)return saved;
+ const reasonBase=run.pool_date!==today?'今天尚无豪竞2.2赛前全池运行':(!run.data_complete?'全池/主链未完整，按规则不凑串':'');
+ if(reasonBase)return {
+   safe2:{status:'PASS',reason:reasonBase,legs:[]},
+   value2:{status:'PASS',reason:reasonBase,legs:[]},
+   triple3:{status:'PASS',reason:reasonBase,legs:[]}
+ };
+ const cand=rows.filter(validPlayRow).sort((a,b)=>playScore(b)-playScore(a));
+ const safe=cand.slice(0,2);
+ const tri=cand.slice(0,3);
+ const priced=cand.filter(r=>numSP(r)).sort((a,b)=>{
+   const av=(playScore(a)+Math.min(numSP(a)||0,3)*1.4), bv=(playScore(b)+Math.min(numSP(b)||0,3)*1.4);
+   return bv-av;
+ });
+ const val=priced.slice(0,2);
+ const mk=(legs,need,reason)=>legs.length>=need?{status:'READY',legs,reason:''}:{status:'PASS',legs:[],reason};
+ return {
+   safe2:mk(safe,2,'合格稳腿不足2场'),
+   value2:mk(val,2,'缺少至少2场可核验官方SP，无法判断性价比'),
+   triple3:mk(tri,3,'合格稳腿不足3场')
+ };
+}
+function playCard(title,p){
+ const ok=p?.status==='READY',legs=p?.legs||[];
+ const body=ok?legs.map(r=>'<div class="tiny"><b>'+esc(r.match_no)+'</b> '+esc(r.home_team)+' - '+esc(r.away_team)+' ｜ <b>'+esc(r.top1)+'</b>'+(numSP(r)?' ｜ SP '+esc(numSP(r).toFixed(2)):'')+'</div>').join(''):'<div class="tiny">'+esc(p?.reason||'未形成')+'</div>';
+ return '<div class="card"><div class="row"><b>'+esc(title)+'</b><span class="'+(ok?'ok':'pending')+'">'+(ok?'✅ 可用':'⛔ PASS')+'</span></div>'+body+'</div>';
+}
+function todayPlaySection(hj){
+ const p=buildTodayPlays(hj),run=hj.run||{};
+ return '<section class="section"><div class="shead"><h2>🔥 今日推荐玩法</h2><span>'+esc(run.pool_date||'暂无竞彩日')+' · 豪竞2.2最终选腿层</span></div><div class="cards">'+
+ playCard('最稳二串一',p.safe2)+
+ playCard('最性价比二串一',p.value2)+
+ playCard('三串一',p.triple3)+
+ '<div class="card"><b>执行纪律</b><div class="tiny">必须先完成全池分析和风险审计；不足2腿直接PASS。性价比玩法必须有可核验官方SP，不能只看“强队/低赔”硬凑。</div></div>'+
+ '</div></section>';
+}
 function render(){
  const hj=DATA.hj,hc=DATA.hc,hs=hj.stats,cs=hc.stats,cu=DATA.cumulative||{hj:{days:0,scored:0,hits:0,anchorScored:0,anchorHits:0,highScored:0,highHits:0,wrong:0,passIsolated:0},hc:{issues:0,scored:0,hits:0,full9:0}};let b='';
  if(TAB==='dashboard'){
@@ -150,6 +210,7 @@ function render(){
    metric('豪传'+(hc.run?.pool_label||''),cs.hits+'/'+cs.scored,'当前已结算留9',cs.scored&&cs.hits===cs.scored?'good':'warn')+
    metric('豪竞竞彩日',hj.run?.pool_date||'—',(hj.run?.official_range||'—')+' · '+(hj.run?.total_matches||0)+'场')+
    metric('冻结状态',hj.run?.data_complete?'完整':'恢复/部分',hj.run?.formal_allowed?'允许正式结论':'当前记录非完整正式冻结',hj.run?.data_complete?'good':'warn')+'</div>';
+   b+=todayPlaySection(hj);
    b+='<section class="section"><div class="shead"><h2>📚 正式累计</h2><span>只累计完整赛前冻结，不混历史恢复样本</span></div><div class="cards">'+
      '<div class="card"><div class="row"><b>豪竞2.2</b><span class="ok">'+esc(cu.hj.hits)+'/'+esc(cu.hj.scored)+'</span></div><div class="tiny">累计竞彩日 '+esc(cu.hj.days)+' · Top1 '+esc(pct(cu.hj.hits,cu.hj.scored))+'<br>Anchor '+esc(cu.hj.anchorHits)+'/'+esc(cu.hj.anchorScored)+' · 高信心 '+esc(cu.hj.highHits)+'/'+esc(cu.hj.highScored)+' · PASS隔离 '+esc(cu.hj.passIsolated)+'/'+esc(cu.hj.wrong)+'</div></div>'+
      '<div class="card"><div class="row"><b>豪传2.2</b><span class="ok">'+esc(cu.hc.hits)+'/'+esc(cu.hc.scored)+'</span></div><div class="tiny">累计正式期数 '+esc(cu.hc.issues)+' · 9/9期数 '+esc(cu.hc.full9)+'<br>累计已结算留场命中 '+esc(pct(cu.hc.hits,cu.hc.scored))+'</div></div>'+
@@ -161,7 +222,7 @@ function render(){
    hc.rows.map(r=>'<div class="card"><div class="row"><span class="no">'+esc(r.match_no)+'</span><span class="'+(r.result_verified?(hitTicket(r)?'ok':'x'):'pending')+'">'+(r.result_verified?(hitTicket(r)?'✅':'❌'):'⏳')+'</span></div><div class="teams">'+esc(r.home_team)+' – '+esc(r.away_team)+'</div><div class="tiny">票面 '+esc(r.ticket_pick)+' · '+esc(r.keep_discard)+' · '+esc(result(r))+'</div></div>').join('')+'</div></section>';
  }
  if(TAB==='haojing'){
-   b=warning()+'<section class="section"><div class="shead"><h2>豪竞2.2｜'+esc(hj.run?.pool_label||'—')+'</h2><span>'+esc(hj.run?.official_range||'')+' · '+esc(hj.run?.status||'')+'</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>Top1</th><th>信心</th><th>Anchor</th><th>HUR</th><th>DTR</th><th>处理</th><th>冻结</th><th>赛果</th><th>命中</th></tr></thead><tbody>'+
+   b=warning()+todayPlaySection(hj)+'<section class="section"><div class="shead"><h2>豪竞2.2｜'+esc(hj.run?.pool_label||'—')+'</h2><span>'+esc(hj.run?.official_range||'')+' · '+esc(hj.run?.status||'')+'</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>Top1</th><th>信心</th><th>Anchor</th><th>HUR</th><th>DTR</th><th>处理</th><th>冻结</th><th>赛果</th><th>命中</th></tr></thead><tbody>'+
    hj.rows.map(r=>'<tr><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'⚪未恢复')+'</td><td>'+esc(r.confidence_label||'—')+'</td><td><span class="pill '+tone(r.anchor_status||'')+'">'+esc(r.anchor_status||'—')+'</span></td><td>'+esc(r.hur||'—')+'</td><td>'+esc(r.dtr||'—')+'</td><td>'+esc(r.final_handling||'—')+'</td><td>'+esc(r.freeze_status)+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified?'pending':!r.top1?'pending':hitTop(r)?'ok':'x')+'">'+(!r.result_verified?'⏳':!r.top1?'—':hitTop(r)?'✅':'❌')+'</td></tr>').join('')+
    '</tbody></table></div></section>';
  }
