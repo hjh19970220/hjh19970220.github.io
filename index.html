@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>豪模型私人控制台</title>
+<style>
+:root{
+  --bg:#07111f;--panel:#0d1b2d;--panel2:#10233b;--line:#1b3554;
+  --text:#ecf5ff;--muted:#91a8bf;--good:#27d17f;--warn:#ffc04b;
+  --bad:#ff6475;--blue:#5aa9ff;--cyan:#64d8ff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:
+radial-gradient(circle at 82% -10%,#17385f 0,#07111f 43%);
+color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+body{min-height:100vh}
+button,input{font:inherit}
+.wrap{max-width:1280px;margin:auto;padding:18px 14px 54px}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.title{font-size:24px;font-weight:850;letter-spacing:.2px}
+.subtitle{font-size:12px;color:var(--muted);margin-top:5px}
+.lock{font-size:12px;border:1px solid var(--line);background:#0b1a2b;padding:7px 10px;border-radius:999px}
+nav{display:flex;gap:8px;overflow:auto;padding:14px 0 12px;scrollbar-width:none}
+nav button{border:1px solid transparent;background:transparent;color:var(--muted);padding:9px 13px;border-radius:10px;white-space:nowrap;font-size:14px}
+nav button.active{background:#14345a;border-color:#24558c;color:white}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{background:linear-gradient(180deg,#0f2238,#0b192a);border:1px solid var(--line);border-radius:14px;padding:14px;min-height:108px}
+.metric.good{border-color:#1e6e4b}.metric.warn{border-color:#765821}.metric.bad{border-color:#713342}
+.ml{font-size:12px;color:var(--muted)}.mv{font-size:25px;font-weight:850;margin:9px 0 5px}.ms{font-size:12px;color:var(--muted);line-height:1.45}
+.notice{border:1px solid #765821;background:#2b2314;color:#ffd985;border-radius:12px;padding:11px 13px;margin-bottom:13px;font-size:13px;line-height:1.55}
+.section{margin-top:14px;background:rgba(11,25,42,.9);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.shead{padding:13px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}
+.shead h2{font-size:16px;margin:0}.shead span{color:var(--muted);font-size:12px}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:12px}
+.card{background:#0e2035;border:1px solid #183655;border-radius:13px;padding:12px}
+.row{display:flex;justify-content:space-between;gap:10px}
+.no{font-weight:850;color:#a4ceff}.teams{font-weight:780;margin-top:5px}
+.tiny{font-size:12px;color:var(--muted);line-height:1.55;margin-top:7px}
+.ok{color:var(--good);font-weight:780}.x{color:var(--bad);font-weight:780}.pending{color:var(--warn);font-weight:750}
+.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#162b45;border:1px solid #244668;margin:4px 4px 0 0;font-size:11px}
+.pill.good{border-color:#24764f;color:#73e4ad}.pill.warn{border-color:#765821;color:#ffd27c}.pill.bad{border-color:#713342;color:#ff91a0}
+.tablewrap{overflow:auto;max-height:72vh}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:9px 10px;border-bottom:1px solid #142d49;text-align:left;white-space:nowrap}
+th{color:#9cb3ca;background:#0b1b2e;position:sticky;top:0;z-index:1}
+tbody tr:hover{background:#102740}
+.login{min-height:84vh;display:grid;place-items:center;padding:16px}
+.loginbox{width:min(92vw,390px);background:#0d1b2d;border:1px solid #1d3a5a;border-radius:20px;padding:24px;box-shadow:0 24px 80px #0007}
+.loginbox h1{font-size:22px;margin:0 0 8px}
+.loginbox .sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.loginbox label{font-size:12px;color:#9bb1c8;display:block;margin:12px 0 6px}
+.loginbox input{width:100%;border:1px solid #274867;background:#081522;color:white;border-radius:11px;padding:13px 12px;font-size:16px;outline:none}
+.loginbox input:focus{border-color:#4c9cff}
+.loginbox button{width:100%;margin-top:18px;border:0;border-radius:11px;background:#2e83e6;color:white;padding:13px;font-size:16px;font-weight:780}
+.err{display:none;background:#3a1720;border:1px solid #7a3142;color:#ff9dad;border-radius:10px;padding:9px 11px;margin-bottom:12px;font-size:13px}
+.loading{min-height:70vh;display:grid;place-items:center;color:var(--muted)}
+.footer{color:#637c95;text-align:center;font-size:11px;margin-top:16px;line-height:1.5}
+.logout{border:0;background:transparent;color:#7691aa;font-size:12px;margin-top:8px}
+.refresh{border:1px solid #214365;background:#0d2238;color:#cfe8ff;border-radius:9px;padding:7px 10px;font-size:12px}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:1fr}.mv{font-size:22px}.metric{min-height:96px}}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
+<script>
+const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
+let DATA=null,TAB='dashboard';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pct=(a,b)=>b?(a*100/b).toFixed(1)+'%':'—';
+const code=v=>v==='主胜'?'3':v==='平'?'1':v==='客胜'?'0':'';
+const hitTop=r=>!!(r.top1&&r.result_verified&&code(r.top1)===r.result_1x2);
+const hitTicket=r=>!!(r.ticket_pick&&r.result_verified&&String(r.ticket_pick).includes(String(r.result_1x2)));
+const result=r=>!r.result_verified?'待结算':(r.result_home??'?')+'-'+(r.result_away??'?')+' · '+(r.result_1x2==='3'?'主胜':r.result_1x2==='1'?'平':'客胜');
+const tone=v=>/Anchor|A档核心/.test(v||'')?'good':/PASS|未恢复|缺|红/.test(v||'')?'bad':/黄|中|候选/.test(v||'')?'warn':'';
+function metric(l,v,s='',c=''){return '<div class="metric '+c+'"><div class="ml">'+esc(l)+'</div><div class="mv">'+esc(v)+'</div><div class="ms">'+esc(s)+'</div></div>'}
+function token(){return localStorage.getItem('hao_console_token')||''}
+function shell(body){
+ return '<div class="wrap"><div class="top"><div><div class="title">豪模型私人控制台</div><div class="subtitle">豪竞2.2 × 豪传2.2 · 北京时间竞彩日口径</div></div><div><div class="lock">🔒 私人访问</div><button class="logout" onclick="logout()">退出登录</button></div></div>'+
+ '<nav>'+[['dashboard','总览'],['haojing','豪竞2.2'],['haochuan','豪传2.2'],['history','历史'],['sources','数据状态']].map(x=>'<button onclick="setTab(\''+x[0]+'\')" class="'+(TAB===x[0]?'active':'')+'">'+x[1]+'</button>').join('')+'</nav>'+
+ '<div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button class="refresh" onclick="load()">🔄 刷新</button></div>'+body+
+ '<div class="footer">赛前冻结优先 · 未确认不得猜 · 恢复记录不会冒充正式时间戳冻结。</div></div>';
+}
+function login(){
+ document.getElementById('app').innerHTML='<div class="login"><form class="loginbox" id="lf"><h1>🔒 豪模型私人控制台</h1><div class="sub">私人版 · 豪竞2.2 × 豪传2.2</div><div class="err" id="err">账号或密码不正确。</div><label>用户名</label><input id="u" autocomplete="username" value="hao"><label>密码</label><input id="p" type="password" autocomplete="current-password"><button>进入控制台</button></form></div>';
+ document.getElementById('lf').onsubmit=async ev=>{
+   ev.preventDefault();
+   document.getElementById('err').style.display='none';
+   try{
+     const r=await fetch(API+'?login=1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('u').value,password:document.getElementById('p').value})});
+     const j=await r.json().catch(()=>({}));
+     if(r.ok&&j.token){localStorage.setItem('hao_console_token',j.token);await load()}
+     else document.getElementById('err').style.display='block';
+   }catch(_){document.getElementById('err').textContent='连接失败，请稍后重试。';document.getElementById('err').style.display='block'}
+ };
+}
+function logout(){localStorage.removeItem('hao_console_token');DATA=null;login()}
+async function load(){
+ const t=token(); if(!t){login();return}
+ document.getElementById('app').innerHTML='<div class="loading">正在读取最新冻结数据…</div>';
+ try{
+   const r=await fetch(API+'?api=1',{headers:{'Authorization':'Bearer '+t},cache:'no-store'});
+   if(r.status===401){localStorage.removeItem('hao_console_token');login();return}
+   DATA=await r.json();
+   if(!DATA.ok) throw new Error(DATA.error||'未知错误');
+   render();
+ }catch(err){document.getElementById('app').innerHTML='<div class="loading">连接失败：'+esc(err.message)+'<br><br><button class="refresh" onclick="load()">重试</button></div>'}
+}
+function setTab(t){TAB=t;render();scrollTo(0,0)}
+function warning(){
+ const bad=DATA.hj.run?.status==='recovered_partial'||DATA.hc.run?.status==='recovered_partial';
+ return bad?'<div class="notice">⚠️ 当前首屏包含从既有对话恢复的历史记录。001–003豪竞Top1仍明确标记“未恢复”，不会根据赛果倒推。以后正式赛前冻结会按时间戳进入网站。</div>':'';
+}
+function render(){
+ const hj=DATA.hj,hc=DATA.hc,hs=hj.stats,cs=hc.stats;let b='';
+ if(TAB==='dashboard'){
+   b=warning()+'<div class="grid">'+
+   metric('豪竞全池Top1',hs.hits+'/'+hs.scored,hs.wrong+'场错 · 可计场')+
+   metric('豪竞命中率',pct(hs.hits,hs.scored),'PASS场仍计入全池分母',hs.scored&&hs.hits/hs.scored>=.65?'good':'warn')+
+   metric('Anchor/候选',hs.ahits+'/'+hs.anchors,hs.anchors?pct(hs.ahits,hs.anchors):'待样本',hs.anchors&&hs.ahits===hs.anchors?'good':'warn')+
+   metric('高信心',hs.hhits+'/'+hs.high,hs.high?pct(hs.hhits,hs.high):'待样本','warn')+
+   metric('错场PASS隔离',hs.isolated+'/'+hs.wrong,'错误中已被PASS挡掉',hs.wrong&&hs.isolated/hs.wrong>=.5?'good':'warn')+
+   metric('豪传'+(hc.run?.pool_label||''),cs.hits+'/'+cs.scored,'当前已结算留9',cs.scored&&cs.hits===cs.scored?'good':'warn')+
+   metric('豪竞竞彩日',hj.run?.pool_date||'—',(hj.run?.official_range||'—')+' · '+(hj.run?.total_matches||0)+'场')+
+   metric('冻结状态',hj.run?.data_complete?'完整':'恢复/部分',hj.run?.formal_allowed?'允许正式结论':'当前记录非完整正式冻结',hj.run?.data_complete?'good':'warn')+'</div>';
+   const key=hj.rows.filter(r=>/Anchor|A档核心/.test(r.anchor_status||'')).slice(0,8);
+   b+='<section class="section"><div class="shead"><h2>⭐ 豪竞核心层</h2><span>Anchor / Anchor候选 / A档核心</span></div><div class="cards">'+
+   key.map(r=>'<div class="card"><div class="row"><span class="no">'+esc(r.match_no)+'</span><span class="'+(r.result_verified?(hitTop(r)?'ok':'x'):'pending')+'">'+(r.result_verified?(hitTop(r)?'✅命中':'❌未中'):'⏳待结算')+'</span></div><div class="teams">'+esc(r.home_team)+' – '+esc(r.away_team)+'</div><div class="tiny">🎯 '+esc(r.top1)+' · '+esc(r.confidence_label||'未校准')+' · '+esc(r.anchor_status)+'<br>赛果：'+esc(result(r))+'</div></div>').join('')+'</div></section>';
+   b+='<section class="section"><div class="shead"><h2>🎯 豪传2.2 · '+esc(hc.run?.pool_label||'当前期')+'</h2><span>留9实时追踪</span></div><div class="cards">'+
+   hc.rows.map(r=>'<div class="card"><div class="row"><span class="no">'+esc(r.match_no)+'</span><span class="'+(r.result_verified?(hitTicket(r)?'ok':'x'):'pending')+'">'+(r.result_verified?(hitTicket(r)?'✅':'❌'):'⏳')+'</span></div><div class="teams">'+esc(r.home_team)+' – '+esc(r.away_team)+'</div><div class="tiny">票面 '+esc(r.ticket_pick)+' · '+esc(r.keep_discard)+' · '+esc(result(r))+'</div></div>').join('')+'</div></section>';
+ }
+ if(TAB==='haojing'){
+   b=warning()+'<section class="section"><div class="shead"><h2>豪竞2.2｜'+esc(hj.run?.pool_label||'—')+'</h2><span>'+esc(hj.run?.official_range||'')+' · '+esc(hj.run?.status||'')+'</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>Top1</th><th>信心</th><th>Anchor</th><th>HUR</th><th>DTR</th><th>处理</th><th>冻结</th><th>赛果</th><th>命中</th></tr></thead><tbody>'+
+   hj.rows.map(r=>'<tr><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'⚪未恢复')+'</td><td>'+esc(r.confidence_label||'—')+'</td><td><span class="pill '+tone(r.anchor_status||'')+'">'+esc(r.anchor_status||'—')+'</span></td><td>'+esc(r.hur||'—')+'</td><td>'+esc(r.dtr||'—')+'</td><td>'+esc(r.final_handling||'—')+'</td><td>'+esc(r.freeze_status)+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified?'pending':!r.top1?'pending':hitTop(r)?'ok':'x')+'">'+(!r.result_verified?'⏳':!r.top1?'—':hitTop(r)?'✅':'❌')+'</td></tr>').join('')+
+   '</tbody></table></div></section>';
+ }
+ if(TAB==='haochuan'){
+   b=warning()+'<div class="grid">'+
+   metric('当前命中',cs.hits+'/'+cs.scored,cs.scored&&cs.hits===cs.scored?'已结算全中':'继续等待',cs.scored&&cs.hits===cs.scored?'good':'warn')+
+   metric('期号',hc.run?.pool_label||'—','64元口径')+
+   metric('留场',String(hc.rows.length),'当前恢复票面')+
+   metric('记录状态',hc.run?.status||'—',hc.run?.notes||'')+
+   '</div><section class="section"><div class="shead"><h2>豪传2.2 留9票面</h2><span>当前期追踪</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>票面</th><th>留/舍</th><th>赛果</th><th>状态</th></tr></thead><tbody>'+
+   hc.rows.map(r=>'<tr><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td><b>'+esc(r.ticket_pick)+'</b></td><td>'+esc(r.keep_discard)+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified?'pending':hitTicket(r)?'ok':'x')+'">'+(!r.result_verified?'⏳待结算':hitTicket(r)?'✅命中':'❌未中')+'</td></tr>').join('')+
+   '</tbody></table></div></section>';
+ }
+ if(TAB==='history'){
+   b='<section class="section"><div class="shead"><h2>历史运行记录</h2><span>最新40次</span></div><div class="tablewrap"><table><thead><tr><th>日期</th><th>模型</th><th>池</th><th>范围</th><th>状态</th><th>完整</th><th>正式</th><th>来源</th></tr></thead><tbody>'+
+   DATA.history.map(r=>'<tr><td>'+esc(r.pool_date)+'</td><td><b>'+esc(r.model_name)+'</b></td><td>'+esc(r.pool_label||r.pool_kind)+'</td><td>'+esc(r.official_range||'—')+'</td><td>'+esc(r.status)+'</td><td>'+(r.data_complete?'✅':'⚠️')+'</td><td>'+(r.formal_allowed?'✅':'否')+'</td><td>'+esc(r.source_provenance||'—')+'</td></tr>').join('')+
+   '</tbody></table></div></section>';
+ }
+ if(TAB==='sources'){
+   const last=DATA.sources.api_football_last?new Date(DATA.sources.api_football_last).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'无近期记录';
+   const src=[['中国体彩官方SP','小时模型主链','由模型运行写入冻结记录','🟡'],['William Hill','欧赔初→即→临','逐场DQ控制；网站不补猜','🟡'],['澳门','亚盘+水位初→即→临','逐场DQ控制；网站不补猜','🟡'],['API-Football','专业辅助','最近数据库时间：'+last,'🟢'],['Forebet','专业辅助','小时任务核验后写入','🟡'],['Kickoff.ai','专业辅助','未确认即显示未确认','🟡'],['雷速','赛前事实层','仅可核验事实进入','🟡'],['赛前冻结库','网站核心','hao_console_* 已启用','🟢']];
+   b='<section class="section"><div class="shead"><h2>数据源状态</h2><span>网站层不替代DQ闸门</span></div><div class="cards">'+
+   src.map(x=>'<div class="card"><div class="row"><b>'+esc(x[0])+'</b><span>'+x[3]+'</span></div><div class="tiny">'+esc(x[1])+'<br>'+esc(x[2])+'</div></div>').join('')+'</div></section>';
+ }
+ document.getElementById('app').innerHTML=shell(b);
+}
+load();
+</script>
+</body>
+</html>
