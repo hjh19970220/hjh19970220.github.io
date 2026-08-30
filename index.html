@@ -73,6 +73,17 @@ tbody tr:hover{background:#102740}
 .footer{color:#637c95;text-align:center;font-size:11px;margin-top:16px;line-height:1.6}
 .detailcards{display:none}
 .changeUp{color:#73e4ad}.changeDown{color:#ff91a0}.changeFlat{color:#ffd27c}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:8px 12px;font-size:12px;line-height:1.55}
+.kv>div:nth-child(odd){color:var(--muted)}
+.evidence{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.evbox{border:1px solid #244668;background:#0b1b2e;border-radius:10px;padding:9px}
+.evname{font-size:11px;color:var(--muted)}.evval{font-size:13px;font-weight:760;margin-top:5px}
+.timeline{display:grid;gap:8px}
+.tline{display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:8px;padding:8px 0;border-bottom:1px solid #142d49;font-size:12px}
+.tline:last-child{border-bottom:0}
+.rank{font-size:22px;font-weight:900}
+.warnbox{border:1px solid #765821;background:#2b2314;border-radius:12px;padding:10px}
+@media(max-width:650px){.kv{grid-template-columns:110px 1fr}.evidence{grid-template-columns:repeat(2,1fr)}.tline{grid-template-columns:72px 1fr 1fr 1fr;font-size:11px}}
 @media(max-width:900px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:1fr}.mv{font-size:22px}.metric{min-height:96px}}
 @media(max-width:650px){
   .title{font-size:21px}.topright{max-width:48%}.heroSide{grid-template-columns:1fr 1fr}
@@ -132,6 +143,15 @@ async function load(showLoading=false){
  }catch(err){document.getElementById('app').innerHTML='<div class="loading">连接失败：'+esc(err.message)+'<br><br><button class="refresh" onclick="load(true)">重试</button></div>'}
 }
 function setTab(t){TAB=t;render();scrollTo(0,0)}
+function openMatch(kind,matchNo){
+ const src=kind==='hc'?(DATA.hc?.rows||[]):(DATA.hj?.rows||[]);
+ const row=src.find(r=>String(r.match_no)===String(matchNo));
+ if(!row)return;
+ DATA.matchDetail={kind,row};
+ TAB='match';
+ render();
+ scrollTo(0,0);
+}
 async function openRun(id){
  const local=(DATA.history||[]).find(x=>Number(x.id)===Number(id));
  const rows=Array.isArray(local?.raw_summary?.detail_rows)?local.raw_summary.detail_rows:[];
@@ -183,7 +203,8 @@ function playCard(title,p){
  let product=1,all=true;for(const l of legs){const s=legSp(l);if(s)product*=s;else all=false}
  const lines=legs.length?legs.map(l=>'<div class="tiny">• '+esc(legName(l))+(legSp(l)?' ｜ SP '+legSp(l).toFixed(2):'')+'</div>').join(''):'<div class="tiny">'+esc(p.text||p.summary||'已冻结正式输出')+'</div>';
  const extras=[all&&legs.length?('组合SP≈'+product.toFixed(2)):null,p.ev!=null?('EV '+p.ev):null,p.confidence?('信心 '+p.confidence):null,p.risk?('风险 '+p.risk):null].filter(Boolean).join(' ｜ ');
- return '<div class="card feature"><div class="row"><b>'+esc(title)+'</b><span class="ok">✅ 正式</span></div>'+lines+(extras?'<div class="tiny"><b>'+esc(extras)+'</b></div>':'')+'</div>';
+ const why=p.reason||p.note||p.rationale||'';
+ return '<div class="card feature"><div class="row"><b>'+esc(title)+'</b><span class="ok">✅ 正式</span></div>'+lines+(extras?'<div class="tiny"><b>'+esc(extras)+'</b></div>':'')+(why?'<div class="tiny">为什么选：'+esc(why)+'</div>':'')+'</div>';
 }
 function todayPlaySection(){
  const rec=DATA.hj?.recommendations;
@@ -215,6 +236,96 @@ function sourceStatusSection(){
  return '<section class="section"><div class="shead"><h2>📡 数据完整度</h2><span>真实覆盖率，不用固定绿灯冒充实时</span></div><div class="cards">'+items.map(x=>'<div class="card"><div class="row"><b>'+esc(x[0])+'</b><span class="'+(/未|0\//.test(String(x[1]))?'x':'pending')+'">'+esc(x[1])+'</span></div><div class="tiny">'+esc(x[2])+'</div></div>').join('')+'</div></section>';
 }
 
+
+function ssVal(r,...keys){
+ const s=r?.source_status||{};
+ for(const k of keys){if(s[k]!=null&&s[k]!=='')return s[k]}
+ return null;
+}
+function canonicalChange(r){
+ return ssVal(r,'hour_change','change','变化','本小时变化')||'未确认';
+}
+function evidenceValue(r,key){
+ const s=r?.source_status||{}, e=s.evidence_domains||s.evidence||{};
+ const aliases={
+  market:['market','市场层','market_direction'],
+  strength:['strength','实力层','elo','Elo'],
+  professional:['professional','专业预测层','ai_committee','专业模型'],
+  fundamentals:['fundamentals','基本面层','雷速','facts'],
+  teacher:['teacher','老师二审','teacher_audit']
+ };
+ for(const k of aliases[key]||[]){if(e?.[k]!=null)return e[k];if(s?.[k]!=null)return s[k]}
+ return '未确认';
+}
+function timelineRows(r){
+ const s=r?.source_status||{};
+ const tl=s.market_timeline||s.odds_timeline||s.market?.timeline||null;
+ if(Array.isArray(tl)&&tl.length)return tl;
+ const market=s.market||{};
+ const out=[];
+ for(const name of ['william','macau','sporttery']){
+   const x=market[name]||market[name==='sporttery'?'体彩':name==='william'?'William':'澳门'];
+   if(x&&typeof x==='object')out.push({source:name==='william'?'William Hill':name==='macau'?'澳门':'体彩SP',initial:x.initial??x.open??'—',current:x.current??x.live??'—',close:x.close??x.closing??'—'});
+ }
+ return out;
+}
+function renderEvidenceDomains(r){
+ const items=[['市场层',evidenceValue(r,'market')],['实力层',evidenceValue(r,'strength')],['专业预测层',evidenceValue(r,'professional')],['基本面层',evidenceValue(r,'fundamentals')],['老师二审',evidenceValue(r,'teacher')]];
+ return '<div class="evidence">'+items.map(x=>'<div class="evbox"><div class="evname">'+x[0]+'</div><div class="evval">'+esc(x[1])+'</div></div>').join('')+'</div>';
+}
+function renderTimeline(r){
+ const rows=timelineRows(r);
+ if(!rows.length)return '<div class="tiny">当前冻结记录没有保存可追溯的初盘→即时→临场数值；不补猜。</div>';
+ return '<div class="timeline"><div class="tline"><b>来源</b><b>初</b><b>即时</b><b>临场</b></div>'+rows.map(x=>'<div class="tline"><span>'+esc(x.source||'—')+'</span><span>'+esc(x.initial??'—')+'</span><span>'+esc(x.current??'—')+'</span><span>'+esc(x.close??'—')+'</span></div>').join('')+'</div>';
+}
+function riskRank(rows,pred){
+ return rows.filter(pred).slice(0,5);
+}
+function riskBoard(){
+ const rows=DATA.hj?.rows||[];
+ const draw=riskRank(rows,r=>/高|红/.test(String(r.dtr||'')));
+ const direct=riskRank(rows,r=>/高|红/.test(String(r.dlr||'')));
+ const conflict=riskRank(rows,r=>/强|红/.test(String(r.strong_conflict||'')));
+ const hot=riskRank(rows,r=>/高|红/.test(String(r.hur||'')));
+ const block=(title,arr,field)=>'<div class="card"><b>'+title+'</b>'+(arr.length?arr.map(r=>'<div class="tiny"><button class="historybtn" onclick="openMatch(\'hj\',\''+esc(r.match_no)+'\')">'+esc(r.match_no)+'</button> '+esc(r.home_team)+' - '+esc(r.away_team)+' ｜ '+esc(r[field]||r.strong_conflict||'高风险')+'</div>').join(''):'<div class="tiny">暂无明确高风险记录</div>')+'</div>';
+ return '<section class="section"><div class="shead"><h2>🚨 风险榜</h2><span>只按模型已冻结风险字段排名，不自行猜冷门</span></div><div class="cards">'+
+  block('平局尾险 DTR',draw,'dtr')+block('直接输球风险 DLR',direct,'dlr')+block('热门过热 HUR',hot,'hur')+block('强冲突',conflict,'strong_conflict')+
+ '</div></section>';
+}
+function handicapLab(){
+ const rows=(DATA.hj?.rows||[]).filter(r=>r.official_handicap!=null||r.handicap_pick||ssVal(r,'institution_handicap_confidence','机构让球信心','margin_gate','win_gate'));
+ return '<section class="section"><div class="shead"><h2>⚽ 让球影子实验室</h2><span>Handicap Decision Shadow · 不越权修改FT正式方向</span></div>'+
+ (rows.length?'<div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>FT Top1</th><th>官方让球</th><th>机构让球信心</th><th>Win Gate</th><th>Margin Gate</th><th>让球Top1</th><th>状态</th></tr></thead><tbody>'+
+ rows.map(r=>'<tr class="clickrow" onclick="openMatch(\'hj\',\''+esc(r.match_no)+'\')"><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'—')+'</td><td>'+esc(r.official_handicap??'—')+'</td><td>'+esc(ssVal(r,'institution_handicap_confidence','机构让球信心')||'未确认')+'</td><td>'+esc(ssVal(r,'win_gate','Win Gate')||'未确认')+'</td><td>'+esc(ssVal(r,'margin_gate','Margin Gate')||'未确认')+'</td><td>'+esc(r.handicap_pick||'未确认')+'</td><td><span class="pill warn">Shadow Only</span></td></tr>').join('')+
+ '</tbody></table></div>':'<div class="cards"><div class="card"><div class="tiny">当前运行没有保存完整让球影子字段。后续小时跑会按固定结构同步；缺失时保持未确认。</div></div></div>')+'</section>';
+}
+function renderMatchDetail(){
+ const d=DATA.matchDetail||{},r=d.row||{},isHC=d.kind==='hc';
+ const back=isHC?'haochuan':'haojing';
+ const market=ssVal(r,'market_summary','市场结论','market_direction')||'未确认';
+ const pro=ssVal(r,'professional_summary','专业模型','ai_committee')||'未确认';
+ const facts=ssVal(r,'fundamental_summary','基本面','雷速情报','facts')||'未确认';
+ const strongestFor=ssVal(r,'strongest_support','最强支持','strongest_for')||'未确认';
+ const strongestAgainst=ssVal(r,'strongest_opposition','最强反对','strongest_against')||'未确认';
+ const cold=ssVal(r,'cold_type','Cold-Type','cold_type_label')||'未确认';
+ const inst=ssVal(r,'institution_handicap_confidence','机构让球信心')||'未确认';
+ const win=ssVal(r,'win_gate','Win Gate')||'未确认';
+ const margin=ssVal(r,'margin_gate','Margin Gate')||'未确认';
+ return '<div style="margin-bottom:10px"><button class="backbtn" onclick="setTab(\''+back+'\')">← 返回'+(isHC?'豪传2.2':'豪竞2.2')+'</button></div>'+
+ '<div class="hero"><div class="heroMain"><div class="heroTitle">'+esc(r.match_no||'—')+' '+esc(r.league||'')+'</div><div class="heroValue">'+esc(r.home_team)+' vs '+esc(r.away_team)+'</div><div class="heroSub">开赛：'+esc(fmtTime(r.kickoff_bjt))+' ｜ 冻结：'+esc(fmtTime(r.frozen_at))+' ｜ '+esc(r.freeze_status||'未确认')+'</div></div><div class="heroSide">'+
+ metric('Top1',r.top1||'未确认','第二：'+(r.second_pick||'未确认'))+
+ metric('最终处理',r.final_handling||r.keep_discard||'—','信心：'+(r.confidence_label||'—'),/PASS|舍/.test(String(r.final_handling||r.keep_discard||''))?'bad':'warn')+
+ '</div></div>'+
+ '<section class="section"><div class="shead"><h2>🧠 分析结论</h2><span>支持与反方证据必须同时看</span></div><div class="cards">'+
+ '<div class="card"><div class="kv"><div>市场结论</div><div>'+esc(market)+'</div><div>专业预测</div><div>'+esc(pro)+'</div><div>基本面</div><div>'+esc(facts)+'</div><div>最强支持</div><div>'+esc(strongestFor)+'</div><div>最强反对</div><div>'+esc(strongestAgainst)+'</div></div></div>'+
+ '<div class="card"><div class="kv"><div>Anchor</div><div>'+esc(r.anchor_status||'—')+'</div><div>DQ/HPS</div><div>'+esc(r.dq||'—')+' / '+esc(r.hps||'—')+'</div><div>HUR</div><div>'+esc(r.hur||'—')+'</div><div>DTR</div><div>'+esc(r.dtr||'—')+'</div><div>DLR</div><div>'+esc(r.dlr||'—')+'</div><div>Cold-Type</div><div>'+esc(cold)+'</div><div>Strong Conflict</div><div>'+esc(r.strong_conflict||'—')+'</div><div>Top1 Rejection</div><div>'+esc(r.top1_rejection||'—')+'</div></div></div>'+
+ '</div></section>'+
+ '<section class="section"><div class="shead"><h2>🧩 独立证据域</h2><span>不按AI数量机械投票</span></div><div class="cards"><div class="card" style="grid-column:1/-1">'+renderEvidenceDomains(r)+'</div></div></section>'+
+ '<section class="section"><div class="shead"><h2>📈 市场走势</h2><span>William / 澳门 / 体彩 · 初→即→临</span></div><div class="cards"><div class="card" style="grid-column:1/-1">'+renderTimeline(r)+'</div></div></section>'+
+ (!isHC?'<section class="section"><div class="shead"><h2>⚽ 让球审计</h2><span>Shadow Only</span></div><div class="cards"><div class="card"><div class="kv"><div>官方让球</div><div>'+esc(r.official_handicap??'未确认')+'</div><div>机构让球信心</div><div>'+esc(inst)+'</div><div>Win Gate</div><div>'+esc(win)+'</div><div>Margin Gate</div><div>'+esc(margin)+'</div><div>让球Top1</div><div>'+esc(r.handicap_pick||'未确认')+'</div></div></div></div></section>':
+ '<section class="section"><div class="shead"><h2>🎫 任9方向一致性</h2><span>Direction Consistency Gate</span></div><div class="cards"><div class="card"><div class="kv"><div>语义方向</div><div>'+esc(r.semantic_direction||'未确认')+'</div><div>Gate前票面</div><div>'+esc(r.ticket_pick_before_gate||'—')+'</div><div>Gate后票面</div><div>'+esc(r.ticket_pick_after_gate||r.ticket_pick||'—')+'</div><div>一致性</div><div>'+esc(r.direction_consistency_status||'未确认')+'</div><div>原因</div><div>'+esc(r.direction_consistency_reason||'—')+'</div></div></div></div></section>');
+}
+
 function compactPlaySummary(){
  const rec=DATA.hj?.recommendations;
  const titles=[['A',['A','a','safe2','best_safe_2'],'🟢 最稳2串'],['B',['B','b','value2','best_value_2'],'🟡 性价比2串'],['C',['C','c','triple3','best_3'],'🔵 最佳3串']];
@@ -239,7 +350,7 @@ function compactPlaySummary(){
 function dashboardChangeRisk(){
  const rows=DATA.hj?.rows||[];
  const changed=rows.filter(r=>{
-   const v=String(r?.source_status?.hour_change||r?.source_status?.change||'');
+   const v=String(canonicalChange(r)||'');
    return v && !/无实质变化|无变化|未确认/.test(v);
  }).slice(0,6);
  const risks=rows.filter(r=>
@@ -248,7 +359,7 @@ function dashboardChangeRisk(){
    /高|红|强冲突/.test(String(r.dlr||''))||
    /强/.test(String(r.strong_conflict||''))
  ).slice(0,6);
- const left=changed.length?changed.map(r=>'<div class="tiny"><b>'+esc(r.match_no)+'</b> '+esc(r.home_team)+' - '+esc(r.away_team)+' ｜ '+esc(r?.source_status?.hour_change||r?.source_status?.change)+'</div>').join(''):'<div class="tiny">本轮没有数据库明确记录的实质临场变化。</div>';
+ const left=changed.length?changed.map(r=>'<div class="tiny"><b>'+esc(r.match_no)+'</b> '+esc(r.home_team)+' - '+esc(r.away_team)+' ｜ '+esc(canonicalChange(r))+'</div>').join(''):'<div class="tiny">本轮没有数据库明确记录的实质临场变化。</div>';
  const right=risks.length?risks.map(r=>'<div class="tiny"><b>'+esc(r.match_no)+'</b> '+esc(r.home_team)+' - '+esc(r.away_team)+' ｜ HUR '+esc(r.hur||'—')+' / DTR '+esc(r.dtr||'—')+' / DLR '+esc(r.dlr||'—')+(r.strong_conflict?' ｜ '+esc(r.strong_conflict):'')+'</div>').join(''):'<div class="tiny">当前逐场记录中没有明确的高风险/强冲突字段。</div>';
  return '<section class="section"><div class="shead"><h2>⚡ 临场变化与风险</h2><span>只汇总数据库明确字段</span></div><div class="cards">'+
   '<div class="card"><b>🔄 本轮变化</b>'+left+'</div>'+
@@ -292,18 +403,23 @@ function dashboard(){
 
 function renderHaojing(){
  const hj=DATA.hj;
- return modelStatusBlock()+integrityNotice()+todayPlaySection()+
- '<section class="section"><div class="shead"><h2>豪竞2.2｜'+esc(hj.run?.pool_label||'—')+'</h2><span>'+esc(hj.run?.official_range||'')+' · '+esc(hj.run?.status||'')+'</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>Top1</th><th>第二</th><th>信心</th><th>Anchor</th><th>DQ</th><th>HUR</th><th>DTR</th><th>DLR</th><th>处理</th><th>冻结</th><th>赛果</th><th>命中</th></tr></thead><tbody>'+
- hj.rows.map(r=>'<tr><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'未确认')+'</td><td>'+esc(r.second_pick||'未确认')+'</td><td>'+esc(r.confidence_label||'—')+'</td><td><span class="pill '+tone(r.anchor_status||'')+'">'+esc(r.anchor_status||'—')+'</span></td><td>'+esc(r.dq||'—')+'</td><td>'+esc(r.hur||'—')+'</td><td>'+esc(r.dtr||'—')+'</td><td>'+esc(r.dlr||'—')+'</td><td>'+esc(r.final_handling||'—')+'</td><td>'+esc(r.freeze_status||'—')+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified?'pending':!r.top1?'pending':hitTop(r)?'ok':'x')+'">'+(!r.result_verified?'⏳':!r.top1?'—':hitTop(r)?'✅':'❌')+'</td></tr>').join('')+
+ return modelStatusBlock()+integrityNotice()+todayPlaySection()+riskBoard()+handicapLab()+
+ '<section class="section"><div class="shead"><h2>豪竞2.2｜'+esc(hj.run?.pool_label||'—')+'</h2><span>点击任意比赛查看完整证据链 · '+esc(hj.run?.official_range||'')+' · '+esc(hj.run?.status||'')+'</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>Top1</th><th>第二</th><th>信心</th><th>Anchor</th><th>DQ</th><th>HUR</th><th>DTR</th><th>DLR</th><th>处理</th><th>冻结</th><th>赛果</th><th>命中</th></tr></thead><tbody>'+
+ hj.rows.map(r=>'<tr class="clickrow" onclick="openMatch(\'hj\',\''+esc(r.match_no)+'\')"><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'未确认')+'</td><td>'+esc(r.second_pick||'未确认')+'</td><td>'+esc(r.confidence_label||'—')+'</td><td><span class="pill '+tone(r.anchor_status||'')+'">'+esc(r.anchor_status||'—')+'</span></td><td>'+esc(r.dq||'—')+'</td><td>'+esc(r.hur||'—')+'</td><td>'+esc(r.dtr||'—')+'</td><td>'+esc(r.dlr||'—')+'</td><td>'+esc(r.final_handling||'—')+'</td><td>'+esc(r.freeze_status||'—')+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified?'pending':!r.top1?'pending':hitTop(r)?'ok':'x')+'">'+(!r.result_verified?'⏳':!r.top1?'—':hitTop(r)?'✅':'❌')+'</td></tr>').join('')+
  '</tbody></table></div></section>'+sourceStatusSection();
 }
 function renderHaochuan(){
  const hc=DATA.hc,cs=hc.stats,am=activeModel('豪传2.2'),current=DATA.hc?.current_revision;
+ const total=hc.run?.total_matches||14, keeps=hc.rows.filter(r=>String(r.keep_discard||'').includes('留')).length, discards=hc.rows.filter(r=>String(r.keep_discard||'').includes('舍')).length;
+ const singles=hc.rows.filter(r=>String(r.ticket_pick_after_gate||r.ticket_pick||'').length===1&&String(r.keep_discard||'').includes('留')).length;
+ const doubles=hc.rows.filter(r=>String(r.ticket_pick_after_gate||r.ticket_pick||'').length===2&&String(r.keep_discard||'').includes('留')).length;
+ const fullPool=hc.rows.length===Number(total);
  let notice=current?'<div class="notice good">✅ 该运行已绑定当前豪传修订。</div>':'<div class="notice bad">⚠️ 最近豪传运行未绑定当前最新修订；历史票面保留展示，但不会冒充“最新版重跑”。</div>';
  return modelStatusBlock()+notice+
- '<div class="grid">'+metric('当前命中',cs.hits+'/'+cs.scored,'按已核验赛果')+metric('期号',hc.run?.pool_label||'—','64元上限口径')+metric('留场记录',String(hc.rows.length),'当前数据库逐场记录')+metric('当前修订',am?.revision_tag||'未登记','active model')+'</div>'+
- '<section class="section"><div class="shead"><h2>豪传2.2 票面/方向一致性</h2><span>'+esc(hc.run?.status||'')+'</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>Top1</th><th>方向语义</th><th>Gate前</th><th>Gate后/票面</th><th>一致性</th><th>原因</th><th>留/舍</th><th>赛果</th><th>状态</th></tr></thead><tbody>'+
- hc.rows.map(r=>'<tr><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'—')+'</td><td>'+esc(r.semantic_direction||'—')+'</td><td>'+esc(r.ticket_pick_before_gate||'—')+'</td><td><b>'+esc(r.ticket_pick_after_gate||r.ticket_pick||'—')+'</b></td><td>'+esc(r.direction_consistency_status||'未确认')+'</td><td>'+esc(r.direction_consistency_reason||'—')+'</td><td>'+esc(r.keep_discard||'—')+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified?'pending':hitTicket(r)?'ok':'x')+'">'+(!r.result_verified?'⏳待结算':hitTicket(r)?'✅命中':'❌未中')+'</td></tr>').join('')+
+ (!fullPool?'<div class="notice bad">🚨 当前豪传逐场记录只有 '+hc.rows.length+'/'+total+'，不是完整14场。页面保留已有记录，但不会把它冒充完整“留9/舍5”分析。</div>':'<div class="notice good">✅ 当前豪传已保存完整 '+total+' 场全池，可审计留9/舍5与方向一致性。</div>')+
+ '<div class="grid">'+metric('当前命中',cs.hits+'/'+cs.scored,'按已核验赛果')+metric('全池记录',hc.rows.length+'/'+total,fullPool?'完整14场':'不完整',fullPool?'good':'bad')+metric('留 / 舍',keeps+' / '+discards,'目标结构：留9舍5')+metric('单 / 双',singles+' / '+doubles,'64元结构审计')+'</div>'+
+ '<section class="section"><div class="shead"><h2>豪传2.2｜14场全池与留舍逻辑</h2><span>点击比赛查看方向一致性 · '+esc(hc.run?.status||'')+'</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>Top1</th><th>方向语义</th><th>Gate前</th><th>Gate后/票面</th><th>一致性</th><th>原因</th><th>留/舍</th><th>赛果</th><th>状态</th></tr></thead><tbody>'+
+ hc.rows.map(r=>'<tr class="clickrow" onclick="openMatch(\'hc\',\''+esc(r.match_no)+'\')"><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'—')+'</td><td>'+esc(r.semantic_direction||'—')+'</td><td>'+esc(r.ticket_pick_before_gate||'—')+'</td><td><b>'+esc(r.ticket_pick_after_gate||r.ticket_pick||'—')+'</b></td><td>'+esc(r.direction_consistency_status||'未确认')+'</td><td>'+esc(r.direction_consistency_reason||'—')+'</td><td>'+esc(r.keep_discard||'—')+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified?'pending':hitTicket(r)?'ok':'x')+'">'+(!r.result_verified?'⏳待结算':hitTicket(r)?'✅命中':'❌未中')+'</td></tr>').join('')+
  '</tbody></table></div></section>';
 }
 function renderCumulative(){
@@ -347,6 +463,7 @@ function render(){
  else if(TAB==='cumulative')b=renderCumulative();
  else if(TAB==='history')b=renderHistory();
  else if(TAB==='detail')b=renderDetail();
+ else if(TAB==='match')b=renderMatchDetail();
  else if(TAB==='sources')b=renderSources();
  document.getElementById('app').innerHTML=shell(b);
 }
