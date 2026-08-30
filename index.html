@@ -80,7 +80,7 @@ function metric(l,v,s='',c=''){return '<div class="metric '+c+'"><div class="ml"
 function token(){return localStorage.getItem('hao_console_token')||''}
 function shell(body){
  return '<div class="wrap"><div class="top"><div><div class="title">豪模型私人控制台</div><div class="subtitle">豪竞2.2 × 豪传2.2 · 北京时间竞彩日口径</div></div><div><div class="lock">🔒 私人访问</div><button class="logout" onclick="logout()">退出登录</button></div></div>'+
- '<nav>'+[['dashboard','总览'],['haojing','豪竞2.2'],['haochuan','豪传2.2'],['history','历史'],['sources','数据状态']].map(x=>'<button onclick="setTab(\''+x[0]+'\')" class="'+(TAB===x[0]?'active':'')+'">'+x[1]+'</button>').join('')+'</nav>'+
+ '<nav>'+[['dashboard','总览'],['haojing','豪竞2.2'],['haochuan','豪传2.2'],['cumulative','累计'],['history','历史'],['sources','数据状态']].map(x=>'<button onclick="setTab(\''+x[0]+'\')" class="'+(TAB===x[0]?'active':'')+'">'+x[1]+'</button>').join('')+'</nav>'+
  '<div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button class="refresh" onclick="load()">🔄 刷新</button></div>'+body+
  '<div class="footer">赛前冻结优先 · 未确认不得猜 · 恢复记录不会冒充正式时间戳冻结。</div></div>';
 }
@@ -115,7 +115,7 @@ function warning(){
  return bad?'<div class="notice">⚠️ 当前首屏包含从既有对话恢复的历史记录。001–003豪竞Top1仍明确标记“未恢复”，不会根据赛果倒推。以后正式赛前冻结会按时间戳进入网站。</div>':'';
 }
 function render(){
- const hj=DATA.hj,hc=DATA.hc,hs=hj.stats,cs=hc.stats;let b='';
+ const hj=DATA.hj,hc=DATA.hc,hs=hj.stats,cs=hc.stats,cu=DATA.cumulative||{hj:{days:0,scored:0,hits:0,anchorScored:0,anchorHits:0,highScored:0,highHits:0,wrong:0,passIsolated:0},hc:{issues:0,scored:0,hits:0,full9:0}};let b='';
  if(TAB==='dashboard'){
    b=warning()+'<div class="grid">'+
    metric('豪竞全池Top1',hs.hits+'/'+hs.scored,hs.wrong+'场错 · 可计场')+
@@ -126,6 +126,10 @@ function render(){
    metric('豪传'+(hc.run?.pool_label||''),cs.hits+'/'+cs.scored,'当前已结算留9',cs.scored&&cs.hits===cs.scored?'good':'warn')+
    metric('豪竞竞彩日',hj.run?.pool_date||'—',(hj.run?.official_range||'—')+' · '+(hj.run?.total_matches||0)+'场')+
    metric('冻结状态',hj.run?.data_complete?'完整':'恢复/部分',hj.run?.formal_allowed?'允许正式结论':'当前记录非完整正式冻结',hj.run?.data_complete?'good':'warn')+'</div>';
+   b+='<section class="section"><div class="shead"><h2>📚 正式累计</h2><span>只累计完整赛前冻结，不混历史恢复样本</span></div><div class="cards">'+
+     '<div class="card"><div class="row"><b>豪竞2.2</b><span class="ok">'+esc(cu.hj.hits)+'/'+esc(cu.hj.scored)+'</span></div><div class="tiny">累计竞彩日 '+esc(cu.hj.days)+' · Top1 '+esc(pct(cu.hj.hits,cu.hj.scored))+'<br>Anchor '+esc(cu.hj.anchorHits)+'/'+esc(cu.hj.anchorScored)+' · 高信心 '+esc(cu.hj.highHits)+'/'+esc(cu.hj.highScored)+' · PASS隔离 '+esc(cu.hj.passIsolated)+'/'+esc(cu.hj.wrong)+'</div></div>'+
+     '<div class="card"><div class="row"><b>豪传2.2</b><span class="ok">'+esc(cu.hc.hits)+'/'+esc(cu.hc.scored)+'</span></div><div class="tiny">累计正式期数 '+esc(cu.hc.issues)+' · 9/9期数 '+esc(cu.hc.full9)+'<br>累计已结算留场命中 '+esc(pct(cu.hc.hits,cu.hc.scored))+'</div></div>'+
+   '</div></section>';
    const key=hj.rows.filter(r=>/Anchor|A档核心/.test(r.anchor_status||'')).slice(0,8);
    b+='<section class="section"><div class="shead"><h2>⭐ 豪竞核心层</h2><span>Anchor / Anchor候选 / A档核心</span></div><div class="cards">'+
    key.map(r=>'<div class="card"><div class="row"><span class="no">'+esc(r.match_no)+'</span><span class="'+(r.result_verified?(hitTop(r)?'ok':'x'):'pending')+'">'+(r.result_verified?(hitTop(r)?'✅命中':'❌未中'):'⏳待结算')+'</span></div><div class="teams">'+esc(r.home_team)+' – '+esc(r.away_team)+'</div><div class="tiny">🎯 '+esc(r.top1)+' · '+esc(r.confidence_label||'未校准')+' · '+esc(r.anchor_status)+'<br>赛果：'+esc(result(r))+'</div></div>').join('')+'</div></section>';
@@ -146,6 +150,23 @@ function render(){
    '</div><section class="section"><div class="shead"><h2>豪传2.2 留9票面</h2><span>当前期追踪</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>票面</th><th>留/舍</th><th>赛果</th><th>状态</th></tr></thead><tbody>'+
    hc.rows.map(r=>'<tr><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td><b>'+esc(r.ticket_pick)+'</b></td><td>'+esc(r.keep_discard)+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified?'pending':hitTicket(r)?'ok':'x')+'">'+(!r.result_verified?'⏳待结算':hitTicket(r)?'✅命中':'❌未中')+'</td></tr>').join('')+
    '</tbody></table></div></section>';
+ }
+ if(TAB==='cumulative'){
+   b='<div class="notice">📌 累计统计采用严格口径：只有完整赛前冻结且正式闸门通过的记录才进入“正式累计”。恢复记录、部分流程、赛后补录不会混入。</div>'+
+   '<div class="grid">'+
+   metric('豪竞累计Top1',cu.hj.hits+'/'+cu.hj.scored,pct(cu.hj.hits,cu.hj.scored),cu.hj.scored?'good':'warn')+
+   metric('豪竞累计竞彩日',String(cu.hj.days),'正式完整样本')+
+   metric('累计Anchor',cu.hj.anchorHits+'/'+cu.hj.anchorScored,pct(cu.hj.anchorHits,cu.hj.anchorScored),cu.hj.anchorScored?'good':'warn')+
+   metric('累计高信心',cu.hj.highHits+'/'+cu.hj.highScored,pct(cu.hj.highHits,cu.hj.highScored),cu.hj.highScored?'good':'warn')+
+   metric('PASS错场隔离',cu.hj.passIsolated+'/'+cu.hj.wrong,'正式错场中被PASS提前挡掉')+
+   metric('豪传累计命中',cu.hc.hits+'/'+cu.hc.scored,pct(cu.hc.hits,cu.hc.scored),cu.hc.scored?'good':'warn')+
+   metric('豪传正式期数',String(cu.hc.issues),'已完成正式结算')+
+   metric('豪传9/9',String(cu.hc.full9),'累计完整命中期数',cu.hc.full9?'good':'warn')+
+   '</div>'+
+   '<section class="section"><div class="shead"><h2>累计规则</h2><span>自动更新</span></div><div class="cards">'+
+   '<div class="card"><b>豪竞累计字段</b><div class="tiny">累计Top1场次与命中、Anchor/Anchor候选/A档核心、正式高信心、总错场、PASS错场隔离。每个竞彩日只记一次最终正式成绩。</div></div>'+
+   '<div class="card"><b>豪传累计字段</b><div class="tiny">累计正式期数、留9已结算场次与命中、9/9期数。任9仍按90分钟赛果和原赛前冻结票面核算。</div></div>'+
+   '</div></section>';
  }
  if(TAB==='history'){
    b='<section class="section"><div class="shead"><h2>历史运行记录</h2><span>最新40次</span></div><div class="tablewrap"><table><thead><tr><th>日期</th><th>模型</th><th>池</th><th>范围</th><th>状态</th><th>完整</th><th>正式</th><th>来源</th></tr></thead><tbody>'+
