@@ -278,8 +278,12 @@ function renderTimeline(r){
  if(!rows.length)return '<div class="tiny">当前冻结记录没有保存可追溯的初盘→即时→临场数值；不补猜。</div>';
  return '<div class="timeline"><div class="tline"><b>来源</b><b>初</b><b>即时</b><b>临场</b></div>'+rows.map(x=>'<div class="tline"><span>'+esc(x.source||'—')+'</span><span>'+esc(x.initial??'—')+'</span><span>'+esc(x.current??'—')+'</span><span>'+esc(x.close??'—')+'</span></div>').join('')+'</div>';
 }
+function riskScore(r){
+ const w=v=>/红|极高|强/.test(String(v||''))?4:/高/.test(String(v||''))?3:/中高/.test(String(v||''))?2:/中/.test(String(v||''))?1:0;
+ return w(r.hur)+w(r.dtr)+w(r.dlr)+w(r.strong_conflict);
+}
 function riskRank(rows,pred){
- return rows.filter(pred).slice(0,5);
+ return rows.filter(pred).sort((a,b)=>riskScore(b)-riskScore(a)).slice(0,5);
 }
 function riskBoard(){
  const rows=DATA.hj?.rows||[];
@@ -424,16 +428,32 @@ function renderHaochuan(){
 }
 function renderCumulative(){
  const cu=DATA.cumulative||{hj:{},hc:{}};
- return '<div class="notice">📌 严格累计：只有完整赛前冻结且正式闸门通过的运行才进入。恢复记录、部分流程、赛后补录均不混入。</div><div class="grid">'+
- metric('豪竞累计Top1',(cu.hj.hits||0)+'/'+(cu.hj.scored||0),pct(cu.hj.hits,cu.hj.scored))+
- metric('豪竞累计竞彩日',String(cu.hj.days||0),'正式完整样本')+
- metric('累计Anchor',(cu.hj.anchorHits||0)+'/'+(cu.hj.anchorScored||0),pct(cu.hj.anchorHits,cu.hj.anchorScored))+
- metric('累计高信心',(cu.hj.highHits||0)+'/'+(cu.hj.highScored||0),pct(cu.hj.highHits,cu.hj.highScored))+
- metric('PASS错场隔离',(cu.hj.passIsolated||0)+'/'+(cu.hj.wrong||0),'正式错场中被PASS提前挡掉')+
- metric('豪传累计命中',(cu.hc.hits||0)+'/'+(cu.hc.scored||0),pct(cu.hc.hits,cu.hc.scored))+
- metric('豪传正式期数',String(cu.hc.issues||0),'完整正式样本')+
- metric('豪传9/9',String(cu.hc.full9||0),'完整命中期数')+
- '</div>';
+ const hj=cu.hj||{},hc=cu.hc||{};
+ return '<div class="notice">📌 严格累计：只有完整赛前冻结、模型修订可追溯且正式闸门通过的运行才进入。恢复记录、部分流程、赛后补录均不混入。</div>'+
+ '<section class="section"><div class="shead"><h2>🎯 预测质量</h2><span>命中率与概率质量分开看</span></div><div class="grid" style="padding:12px">'+
+ metric('豪竞Top1',(hj.hits||0)+'/'+(hj.scored||0),pct(hj.hits,hj.scored))+
+ metric('豪竞正式竞彩日',String(hj.days||0),'完整正式样本')+
+ metric('Brier Score','待正式样本','仅在保存可校准赛前概率后计算')+
+ metric('Log Loss','待正式样本','不使用“高/中/低”伪造概率')+
+ '</div></section>'+
+ '<section class="section"><div class="shead"><h2>🛡️ 决策质量</h2><span>Gate既要统计净救，也要统计误杀</span></div><div class="grid" style="padding:12px">'+
+ metric('Anchor',(hj.anchorHits||0)+'/'+(hj.anchorScored||0),pct(hj.anchorHits,hj.anchorScored))+
+ metric('高信心',(hj.highHits||0)+'/'+(hj.highScored||0),pct(hj.highHits,hj.highScored))+
+ metric('PASS错场隔离',(hj.passIsolated||0)+'/'+(hj.wrong||0),hj.wrong?pct(hj.passIsolated,hj.wrong):'待样本')+
+ metric('PASS误杀','待固化','必须统计被PASS但Top1原本会命中的场，不能只报净救')+
+ '</div></section>'+
+ '<section class="section"><div class="shead"><h2>💰 价值质量</h2><span>准确 ≠ 有价值</span></div><div class="grid" style="padding:12px">'+
+ metric('A组合命中率','待正式样本','只统计冻结A方案')+
+ metric('B组合命中率','待正式样本','风险调整后EV方案')+
+ metric('理论ROI','待正式样本','必须使用冻结体彩SP与真实结果')+
+ metric('CLV','待正式样本','需要可追溯临场赔率，不用事后均赔代替')+
+ '</div></section>'+
+ '<section class="section"><div class="shead"><h2>🎫 豪传2.2</h2><span>任9单独统计</span></div><div class="grid" style="padding:12px">'+
+ metric('累计票面命中',(hc.hits||0)+'/'+(hc.scored||0),pct(hc.hits,hc.scored))+
+ metric('正式期数',String(hc.issues||0),'完整正式样本')+
+ metric('9/9',String(hc.full9||0),'完整命中期数')+
+ metric('舍5隔离质量','待固化','同时报告救错与误舍')+
+ '</div></section>';
 }
 function renderHistory(){
  return '<section class="section"><div class="shead"><h2>历史运行记录</h2><span>点击查看逐场复盘 · 不跨版本倒灌</span></div><div class="tablewrap"><table><thead><tr><th>日期</th><th>模型</th><th>修订</th><th>池</th><th>范围</th><th>状态</th><th>完整</th><th>正式</th><th>运行时间</th><th>复盘</th></tr></thead><tbody>'+
