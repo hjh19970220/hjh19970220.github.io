@@ -116,6 +116,12 @@ async function load(){
 }
 function setTab(t){TAB=t;render();scrollTo(0,0)}
 async function openRun(id){
+ const run=(DATA.history||[]).find(x=>Number(x.id)===Number(id));
+ const localRows=Array.isArray(run?.raw_summary?.detail_rows)?run.raw_summary.detail_rows:[];
+ if(run&&localRows.length){
+   DATA.detail={run,rows:localRows,score:null};
+   TAB='detail';render();scrollTo(0,0);return;
+ }
  const t=token(); if(!t){login();return}
  document.getElementById('app').innerHTML='<div class="loading">正在读取历史复盘明细…</div>';
  try{
@@ -187,7 +193,7 @@ function render(){
    '</div></section>';
  }
  if(TAB==='history'){
-   b='<section class="section"><div class="shead"><h2>历史运行记录</h2><span>点“查看复盘”进入逐场明细</span></div><div class="tablewrap"><table><thead><tr><th>日期</th><th>模型</th><th>池</th><th>范围</th><th>状态</th><th>完整</th><th>正式</th><th>来源</th><th>复盘</th></tr></thead><tbody>'+
+   b='<section class="section"><div class="shead"><h2>历史运行记录</h2><span>点整行或“查看复盘” · 逐场明细双保险</span></div><div class="tablewrap"><table><thead><tr><th>日期</th><th>模型</th><th>池</th><th>范围</th><th>状态</th><th>完整</th><th>正式</th><th>来源</th><th>复盘</th></tr></thead><tbody>'+
    DATA.history.map(r=>'<tr class="clickrow" onclick="openRun('+Number(r.id)+')"><td>'+esc(r.pool_date)+'</td><td><b>'+esc(r.model_name)+' '+esc(r.model_version||'')+'</b></td><td>'+esc(r.pool_label||r.pool_kind)+'</td><td>'+esc(r.official_range||'—')+'</td><td>'+esc(r.status)+'</td><td>'+(r.data_complete?'✅':'⚠️')+'</td><td>'+(r.formal_allowed?'✅':'否')+'</td><td>'+esc(r.source_provenance||'—')+'</td><td><button class="historybtn" onclick="event.stopPropagation();openRun('+Number(r.id)+')">查看复盘</button></td></tr>').join('')+
    '</tbody></table></div></section>';
  }
