@@ -61,6 +61,11 @@ tbody tr:hover{background:#102740}
 .footer{color:#637c95;text-align:center;font-size:11px;margin-top:16px;line-height:1.5}
 .logout{border:0;background:transparent;color:#7691aa;font-size:12px;margin-top:8px}
 .refresh{border:1px solid #214365;background:#0d2238;color:#cfe8ff;border-radius:9px;padding:7px 10px;font-size:12px}
+.historybtn,.backbtn{border:1px solid #2b5681;background:#123153;color:#d9edff;border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer}
+.historybtn:hover,.backbtn:hover{background:#18436f}
+.detailmeta{padding:12px 14px;color:var(--muted);font-size:12px;line-height:1.65;border-top:1px solid var(--line)}
+.detailmeta b{color:var(--text)}
+.clickrow{cursor:pointer}
 @media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:1fr}.mv{font-size:22px}.metric{min-height:96px}}
 </style>
 </head>
@@ -80,7 +85,7 @@ function metric(l,v,s='',c=''){return '<div class="metric '+c+'"><div class="ml"
 function token(){return localStorage.getItem('hao_console_token')||''}
 function shell(body){
  return '<div class="wrap"><div class="top"><div><div class="title">豪模型私人控制台</div><div class="subtitle">豪竞2.2 × 豪传2.2 · 北京时间竞彩日口径</div></div><div><div class="lock">🔒 私人访问</div><button class="logout" onclick="logout()">退出登录</button></div></div>'+
- '<nav>'+[['dashboard','总览'],['haojing','豪竞2.2'],['haochuan','豪传2.2'],['cumulative','累计'],['history','历史'],['sources','数据状态']].map(x=>'<button onclick="setTab(\''+x[0]+'\')" class="'+(TAB===x[0]?'active':'')+'">'+x[1]+'</button>').join('')+'</nav>'+
+ '<nav>'+[['dashboard','总览'],['haojing','豪竞2.2'],['haochuan','豪传2.2'],['cumulative','累计'],['history','历史'],['sources','数据状态']].map(x=>'<button onclick="setTab(\''+x[0]+'\')" class="'+((TAB===x[0]||(TAB==='detail'&&x[0]==='history'))?'active':'')+'">'+x[1]+'</button>').join('')+'</nav>'+
  '<div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button class="refresh" onclick="load()">🔄 刷新</button></div>'+body+
  '<div class="footer">赛前冻结优先 · 未确认不得猜 · 恢复记录不会冒充正式时间戳冻结。</div></div>';
 }
@@ -110,6 +115,19 @@ async function load(){
  }catch(err){document.getElementById('app').innerHTML='<div class="loading">连接失败：'+esc(err.message)+'<br><br><button class="refresh" onclick="load()">重试</button></div>'}
 }
 function setTab(t){TAB=t;render();scrollTo(0,0)}
+async function openRun(id){
+ const t=token(); if(!t){login();return}
+ document.getElementById('app').innerHTML='<div class="loading">正在读取历史复盘明细…</div>';
+ try{
+   const r=await fetch(API+'?api=1&run_id='+encodeURIComponent(id),{headers:{'Authorization':'Bearer '+t},cache:'no-store'});
+   if(r.status===401){localStorage.removeItem('hao_console_token');login();return}
+   const j=await r.json();
+   if(!r.ok||!j.ok) throw new Error(j.error||'历史明细读取失败');
+   DATA.detail=j.detail; TAB='detail'; render(); scrollTo(0,0);
+ }catch(err){
+   document.getElementById('app').innerHTML='<div class="loading">历史明细读取失败：'+esc(err.message)+'<br><br><button class="refresh" onclick="load()">返回控制台</button></div>';
+ }
+}
 function warning(){
  const bad=DATA.hj.run?.status==='recovered_partial'||DATA.hc.run?.status==='recovered_partial';
  return bad?'<div class="notice">⚠️ 当前首屏包含从既有对话恢复的历史记录。001–003豪竞Top1仍明确标记“未恢复”，不会根据赛果倒推。以后正式赛前冻结会按时间戳进入网站。</div>':'';
@@ -169,9 +187,31 @@ function render(){
    '</div></section>';
  }
  if(TAB==='history'){
-   b='<section class="section"><div class="shead"><h2>历史运行记录</h2><span>最新40次</span></div><div class="tablewrap"><table><thead><tr><th>日期</th><th>模型</th><th>池</th><th>范围</th><th>状态</th><th>完整</th><th>正式</th><th>来源</th></tr></thead><tbody>'+
-   DATA.history.map(r=>'<tr><td>'+esc(r.pool_date)+'</td><td><b>'+esc(r.model_name)+'</b></td><td>'+esc(r.pool_label||r.pool_kind)+'</td><td>'+esc(r.official_range||'—')+'</td><td>'+esc(r.status)+'</td><td>'+(r.data_complete?'✅':'⚠️')+'</td><td>'+(r.formal_allowed?'✅':'否')+'</td><td>'+esc(r.source_provenance||'—')+'</td></tr>').join('')+
+   b='<section class="section"><div class="shead"><h2>历史运行记录</h2><span>点“查看复盘”进入逐场明细</span></div><div class="tablewrap"><table><thead><tr><th>日期</th><th>模型</th><th>池</th><th>范围</th><th>状态</th><th>完整</th><th>正式</th><th>来源</th><th>复盘</th></tr></thead><tbody>'+
+   DATA.history.map(r=>'<tr class="clickrow" onclick="openRun('+Number(r.id)+')"><td>'+esc(r.pool_date)+'</td><td><b>'+esc(r.model_name)+' '+esc(r.model_version||'')+'</b></td><td>'+esc(r.pool_label||r.pool_kind)+'</td><td>'+esc(r.official_range||'—')+'</td><td>'+esc(r.status)+'</td><td>'+(r.data_complete?'✅':'⚠️')+'</td><td>'+(r.formal_allowed?'✅':'否')+'</td><td>'+esc(r.source_provenance||'—')+'</td><td><button class="historybtn" onclick="event.stopPropagation();openRun('+Number(r.id)+')">查看复盘</button></td></tr>').join('')+
    '</tbody></table></div></section>';
+ }
+ if(TAB==='detail'){
+   const d=DATA.detail||{},run=d.run||{},rows=d.rows||[],score=d.score||null;
+   const topScored=rows.filter(r=>r.top1&&r.result_verified), topHits=topScored.filter(hitTop);
+   const ticketScored=rows.filter(r=>r.ticket_pick&&r.result_verified), ticketHits=ticketScored.filter(hitTicket);
+   const statusText=run.status||'—';
+   b='<div style="margin-bottom:10px"><button class="backbtn" onclick="setTab(\'history\')">← 返回历史</button></div>'+
+     '<div class="grid">'+
+     metric('日期',run.pool_date||'—',run.pool_label||run.pool_kind||'')+
+     metric('模型',String(run.model_name||'—')+' '+String(run.model_version||''),'按当时真实版本保存')+
+     metric('记录等级',statusText,run.data_complete?'数据完整':'恢复/重建/部分记录',run.formal_allowed?'good':'warn')+
+     metric('逐场记录',String(rows.length),'当前run_id：'+String(run.id||'—'))+
+     metric('Top1命中',topHits.length+'/'+topScored.length,topScored.length?pct(topHits.length,topScored.length):'无可计Top1')+
+     metric('票面命中',ticketHits.length+'/'+ticketScored.length,ticketScored.length?pct(ticketHits.length,ticketScored.length):'无可计票面')+
+     metric('正式累计',run.formal_allowed?'是':'否',run.formal_allowed?'可进入严格正式样本':'仅供历史查看/复盘',run.formal_allowed?'good':'warn')+
+     metric('成绩记录',score?(String(score.hits)+'/'+String(score.scored_matches)):'—',score?'已有每日成绩表':'未单独固化成绩')+
+     '</div>'+
+     '<section class="section"><div class="shead"><h2>🔎 历史逐场复盘｜'+esc(run.model_name||'')+' '+esc(run.model_version||'')+'</h2><span>'+esc(run.pool_label||run.pool_kind||'')+' · '+esc(run.status||'')+'</span></div>'+
+     '<div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>Top1</th><th>第二方向</th><th>信心</th><th>Anchor</th><th>DQ/HPS</th><th>HUR</th><th>DTR</th><th>DLR</th><th>处理</th><th>票面</th><th>留/舍</th><th>冻结</th><th>赛果</th><th>Top1</th><th>票面</th></tr></thead><tbody>'+
+     rows.map(r=>'<tr><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'—')+'</td><td>'+esc(r.second_pick||'—')+'</td><td>'+esc(r.confidence_label||'—')+'</td><td>'+esc(r.anchor_status||'—')+'</td><td>'+esc(r.dq||'—')+' / '+esc(r.hps||'—')+'</td><td>'+esc(r.hur||'—')+'</td><td>'+esc(r.dtr||'—')+'</td><td>'+esc(r.dlr||'—')+'</td><td>'+esc(r.final_handling||'—')+'</td><td><b>'+esc(r.ticket_pick||'—')+'</b></td><td>'+esc(r.keep_discard||'—')+'</td><td>'+esc(r.freeze_status||'—')+'</td><td>'+esc(result(r))+'</td><td class="'+(!r.result_verified||!r.top1?'pending':hitTop(r)?'ok':'x')+'">'+(!r.result_verified?'⏳':!r.top1?'—':hitTop(r)?'✅':'❌')+'</td><td class="'+(!r.result_verified||!r.ticket_pick?'pending':hitTicket(r)?'ok':'x')+'">'+(!r.result_verified?'⏳':!r.ticket_pick?'—':hitTicket(r)?'✅':'❌')+'</td></tr>').join('')+
+     '</tbody></table></div>'+
+     '<div class="detailmeta"><b>来源：</b>'+esc(run.source_provenance||'—')+'<br><b>范围：</b>'+esc(run.official_range||'—')+'<br><b>备注：</b>'+esc(run.notes||'—')+'<br><b>原则：</b>历史重建/恢复记录只用于复盘；只有真正完整赛前冻结且正式闸门通过的样本进入正式累计。</div></section>';
  }
  if(TAB==='sources'){
    const last=DATA.sources.api_football_last?new Date(DATA.sources.api_football_last).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'无近期记录';
