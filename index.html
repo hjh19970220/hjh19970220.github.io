@@ -303,6 +303,29 @@ function handicapLab(){
  rows.map(r=>'<tr class="clickrow" onclick="openMatch(\'hj\',\''+esc(r.match_no)+'\')"><td><b>'+esc(r.match_no)+'</b></td><td>'+esc(r.home_team)+' - '+esc(r.away_team)+'</td><td>'+esc(r.top1||'—')+'</td><td>'+esc(r.official_handicap??'—')+'</td><td>'+esc(ssVal(r,'institution_handicap_confidence','机构让球信心')||'未确认')+'</td><td>'+esc(ssVal(r,'win_gate','Win Gate')||'未确认')+'</td><td>'+esc(ssVal(r,'margin_gate','Margin Gate')||'未确认')+'</td><td>'+esc(r.handicap_pick||'未确认')+'</td><td><span class="pill warn">Shadow Only</span></td></tr>').join('')+
  '</tbody></table></div>':'<div class="cards"><div class="card"><div class="tiny">当前运行没有保存完整让球影子字段。后续小时跑会按固定结构同步；缺失时保持未确认。</div></div></div>')+'</section>';
 }
+
+function nval(v){const n=Number(v);return Number.isFinite(n)?n:null}
+function probabilityPricePanel(r){
+ const s=r?.source_status||{}, p=s.probabilities||s.probability_1x2||{}, sp=s.official_sp_1x2||s.sporttery_sp_1x2||{};
+ const calibrated=p.calibrated===true||p.status==='calibrated';
+ const hp=nval(p.home??p.h),dp=nval(p.draw??p.d),ap=nval(p.away??p.a);
+ const hs=nval(sp.home??sp.h),ds=nval(sp.draw??sp.d),as=nval(sp.away??sp.a);
+ const probText=calibrated&&hp!=null&&dp!=null&&ap!=null
+   ? '主 '+(hp*100).toFixed(1)+'% / 平 '+(dp*100).toFixed(1)+'% / 客 '+(ap*100).toFixed(1)+'%'
+   : '未校准';
+ const spText=hs!=null&&ds!=null&&as!=null?'主 '+hs.toFixed(2)+' / 平 '+ds.toFixed(2)+' / 客 '+as.toFixed(2):'未确认';
+ let topP=null,topSp=null;
+ if(r.top1==='主胜'){topP=hp;topSp=hs}else if(r.top1==='平'){topP=dp;topSp=ds}else if(r.top1==='客胜'){topP=ap;topSp=as}
+ const be=topSp!=null&&topSp>0?1/topSp:null;
+ const ev=calibrated&&topP!=null&&topSp!=null?topP*topSp-1:null;
+ return '<section class="section"><div class="shead"><h2>💰 概率 × 价格</h2><span>只使用已校准概率 + 中国体彩官方SP</span></div><div class="grid" style="padding:12px">'+
+  metric('模型H/D/A',probText,calibrated?'已标记可校准':'不能用信心等级冒充概率',calibrated?'good':'warn')+
+  metric('体彩官方SP',spText,'普通胜平负官方SP')+
+  metric('Top1盈亏平衡率',be!=null?(be*100).toFixed(1)+'%':'未确认',topSp!=null?'1 / 官方SP':'缺官方SP')+
+  metric('Top1 EV',ev!=null?((ev>=0?'+':'')+(ev*100).toFixed(1)+'%'):'未确认',ev!=null?'模型概率×官方SP−1':'需同时有可校准概率与官方SP',ev!=null?(ev>0?'good':'warn'):'')+
+ '</div></section>';
+}
+
 function renderMatchDetail(){
  const d=DATA.matchDetail||{},r=d.row||{},isHC=d.kind==='hc';
  const back=isHC?'haochuan':'haojing';
@@ -324,6 +347,7 @@ function renderMatchDetail(){
  '<div class="card"><div class="kv"><div>市场结论</div><div>'+esc(market)+'</div><div>专业预测</div><div>'+esc(pro)+'</div><div>基本面</div><div>'+esc(facts)+'</div><div>最强支持</div><div>'+esc(strongestFor)+'</div><div>最强反对</div><div>'+esc(strongestAgainst)+'</div></div></div>'+
  '<div class="card"><div class="kv"><div>Anchor</div><div>'+esc(r.anchor_status||'—')+'</div><div>DQ/HPS</div><div>'+esc(r.dq||'—')+' / '+esc(r.hps||'—')+'</div><div>HUR</div><div>'+esc(r.hur||'—')+'</div><div>DTR</div><div>'+esc(r.dtr||'—')+'</div><div>DLR</div><div>'+esc(r.dlr||'—')+'</div><div>Cold-Type</div><div>'+esc(cold)+'</div><div>Strong Conflict</div><div>'+esc(r.strong_conflict||'—')+'</div><div>Top1 Rejection</div><div>'+esc(r.top1_rejection||'—')+'</div></div></div>'+
  '</div></section>'+
+ probabilityPricePanel(r)+
  '<section class="section"><div class="shead"><h2>🧩 独立证据域</h2><span>不按AI数量机械投票</span></div><div class="cards"><div class="card" style="grid-column:1/-1">'+renderEvidenceDomains(r)+'</div></div></section>'+
  '<section class="section"><div class="shead"><h2>📈 市场走势</h2><span>William / 澳门 / 体彩 · 初→即→临</span></div><div class="cards"><div class="card" style="grid-column:1/-1">'+renderTimeline(r)+'</div></div></section>'+
  (!isHC?'<section class="section"><div class="shead"><h2>⚽ 让球审计</h2><span>Shadow Only</span></div><div class="cards"><div class="card"><div class="kv"><div>官方让球</div><div>'+esc(r.official_handicap??'未确认')+'</div><div>机构让球信心</div><div>'+esc(inst)+'</div><div>Win Gate</div><div>'+esc(win)+'</div><div>Margin Gate</div><div>'+esc(margin)+'</div><div>让球Top1</div><div>'+esc(r.handicap_pick||'未确认')+'</div></div></div></div></section>':
