@@ -457,26 +457,26 @@ function renderCumulative(){
  '<section class="section"><div class="shead"><h2>🎯 预测质量</h2><span>命中率与概率质量分开看</span></div><div class="grid" style="padding:12px">'+
  metric('豪竞Top1',(hj.hits||0)+'/'+(hj.scored||0),pct(hj.hits,hj.scored))+
  metric('豪竞正式竞彩日',String(hj.days||0),'完整正式样本')+
- metric('Brier Score','待正式样本','仅在保存可校准赛前概率后计算')+
- metric('Log Loss','待正式样本','不使用“高/中/低”伪造概率')+
+ metric('Brier Score',hj.brier!=null?Number(hj.brier).toFixed(4):'待正式样本',hj.probabilityScored?('概率样本 '+hj.probabilityScored):'仅在保存可校准赛前概率后计算')+
+ metric('Log Loss',hj.logLoss!=null?Number(hj.logLoss).toFixed(4):'待正式样本',hj.probabilityScored?('概率样本 '+hj.probabilityScored):'不使用“高/中/低”伪造概率')+
  '</div></section>'+
  '<section class="section"><div class="shead"><h2>🛡️ 决策质量</h2><span>Gate既要统计净救，也要统计误杀</span></div><div class="grid" style="padding:12px">'+
  metric('Anchor',(hj.anchorHits||0)+'/'+(hj.anchorScored||0),pct(hj.anchorHits,hj.anchorScored))+
  metric('高信心',(hj.highHits||0)+'/'+(hj.highScored||0),pct(hj.highHits,hj.highScored))+
  metric('PASS错场隔离',(hj.passIsolated||0)+'/'+(hj.wrong||0),hj.wrong?pct(hj.passIsolated,hj.wrong):'待样本')+
- metric('PASS误杀','待固化','必须统计被PASS但Top1原本会命中的场，不能只报净救')+
+ metric('PASS误杀',hj.passFalseKills!=null&&hj.days?String(hj.passFalseKills):'待固化','被PASS但原Top1最终会命中的场，必须和隔离成功同时报告')+
  '</div></section>'+
  '<section class="section"><div class="shead"><h2>💰 价值质量</h2><span>准确 ≠ 有价值</span></div><div class="grid" style="padding:12px">'+
- metric('A组合命中率','待正式样本','只统计冻结A方案')+
- metric('B组合命中率','待正式样本','风险调整后EV方案')+
- metric('理论ROI','待正式样本','必须使用冻结体彩SP与真实结果')+
+ metric('A组合命中率',hj.aScored?pct(hj.aHits,hj.aScored):'待正式样本',hj.aScored?((hj.aHits||0)+'/'+hj.aScored):'只统计冻结A方案')+
+ metric('B组合命中率',hj.bScored?pct(hj.bHits,hj.bScored):'待正式样本',hj.bScored?((hj.bHits||0)+'/'+hj.bScored):'风险调整后EV方案')+
+ metric('C组合命中率',hj.cScored?pct(hj.cHits,hj.cScored):'待正式样本',hj.cScored?((hj.cHits||0)+'/'+hj.cScored):'只统计冻结C方案')+
  metric('CLV','待正式样本','需要可追溯临场赔率，不用事后均赔代替')+
  '</div></section>'+
  '<section class="section"><div class="shead"><h2>🎫 豪传2.2</h2><span>任9单独统计</span></div><div class="grid" style="padding:12px">'+
  metric('累计票面命中',(hc.hits||0)+'/'+(hc.scored||0),pct(hc.hits,hc.scored))+
  metric('正式期数',String(hc.issues||0),'完整正式样本')+
  metric('9/9',String(hc.full9||0),'完整命中期数')+
- metric('舍5隔离质量','待固化','同时报告救错与误舍')+
+ metric('舍5隔离质量',hc.discardScored?((hc.discardWouldHit||0)+'/'+hc.discardScored):'待固化',hc.discardScored?'被舍场中原Top1会命中的数量/舍场样本':'同时报告救错与误舍')+
  '</div></section>';
 }
 function renderHistory(){
