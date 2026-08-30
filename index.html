@@ -214,22 +214,82 @@ function sourceStatusSection(){
  ];
  return '<section class="section"><div class="shead"><h2>📡 数据完整度</h2><span>真实覆盖率，不用固定绿灯冒充实时</span></div><div class="cards">'+items.map(x=>'<div class="card"><div class="row"><b>'+esc(x[0])+'</b><span class="'+(/未|0\//.test(String(x[1]))?'x':'pending')+'">'+esc(x[1])+'</span></div><div class="tiny">'+esc(x[2])+'</div></div>').join('')+'</div></section>';
 }
+
+function compactPlaySummary(){
+ const rec=DATA.hj?.recommendations;
+ const titles=[['A',['A','a','safe2','best_safe_2'],'🟢 最稳2串'],['B',['B','b','value2','best_value_2'],'🟡 性价比2串'],['C',['C','c','triple3','best_3'],'🔵 最佳3串']];
+ if(!rec?.eligible){
+  return '<section class="section"><div class="shead"><h2>🎯 今日执行中心</h2><span>只显示模型正式冻结结果</span></div><div class="cards">'+
+   '<div class="card feature" style="grid-column:1/-1"><div class="row"><b>当前结论</b><span class="x">⛔ PASS / 不可执行</span></div><div class="bigpick">'+esc(rec?.reason||'当前无正式可执行方案')+'</div><div class="tiny">总览不补算A/B/C；只有豪竞2.2完整运行并通过正式闸门后才展示。</div></div>'+
+   '</div></section>';
+ }
+ const s=rec.saved||{};
+ return '<section class="section"><div class="shead"><h2>🎯 今日执行中心</h2><span>豪竞2.2正式A/B/C</span></div><div class="cards">'+
+ titles.map(x=>{
+   const p=normalizePlay(s,x[1]);
+   if(!p)return '<div class="card"><div class="row"><b>'+x[2]+'</b><span class="pending">未冻结</span></div><div class="tiny">模型本轮未保存该项正式输出。</div></div>';
+   const status=String(p.status||p.state||'READY').toUpperCase();
+   if(/PASS|NO_TICKET|DISABLED|UNAVAILABLE/.test(status))return '<div class="card"><div class="row"><b>'+x[2]+'</b><span class="x">⛔ PASS</span></div><div class="tiny">'+esc(p.reason||p.note||'模型正式输出为PASS')+'</div></div>';
+   const legs=Array.isArray(p.legs)?p.legs:Array.isArray(p.selections)?p.selections:[];
+   const text=legs.length?legs.map(legName).join(' × '):String(p.text||p.summary||'正式输出已冻结');
+   return '<div class="card"><div class="row"><b>'+x[2]+'</b><span class="ok">✅ 可执行</span></div><div class="bigpick">'+esc(text)+'</div><div class="tiny">'+[p.confidence?('信心 '+p.confidence):'',p.risk?('风险 '+p.risk):''].filter(Boolean).join(' ｜ ')+'</div></div>';
+ }).join('')+
+ '</div></section>';
+}
+function dashboardChangeRisk(){
+ const rows=DATA.hj?.rows||[];
+ const changed=rows.filter(r=>{
+   const v=String(r?.source_status?.hour_change||r?.source_status?.change||'');
+   return v && !/无实质变化|无变化|未确认/.test(v);
+ }).slice(0,6);
+ const risks=rows.filter(r=>
+   /高|红|强冲突/.test(String(r.hur||''))||
+   /高|红|强冲突/.test(String(r.dtr||''))||
+   /高|红|强冲突/.test(String(r.dlr||''))||
+   /强/.test(String(r.strong_conflict||''))
+ ).slice(0,6);
+ const left=changed.length?changed.map(r=>'<div class="tiny"><b>'+esc(r.match_no)+'</b> '+esc(r.home_team)+' - '+esc(r.away_team)+' ｜ '+esc(r?.source_status?.hour_change||r?.source_status?.change)+'</div>').join(''):'<div class="tiny">本轮没有数据库明确记录的实质临场变化。</div>';
+ const right=risks.length?risks.map(r=>'<div class="tiny"><b>'+esc(r.match_no)+'</b> '+esc(r.home_team)+' - '+esc(r.away_team)+' ｜ HUR '+esc(r.hur||'—')+' / DTR '+esc(r.dtr||'—')+' / DLR '+esc(r.dlr||'—')+(r.strong_conflict?' ｜ '+esc(r.strong_conflict):'')+'</div>').join(''):'<div class="tiny">当前逐场记录中没有明确的高风险/强冲突字段。</div>';
+ return '<section class="section"><div class="shead"><h2>⚡ 临场变化与风险</h2><span>只汇总数据库明确字段</span></div><div class="cards">'+
+  '<div class="card"><b>🔄 本轮变化</b>'+left+'</div>'+
+  '<div class="card"><b>🚨 风险提醒</b>'+right+'</div>'+
+ '</div></section>';
+}
+function dashboardModelStatus(){
+ const hj=DATA.hj||{},hc=DATA.hc||{},hm=activeModel('豪竞2.2'),cm=activeModel('豪传2.2');
+ const hr=hj.run||{},cr=hc.run||{},hcur=!!hj.recommendations?.current_revision,ccur=!!hc.current_revision;
+ const htxt=hr.formal_allowed&&hr.data_complete?'✅ 正式可执行':'⛔ 非正式/PASS';
+ const ctxt=cr.formal_allowed&&cr.data_complete?'✅ 正式冻结':'⚠️ 恢复/部分记录';
+ return '<section class="section"><div class="shead"><h2>🧭 双模型状态</h2><span>当前active模型与最近一次运行</span></div><div class="cards">'+
+  '<div class="card"><div class="row"><b>豪竞2.2</b><span class="'+(hr.formal_allowed&&hr.data_complete?'ok':'x')+'">'+htxt+'</span></div><div class="tiny">竞彩池：'+esc(hr.pool_label||'—')+'<br>运行：'+esc(fmtTime(hr.run_time))+'<br>修订：'+esc(hm?.revision_tag||'未登记')+'<br>运行匹配当前修订：'+(hcur?'✅':'⚠️')+'</div></div>'+
+  '<div class="card"><div class="row"><b>豪传2.2</b><span class="'+(cr.formal_allowed&&cr.data_complete?'ok':'pending')+'">'+ctxt+'</span></div><div class="tiny">期号：'+esc(cr.pool_label||'—')+'<br>运行：'+esc(fmtTime(cr.run_time))+'<br>修订：'+esc(cm?.revision_tag||'未登记')+'<br>运行匹配当前修订：'+(ccur?'✅':'⚠️')+'</div></div>'+
+ '</div></section>';
+}
+function dashboardCumulative(){
+ const cu=DATA.cumulative||{hj:{},hc:{}},hs=DATA.hj?.stats||{},cs=DATA.hc?.stats||{};
+ return '<section class="section"><div class="shead"><h2>📊 成绩快照</h2><span>当期观察 + 正式累计分开</span></div><div class="grid" style="padding:12px">'+
+  metric('当前豪竞Top1',hs.hits+'/'+hs.scored,pct(hs.hits,hs.scored))+
+  metric('当前豪传票面',cs.hits+'/'+cs.scored,'按已核验赛果')+
+  metric('正式豪竞累计',(cu.hj?.hits||0)+'/'+(cu.hj?.scored||0),pct(cu.hj?.hits,cu.hj?.scored))+
+  metric('正式豪传9/9',String(cu.hc?.full9||0),'正式期数 '+String(cu.hc?.issues||0))+
+ '</div></section>';
+}
 function dashboard(){
- const hj=DATA.hj,hc=DATA.hc,hs=hj.stats,cs=hc.stats,cu=DATA.cumulative||{hj:{},hc:{}};
- let b=modelStatusBlock()+integrityNotice()+todayPlaySection();
- b+='<div class="grid">'+
-  metric('豪竞全池Top1',hs.hits+'/'+hs.scored,hs.wrong+'场错 · 已结算可计场')+
-  metric('豪竞命中率',pct(hs.hits,hs.scored),'PASS场仍计全池Top1分母',hs.scored&&hs.hits/hs.scored>=.65?'good':'warn')+
-  metric('Anchor/候选',hs.ahits+'/'+hs.anchors,hs.anchors?pct(hs.ahits,hs.anchors):'待正式样本')+
-  metric('PASS错场隔离',hs.isolated+'/'+hs.wrong,'只统计已有赛果且当时已PASS')+
-  metric('豪传当前命中',cs.hits+'/'+cs.scored,'按冻结票面核算')+
-  metric('豪竞池',hj.run?.pool_label||'—',(hj.run?.official_range||'—')+' · '+(hj.run?.total_matches||0)+'场')+
-  metric('运行资格',hj.run?.formal_allowed?'正式':'非正式',hj.run?.data_complete?'数据完整':'数据不完整',hj.run?.formal_allowed?'good':'bad')+
-  metric('正式累计',String(cu.hj?.days||0)+'个竞彩日','只累计完整赛前冻结')+
-  '</div>';
- b+=sourceStatusSection();
+ const hj=DATA.hj||{},hc=DATA.hc||{},rec=hj.recommendations||{};
+ const run=hj.run||{};
+ const action=rec.eligible?'✅ 当前存在豪竞2.2正式可执行方案':'⛔ 当前不执行';
+ const reason=rec.eligible?'A/B/C来自完整模型运行后的正式冻结。':(rec.reason||'当前无正式可执行结论');
+ let b='<div class="hero"><div class="heroMain"><div class="heroTitle">今天最重要的一句话</div><div class="heroValue">'+action+'</div><div class="heroSub">'+esc(reason)+'<br>竞彩池：'+esc(run.pool_label||'—')+' ｜ 最近运行：'+esc(fmtTime(run.run_time))+'</div></div><div class="heroSide">'+
+   metric('豪竞运行',run.data_complete?'完整':'不完整',run.formal_allowed?'正式可执行':'正式闸门未通过',run.formal_allowed&&run.data_complete?'good':'bad')+
+   metric('豪传状态',hc.run?.pool_label||'—',hc.run?.status||'—',hc.run?.formal_allowed?'good':'warn')+
+  '</div></div>';
+ b+=compactPlaySummary();
+ b+=dashboardModelStatus();
+ b+=dashboardChangeRisk();
+ b+=dashboardCumulative();
  return b;
 }
+
 function renderHaojing(){
  const hj=DATA.hj;
  return modelStatusBlock()+integrityNotice()+todayPlaySection()+
