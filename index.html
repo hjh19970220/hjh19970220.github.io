@@ -1,7 +1,10 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07111f">
 <title>豪模型私人控制台</title>
@@ -16,6 +19,7 @@
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
+const APP_BUILD='2026-08-31 19:17 中文状态版';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct=(a,b)=>b?(a*100/b).toFixed(1)+'%':'—';
@@ -64,7 +68,7 @@ function statusZh(v){
  };
  return m[s]||s||'—';
 }
-function statusRaw(v){const z=statusZh(v),s=String(v||'');return z+(s&&z!==s?'<div class="tiny" style="opacity:.55">'+esc(s)+'</div>':'')}
+function statusRaw(v){return esc(statusZh(v))}
 function topProb(r){const p=r?.source_status?.top1_prob;return p==null?'—':(Number(p)*100).toFixed(1)+'%'}
 function hcExtra(r,k){const s=r?.source_status||{};const aliases={single:['single_eligibility','singleEligibility'],opp:['single_opportunity_cost','opportunity_cost'],hpsclass:['hps_class','hpsClass'],role:['ticket_role','final_role']};for(const x of aliases[k]||[])if(s[x]!=null)return s[x];return '—'}
 function rowsTable(kind){const d=kind==='hj'?DATA.hj:DATA.hc,n=activeNames(),rows=d?.rows||[];
