@@ -61,9 +61,9 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-08-31 22:12 StrongConflict中文状态';
+const APP_BUILD='2026-08-31 22:15 防刷新死循环修复';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null;
-async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);u.searchParams.set('v',j.build);location.replace(u.toString())}}catch(_){}}
+async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);if(u.searchParams.get('v')!==String(j.build)){u.searchParams.set('v',j.build);location.replace(u.toString())}}}catch(_){}}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct=(a,b)=>b?(a*100/b).toFixed(1)+'%':'—';
 const fmtTime=v=>{if(!v)return '—';try{return new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v))}catch{return String(v)}};
