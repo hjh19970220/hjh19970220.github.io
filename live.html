@@ -61,7 +61,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-08-31 22:01 豪竞表格列对齐修复';
+const APP_BUILD='2026-08-31 22:03 二审状态中文化';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct=(a,b)=>b?(a*100/b).toFixed(1)+'%':'—';
@@ -116,7 +116,7 @@ function statusZh(v){
 }
 function statusRaw(v){return esc(statusZh(v))}
 function topProb(r){const p=r?.source_status?.top1_prob;return p==null?'—':(Number(p)*100).toFixed(1)+'%'}
-function teacherActionZh(r){const s=r?.source_status||{},a=String(s.teacher_post_gate_action||'NO_ACTION');const m={SUPPORT:'✅ SUPPORT',NO_ACTION:'— NO_ACTION',REVIEW:'🟡 REVIEW',STRONG_CONFLICT:'🔴 STRONG CONFLICT'};return m[a]||a}
+function teacherActionZh(r){const s=r?.source_status||{},a=String(s.teacher_post_gate_action||'NO_ACTION');const m={SUPPORT:'✅ 二审支持',NO_ACTION:'— 不调整',REVIEW:'🟡 二审复核',STRONG_CONFLICT:'🔴 二审强冲突'};return m[a]||a}
 function teacherScore(r){const s=r?.source_status||{},b=s.teacher_base_selection_score,a=s.teacher_adjustment,f=s.teacher_final_selection_score;if(b==null)return '—';return Number(b).toFixed(1)+' '+(Number(a)>=0?'+':'')+Number(a||0).toFixed(0)+' → '+Number(f).toFixed(1)}
 function teacherMember(v,agr){if(!v)return 'ABSTAIN';const z={SAME:'同向',PARTIAL:'部分覆盖',DIFFERENT:'反向',NONE:'ABSTAIN'};return String(v)+'（'+(z[agr]||agr||'—')+'）'}
 function hcExtra(r,k){const s=r?.source_status||{};const aliases={single:['single_eligibility','singleEligibility'],opp:['single_opportunity_cost','opportunity_cost'],hpsclass:['hps_class','hpsClass'],role:['ticket_role','final_role']};for(const x of aliases[k]||[])if(s[x]!=null)return s[x];return '—'}
