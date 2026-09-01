@@ -61,7 +61,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-01 03:28 冻结串关赛果联动';
+const APP_BUILD='2026-09-01 03:36 豪传任9赛果联动';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);u.searchParams.set('v',j.build);location.replace(u.toString())}}catch(_){}}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -138,6 +138,7 @@ function dashboard(){const hr=DATA.hj?.run||{},cr=DATA.hc?.run||{},hs=DATA.hj?.s
 function renderHaojing(){return modelHeader()+plays()+rowsTable('hj')+sourceStatusSection()}
 function hcOutcomeLabel(v){return v==='3'?'主胜':v==='1'?'平':v==='0'?'客胜':v}
 function hcMatchLabel(no){const r=(DATA.hc?.rows||[]).find(x=>String(x.match_no).padStart(2,'0')===String(no).padStart(2,'0'));return r?String(no).padStart(2,'0')+' '+r.home_team+'-'+r.away_team:String(no).padStart(2,'0')}
+function hcTicketOutcome(rows,ticket){const nos=Object.keys(ticket||{});if(!nos.length)return null;let settled=0,hit=0;for(const no of nos){const rr=rows.find(x=>String(x?.match_no??'').padStart(2,'0')===String(no).padStart(2,'0'));if(!rr||!rr.result_verified)continue;settled++;if(String(ticket[no]||'').includes(String(rr.result_1x2)))hit++}if(settled<nos.length)return{state:'PENDING',label:'⏳ 待结算',detail:'已结算 '+settled+'/'+nos.length,hit,settled,total:nos.length};if(hit===nos.length)return{state:'HIT',label:'✅ 任9命中',detail:hit+'/'+nos.length+' 全中',hit,settled,total:nos.length};return{state:'MISS',label:'❌ 任9未命中',detail:hit+'/'+nos.length+' 命中',hit,settled,total:nos.length}}
 function hcRiskScore(r){let n=0;if(r.hur==='红')n+=5;else if(r.hur==='黄')n+=2;if(r.dtr==='红'||r.dlr==='红')n+=4;if(r.dtr==='黄'||r.dlr==='黄')n+=2;const o=hcExtra(r,'opp');if(o==='PROHIBITIVE')n+=4;else if(o==='HIGH')n+=2;if(r.dq==='DQ-C'||r.dq==='DQ-D')n+=4;return n}
 function hcSummary(){
  const run=DATA.hc?.run,rows=DATA.hc?.rows||[],s=run?.raw_summary||{};
@@ -147,13 +148,15 @@ function hcSummary(){
  const singles=s.singles_4||{},doubles=s.doubles_5||{},ticket=s.ticket_310||{};
  const ticketNos=Object.keys(ticket).sort((a,b)=>Number(a)-Number(b));
  const ready=s.ticket_status==='READY'&&ticketNos.length===9;
+ const outcome=ready?hcTicketOutcome(rows,ticket):null;
  const risks=rows.filter(r=>r.keep_discard==='留').sort((a,b)=>hcRiskScore(b)-hcRiskScore(a)).slice(0,3);
  const issue=s.issue_no||run.pool_label||'—',cut=s.cutoff_bjt?String(s.cutoff_bjt).replace('T',' ').slice(0,16):'未记录';
- const ticketGrid=ticketNos.map(no=>'<div class="card" style="min-width:120px"><div class="tiny">'+esc(hcMatchLabel(no))+'</div><div style="font-size:24px;font-weight:900;margin-top:6px">'+esc(ticket[no])+'</div><div class="tiny">'+esc(String(ticket[no]).split('').map(hcOutcomeLabel).join(' / '))+'</div></div>').join('');
+ const ticketGrid=ticketNos.map(no=>{const rr=rows.find(x=>String(x?.match_no??'').padStart(2,'0')===String(no).padStart(2,'0')),settled=!!rr?.result_verified,ok=settled&&String(ticket[no]||'').includes(String(rr.result_1x2)),mark=!settled?'⏳':ok?'✅':'❌';return '<div class="card" style="min-width:120px"><div class="tiny">'+esc(hcMatchLabel(no))+' '+mark+'</div><div style="font-size:24px;font-weight:900;margin-top:6px">'+esc(ticket[no])+'</div><div class="tiny">'+esc(String(ticket[no]).split('').map(hcOutcomeLabel).join(' / '))+(settled?' ｜ 实际 '+esc(hcOutcomeLabel(rr.result_1x2)):'')+'</div></div>'}).join('');
  const singlesText=Object.keys(singles).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = '+singles[no]+'（'+hcOutcomeLabel(singles[no])+'）').join('<br>');
  const doublesText=Object.keys(doubles).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = '+doubles[no]+'（'+String(doubles[no]).split('').map(hcOutcomeLabel).join('/')+'）').join('<br>');
  const riskText=risks.length?risks.map(r=>'<b>'+esc(String(r.match_no).padStart(2,'0'))+' '+esc(r.home_team)+'-'+esc(r.away_team)+'</b> · HUR '+esc(r.hur||'—')+' / DTR '+esc(r.dtr||'—')+' / DLR '+esc(r.dlr||'—')+' · '+esc(hcExtra(r,'opp'))).join('<br>'):'暂无';
- return '<section class="section"><div class="shead"><h2>本期结论｜'+esc(issue)+'</h2><span>停售 '+esc(cut)+'</span></div>'+
+ const outcomeNotice=outcome?(outcome.state==='HIT'?'<div class="notice good" style="margin:12px"><b>✅ 本期任9已命中：</b> '+esc(outcome.detail)+'</div>':outcome.state==='MISS'?'<div class="notice bad" style="margin:12px"><b>❌ 本期任9未命中：</b> '+esc(outcome.detail)+'</div>':'<div class="notice warn" style="margin:12px"><b>⏳ 本期任9待结算：</b> '+esc(outcome.detail)+'</div>'):'';
+ return '<section class="section"><div class="shead"><h2>本期结论｜'+esc(issue)+'</h2><span>停售 '+esc(cut)+'</span></div>'+outcomeNotice+
  '<div class="grid4" style="padding:12px">'+metric('票面状态',ready?'READY':'PASS',ready?'可形成正式64元票':'不要强行下注',ready?'good':'warn')+metric('留9 / 舍5',retained.length+' / '+discarded.length,'舍：'+esc(discarded.join('、')))+metric('结构',Object.keys(singles).length+'单 + '+Object.keys(doubles).length+'双',(s.combination_count||'—')+'注')+metric('总金额',(s.cost_rmb!=null?s.cost_rmb:'—')+'元','上限64元',Number(s.cost_rmb)<=64?'good':'bad')+'</div>'+
  (ready?'<div class="notice good" style="margin:12px"><b>✅ 最终下注方案：</b> '+ticketNos.map(no=>String(no).padStart(2,'0')+'='+ticket[no]).join('　')+'</div>':'<div class="notice warn" style="margin:12px">⚠️ 当前没有通过完整出票闸门，不生成正式下注方案。</div>')+
  (ready?'<div class="cards" style="padding:0 12px 12px">'+ticketGrid+'</div>':'')+
