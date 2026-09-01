@@ -20,7 +20,7 @@ html,body,#app{width:100%;max-width:100%;min-width:0;overflow-x:hidden}
 .top,.top>div,.topright,.hero,.heroMain,.heroSide,.grid,.grid4,.section,.cards,.card,.metric,.sourcegrid,.sourceCard,.shead{min-width:0}
 .subtitle,.tiny,.heroMain,.metric,.card,.sourceCard,.shead h2,.shead span{overflow-wrap:anywhere;word-break:break-word}
 .tablewrap{width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.tablewrap table{width:max-content;min-width:100%;max-width:none}.hjtablewrap{padding-left:12px;padding-right:10px;scroll-behavior:auto;overscroll-behavior-x:contain}
+.tablewrap table{width:max-content;min-width:100%;max-width:none}.hjtablewrap{margin-left:18px;width:calc(100% - 18px);max-width:calc(100% - 18px);padding-left:0;padding-right:10px;scroll-behavior:auto;overscroll-behavior-x:contain}
 nav{width:100%;max-width:100%;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
 nav::-webkit-scrollbar{display:none}
 .actions{width:100%;max-width:100%}
@@ -61,7 +61,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-01 02:52 豪竞全池横向滚动归零修复';
+const APP_BUILD='2026-09-01 02:58 豪竞全池滚动视口右移修复';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);if(u.searchParams.get('v')!==String(j.build)){u.searchParams.set('v',j.build);location.replace(u.toString())}}}catch(_){}}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
