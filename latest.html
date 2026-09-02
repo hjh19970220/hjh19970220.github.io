@@ -61,7 +61,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-01 12:24 豪篮自动链路接通';
+const APP_BUILD='2026-09-02 16:52 让球灯颜色修复v1';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);u.searchParams.set('v',j.build);location.replace(u.toString())}}catch(_){}}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -122,7 +122,7 @@ function topProb(r){const p=r?.source_status?.top1_prob;return p==null?'—':(Nu
 function hjRiskBadge(r){const xs=[r?.hur,r?.dtr,r?.dlr].filter(Boolean);if(xs.includes('红'))return '🔴 高';if(xs.includes('黄'))return '🟡 中';if(xs.length&&xs.every(x=>x==='绿'||x==='NA'))return '🟢 低';return '⚪ 未确认'}
 function hjFtCompact(r){const p=topProb(r),c=r?.confidence_label||'—';return (r?.top1||'未确认')+(p!=='—'?' '+p:'')+' · '+c}
 function hjHandicapCompact(r){const s=r?.source_status||{},p=s.handicap_final_pick||r?.handicap_pick||'未确认',h=r?.official_handicap??'—';return String(h)+' · '+String(p)}
-function hjHandicapLight(r){const s=r?.source_status||{},x=String(s.handicap_light||'').toUpperCase(),lab=s.handicap_light_label||'⚪';if(x==='GREEN')return lab+' 可选';if(x==='YELLOW')return lab+' 观察';if(x==='RED')return lab+' PASS';return lab+' 未确认'}
+function hjHandicapLight(r){const s=r?.source_status||{},x=String(s.handicap_light||'').toUpperCase(),lab=s.handicap_light_label||(x==='GREEN'?'🟢':x==='YELLOW'?'🟡':x==='RED'?'🔴':'⚪');if(x==='GREEN')return lab+' 可选';if(x==='YELLOW')return lab+' 观察';if(x==='RED')return lab+' PASS';return lab+' 未确认'}
 function hjFinalLeg(r){const s=r?.source_status||{};return s.final_selection_light_label||statusZh(r?.final_handling||r?.anchor_status||'—')}
 function teacherActionZh(r){const s=r?.source_status||{},a=String(s.teacher_post_gate_action||'NO_ACTION');const m={SUPPORT:'✅ 二审支持',NO_ACTION:'— 不调整',REVIEW:'🟡 二审复核',STRONG_CONFLICT:'🔴 二审强冲突'};return m[a]||a}
 function teacherScore(r){const s=r?.source_status||{},b=s.teacher_base_selection_score,a=s.teacher_adjustment,f=s.teacher_final_selection_score;if(b==null)return '—';return Number(b).toFixed(1)+' '+(Number(a)>=0?'+':'')+Number(a||0).toFixed(0)+' → '+Number(f).toFixed(1)}
