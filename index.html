@@ -61,7 +61,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-01 CORS连接修复v6';
+const APP_BUILD='2026-09-02 16:52 让球灯颜色修复v1';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);u.searchParams.set('v',j.build);u.searchParams.set('t',Date.now());location.replace(u.toString());return true}return false}catch(_){return false}}
 function forcePageRefresh(){const u=new URL(location.href);u.searchParams.set('v',APP_BUILD);u.searchParams.set('t',Date.now().toString());location.replace(u.toString())}
@@ -126,7 +126,7 @@ function hjFtGap(r){const g=Number(r?.source_status?.gap);return Number.isFinite
 function hjHandicapSupport(r){const s=r?.source_status||{},raw=s.handicap_support_count??(Array.isArray(s.handicap_support_domains)?s.handicap_support_domains.length:null),n=Number(raw);if(!Number.isFinite(n))return '支持—';const k=Math.max(0,Math.min(4,Math.round(n))),p=Math.round(k/4*100);return '支持'+k+'/4（'+p+'%）'}
 function hjFtCompact(r){const p=topProb(r),c=r?.confidence_label||'—',g=hjFtGap(r);return (r?.top1||'未确认')+(p!=='—'?' '+p:'')+' · 信心'+c+(g!=='—'?' · 分离'+g:'')}
 function hjHandicapCompact(r){const s=r?.source_status||{},p=s.handicap_final_pick||r?.handicap_pick||'未确认',h=r?.official_handicap??'—';return String(h)+' · '+String(p)}
-function hjHandicapLight(r){const s=r?.source_status||{},x=String(s.handicap_light||'').toUpperCase(),lab=s.handicap_light_label||'⚪',sup=hjHandicapSupport(r);if(x==='GREEN')return lab+' 可选 · '+sup;if(x==='YELLOW')return lab+' 观察 · '+sup;if(x==='RED')return lab+' PASS · '+sup;return lab+' 未确认 · '+sup}
+function hjHandicapLight(r){const s=r?.source_status||{},x=String(s.handicap_light||'').toUpperCase(),lab=s.handicap_light_label||(x==='GREEN'?'🟢':x==='YELLOW'?'🟡':x==='RED'?'🔴':'⚪'),sup=hjHandicapSupport(r);if(x==='GREEN')return lab+' 可选 · '+sup;if(x==='YELLOW')return lab+' 观察 · '+sup;if(x==='RED')return lab+' PASS · '+sup;return lab+' 未确认 · '+sup}
 function hjFinalLeg(r){const s=r?.source_status||{};return s.final_selection_light_label||statusZh(r?.final_handling||r?.anchor_status||'—')}
 function teacherActionZh(r){const s=r?.source_status||{},a=String(s.teacher_post_gate_action||'NO_ACTION');const m={SUPPORT:'✅ 二审支持',NO_ACTION:'— 不调整',REVIEW:'🟡 二审复核',STRONG_CONFLICT:'🔴 二审强冲突'};return m[a]||a}
 function teacherScore(r){const s=r?.source_status||{},b=s.teacher_base_selection_score,a=s.teacher_adjustment,f=s.teacher_final_selection_score;if(b==null)return '—';return Number(b).toFixed(1)+' '+(Number(a)>=0?'+':'')+Number(a||0).toFixed(0)+' → '+Number(f).toFixed(1)}
