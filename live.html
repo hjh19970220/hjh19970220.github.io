@@ -61,7 +61,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-02 17:38 详情字段与新老师修复v4';
+const APP_BUILD='2026-09-02 18:05 全链路口径统一v5';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);if(u.searchParams.get('v')!==String(j.build)){u.searchParams.set('v',j.build);location.replace(u.toString())}}}catch(_){}}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -134,7 +134,7 @@ function hcHpsZh(v){const m={KEEP_CORE:'核心保留',KEEP:'保留',BORDERLINE:'
 function hcRoleZh(v){const m={SINGLE:'单选',DOUBLE:'双选',DISCARD:'舍弃'};return m[String(v||'').toUpperCase()]||v||'—'}
 function hcTicketStatusZh(v){const x=String(v||'').toUpperCase();if(x==='READY')return '✅ 可出票';if(x==='PASS')return '⚠️ 暂停出票';return v||'未确认'}
 function intelFor(kind,r){const xs=DATA?.intelligence?.[kind]||[],no=String(r?.match_no??'').padStart(2,'0'),h=String(r?.home_team||'').trim(),a=String(r?.away_team||'').trim();return xs.filter(x=>String(x?.match_no??'').padStart(2,'0')===no&&(!x.home_team||String(x.home_team).trim()===h)&&(!x.away_team||String(x.away_team).trim()===a))}
-function intelSourceZh(v){const x=String(v||'').toLowerCase();return x==='fotmob'?'FotMob':x==='7m'?'7M':x==='sina_xiaopao'?'新浪小炮':v||'未确认'}
+function intelSourceZh(v){const x=String(v||'').toLowerCase();return x==='fotmob'?'FotMob':x==='jiebao'?'捷报 / Nowscore':x==='sina_xiaopao'?'新浪小炮':v||'未确认'}
 function intelBadge(kind,r){const xs=intelFor(kind,r);if(!xs.length)return '⚪ 未确认';const ss=[...new Set(xs.map(x=>intelSourceZh(x.source_code)))];return '📰 '+xs.length+'条 · '+ss.join('/')}
 function intelDetailHtml(kind,r){const xs=intelFor(kind,r);if(!xs.length)return '<span class="warn">⚪ 当前未采集到可核验情报</span>';return xs.slice(0,8).map(x=>'<div style="margin-bottom:8px"><b>'+esc(intelSourceZh(x.source_code))+'</b>'+(x.evidence_grade?' · '+esc(x.evidence_grade):'')+(x.source_published_at?' · '+esc(fmtTime(x.source_published_at)):'')+(x.affects_formal?' · <span class="good">已进入正式审计</span>':' · <span class="warn">采集/影子</span>')+'<br>'+esc(x.fact_text||x.headline||x.category||'已采集，暂无摘要')+'</div>').join('')}
 function intelStatusSection(kind){const rows=kind==='hj'?(DATA.hj?.rows||[]):(DATA.hc?.rows||[]),xs=DATA?.intelligence?.[kind]||[],total=rows.length||0;const cnt=code=>new Set(xs.filter(x=>String(x.source_code)===code).map(x=>String(x.match_no).padStart(2,'0'))).size;const matched=new Set(xs.map(x=>String(x.match_no).padStart(2,'0'))).size;return '<section class="section"><div class="shead"><h2>📰 情报中心</h2><span>FotMob + 7M + 新浪小炮 · 与'+(kind==='hj'?'豪竞':'豪传')+'比赛池独立匹配</span></div><div class="grid4" style="padding:12px">'+metric('情报覆盖',matched+'/'+total,matched?'已有逐场情报':'等待小时采集',matched?'good':'warn')+metric('FotMob',cnt('fotmob')+'/'+total,'结构化数据/阵容/伤停',cnt('fotmob')?'good':'warn')+metric('7M',cnt('7m')+'/'+total,'中文赛前情报',cnt('7m')?'good':'warn')+metric('新浪小炮',cnt('sina_xiaopao')+'/'+total,'竞彩有利/不利/伤停/轮换',cnt('sina_xiaopao')?'good':'warn')+'</div><div class="tiny" style="padding:0 12px 12px">同一事实跨源只计一次；冻结后抓到的消息不会倒灌进冻结前结论。逐场表“情报”列可查看是否已有内容。</div></section>'}
