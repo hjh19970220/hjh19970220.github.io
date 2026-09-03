@@ -74,13 +74,17 @@ nav::-webkit-scrollbar{display:none}
 .scoreTop3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.scoreTop3>div{border:1px solid #285477;border-radius:12px;text-align:center;padding:10px;background:#0c1b2d}.scoreTop3 b{display:block;font-size:19px}.scoreTop3 span{font-size:11px;color:#8aa7c3}
 @media(max-width:720px){.hjquickgrid{grid-template-columns:1fr}.hjqcard{padding:12px}.hjqteams{font-size:15px}.scoreMatrix{grid-template-columns:repeat(4,1fr)}}
 
+
+.hjqresult{margin-top:10px;padding:8px 10px;border-radius:10px;background:#0b1a2b;border:1px solid #1d3a5a;font-size:12px;font-weight:800}
+.hjqresult.good{border-color:#24764f;color:#8fe1b2}.hjqresult.bad{border-color:#713342;color:#ff9dad}.hjqresult.warn{border-color:#765821;color:#e7c477}
+
 </style>
 </head>
 <body>
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-03 10:26 豪竞极速总览v1';
+const APP_BUILD='2026-09-03 10:34 豪竞极速总览v1.1';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);u.searchParams.set('v',j.build);u.searchParams.set('t',Date.now());location.replace(u.toString());return true}return false}catch(_){return false}}
 function forcePageRefresh(){const u=new URL(location.href);u.searchParams.set('v',APP_BUILD);u.searchParams.set('t',Date.now().toString());location.replace(u.toString())}
@@ -199,12 +203,15 @@ function hjQuickScoreHtml(r){
 function hjQuickCard(r){
   const s=r?.source_status||{},p=topProb(r),d=hjPoissonScoreData(r),goal=d?d.goalBand.label+' '+(d.goalBand.p*100).toFixed(1)+'%':'进球数未确认';
   const t=fmtTime(r.kickoff_bjt),time=t==='—'?'—':t.split(' ').pop()||t;
+  const settled=!!r.result_verified,hit=settled&&r.top1&&hitTop(r),resClass=!settled?'warn':hit?'good':'bad';
+  const resText=!settled?'⏳ 赛果：待结算':('赛果：'+result(r)+(hit?' · ✅ Top1命中':' · ❌ Top1未中'));
   return '<div class="hjqcard" onclick="showMatch(\'hj\',\''+esc(r.match_no)+'\')">'+
     '<div class="hjqhead"><div><span class="hjqno">'+esc(r.match_no)+'</span> <span class="hjqleague">'+esc(r.league||'')+'</span></div><span class="hjqtime">'+esc(time)+'</span></div>'+
     '<div class="hjqteams">'+esc(r.home_team)+' <span style="color:#5f7892;font-weight:600">vs</span> '+esc(r.away_team)+'</div>'+
     '<div class="hjqline"><div class="hjqpick">'+esc(r.top1||'未确认')+'</div><div class="hjqprob">'+esc(p)+' · 信心'+esc(r.confidence_label||'—')+'</div></div>'+
     '<div class="hjqchips"><span class="hjqchip">'+esc(hjRiskBadge(r))+'</span><span class="hjqchip">'+esc(hjFinalLeg(r))+'</span><span class="hjqchip">⚽ '+esc(goal)+'</span></div>'+
     hjQuickScoreHtml(r)+
+    '<div class="hjqresult '+resClass+'">'+esc(resText)+'</div>'+
     '<div class="hjqfoot">'+esc(hjQuickConclusion(r))+'</div>'+
   '</div>';
 }
