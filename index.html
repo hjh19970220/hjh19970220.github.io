@@ -84,7 +84,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-04 豪传赛果状态v3';
+const APP_BUILD='2026-09-04 GPT二审真执行闸门v4';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
 function forcePageRefresh(){const u=new URL(location.href);u.searchParams.set('v',APP_BUILD);u.searchParams.set('t',Date.now().toString());location.replace(u.toString())}
@@ -220,6 +220,14 @@ function teacherCoverageZh(s){
 
 function hjTeacherDetailSection(r){
  const s=r?.source_status||{},g=s.teacher_g_had||null,st=String(s.teacher_g_source_status||''),a=String(s.teacher_post_gate_action||'NO_ACTION');
+ const reviewedStatus=['confirmed_prematch_independent_review','confirmed_prematch_review','confirmed'].includes(st);
+ const reviewedEvidence=!!(s.teacher_g_reviewed_at||s.teacher_g_final_conclusion||s.teacher_g_support_evidence||s.teacher_g_opposition_evidence||g);
+ const gptReviewed=reviewedStatus&&reviewedEvidence;
+ if(!gptReviewed){
+  const why=st==='not_injected_server_runtime'?'服务器运行未注入GPT-5.6 Sol二审':st==='fetch_failed'?'GPT二审获取失败':st==='not_covered'?'本场未进入GPT二审覆盖':(st?'二审状态='+st:'没有真实GPT二审记录');
+  return '<section class="section"><div class="shead"><h2>🤖 GPT-5.6 Sol 二审明细</h2><span>真实二审闸门</span></div>'+
+   '<div class="notice warn" style="margin:12px"><b>⚪ 二审未执行：</b> '+esc(why)+'。本场不生成方向判断、黄灯仲裁、基本面审计或“最强证据”二审结论；页面下方市场/Elo/Poisson属于一审数据，不得冒充GPT二审。</div></section>';
+ }
  const az={SUPPORT:'✅ 支持Top1',REVIEW:'🟡 反对/要求复核',STRONG_CONFLICT:'🔴 强冲突',NO_ACTION:'⚪ ABSTAIN / 不调整'}[a]||a;
  const sz=st==='not_injected_server_runtime'?'⚪ 本轮未注入 · ABSTAIN':st==='confirmed_prematch_independent_review'?'✅ 已完成赛前独立二审':st==='confirmed_prematch_review'?'✅ 已完成赛前二审':st==='confirmed'?'✅ 已确认':st==='fetch_failed'?'⚠️ 获取失败 · ABSTAIN':st==='not_covered'?'⚪ 未覆盖 · ABSTAIN':(st||'⚪ 未确认');
  const arbRaw=String(s.teacher_g_yellow_arbitration||'').toUpperCase();
