@@ -220,20 +220,79 @@ function teacherCoverageZh(s){
 
 function hjTeacherDetailSection(r){
  const s=r?.source_status||{},g=s.teacher_g_had||null,st=String(s.teacher_g_source_status||''),a=String(s.teacher_post_gate_action||'NO_ACTION');
- const az={SUPPORT:'✅ 支持',REVIEW:'🟡 要求复核',STRONG_CONFLICT:'🔴 强冲突',NO_ACTION:'⚪ 不调整'}[a]||a;
+ const az={SUPPORT:'✅ 支持Top1',REVIEW:'🟡 反对/要求复核',STRONG_CONFLICT:'🔴 强冲突',NO_ACTION:'⚪ ABSTAIN / 不调整'}[a]||a;
  const sz=st==='not_injected_server_runtime'?'⚪ 本轮未注入 · ABSTAIN':st==='confirmed_prematch_independent_review'?'✅ 已完成赛前独立二审':st==='confirmed_prematch_review'?'✅ 已完成赛前二审':st==='confirmed'?'✅ 已确认':st==='fetch_failed'?'⚠️ 获取失败 · ABSTAIN':st==='not_covered'?'⚪ 未覆盖 · ABSTAIN':(st||'⚪ 未确认');
+ const arbRaw=String(s.teacher_g_yellow_arbitration||'').toUpperCase();
+ const arb=arbRaw==='RESCUE'||arbRaw==='可救黄灯'?'🟢 可救黄灯':arbRaw==='HOLD'||arbRaw==='保持黄灯'?'🟡 保持黄灯':arbRaw==='BLOCK'||arbRaw==='禁止救援'?'🔴 禁止救援':'⚪ ABSTAIN / 未仲裁';
  const sup=[],opp=[];
- if((s.market_direction_conflict===false||String(s.market_direction_conflict)==='false')&&r.top1)sup.push('市场主方向未与首选冲突');
- if(s.sp_top1===r.top1)sup.push('竞彩胜平负赔率方向与首选一致');
- const e=Number(s?.elo?.elo_diff);if(Number.isFinite(e)&&((r.top1==='主胜'&&e>0)||(r.top1==='客胜'&&e<0)))sup.push('实力评分支持'+r.top1+'（差 '+Math.abs(e).toFixed(1)+'）');
- const p=Number(s.top1_prob),gap=Number(s.gap);if(Number.isFinite(p))sup.push('模型首选概率 '+(p*100).toFixed(1)+'%');if(Number.isFinite(gap))sup.push('首选分离度 '+(gap*100).toFixed(1)+'%');
- if(r.hur==='红')opp.push('爆冷风险红灯');else if(r.hur==='黄')opp.push('爆冷风险黄灯');if(r.dtr==='红')opp.push('平局尾险红灯');else if(r.dtr==='黄')opp.push('平局尾险黄灯');if(r.dlr==='红')opp.push('直接输球风险红灯');else if(r.dlr==='黄')opp.push('直接输球风险黄灯');
- if(s.hhad_market_poisson_conflict===true||String(s.hhad_market_poisson_conflict)==='true')opp.push('让球市场与泊松进球差模型冲突');
- if(Number.isFinite(e)&&((r.top1==='主胜'&&e<0)||(r.top1==='客胜'&&e>0)))opp.push('实力评分反向（差 '+Math.abs(e).toFixed(1)+'）');
- const deep=Number(s.deep_gate_median_abs);if(Number.isFinite(deep)&&deep<1)opp.push('亚洲盘深度偏浅（中位 '+deep.toFixed(2)+'）');
+ if(s.teacher_g_support_evidence)sup.push(String(s.teacher_g_support_evidence));
+ if(s.teacher_g_opposition_evidence)opp.push(String(s.teacher_g_opposition_evidence));
+ if((s.market_direction_conflict===false||String(s.market_direction_conflict)==='false')&&r.top1)sup.push('市场主方向未与Top1冲突');
+ if(s.sp_top1===r.top1)sup.push('竞彩HAD方向与Top1一致');
+ const e=Number(s?.elo?.elo_diff);if(Number.isFinite(e)&&((r.top1==='主胜'&&e>0)||(r.top1==='客胜'&&e<0)))sup.push('Elo实力评分支持'+r.top1+'（差 '+Math.abs(e).toFixed(1)+'）');
+ const p=Number(s.top1_prob),gap=Number(s.gap);if(Number.isFinite(p))sup.push('Top1概率 '+(p*100).toFixed(1)+'%');if(Number.isFinite(gap))sup.push('方向分离度 '+(gap*100).toFixed(1)+'%');
+ if(r.hur==='红')opp.push('HUR爆冷风险红灯');else if(r.hur==='黄')opp.push('HUR爆冷风险黄灯');
+ if(r.dtr==='红')opp.push('DTR平局尾险红灯');else if(r.dtr==='黄')opp.push('DTR平局尾险黄灯');
+ if(r.dlr==='红')opp.push('DLR直接输球风险红灯');else if(r.dlr==='黄')opp.push('DLR直接输球风险黄灯');
+ if(s.hhad_market_poisson_conflict===true||String(s.hhad_market_poisson_conflict)==='true')opp.push('HHAD让球市场与Poisson净胜球模型冲突');
+ if(Number.isFinite(e)&&((r.top1==='主胜'&&e<0)||(r.top1==='客胜'&&e>0)))opp.push('Elo反向（差 '+Math.abs(e).toFixed(1)+'）');
+ const deep=Number(s.deep_gate_median_abs);if(Number.isFinite(deep)&&deep<1)opp.push('Asia4盘口深度偏浅（中位 '+deep.toFixed(2)+'）');
+
+ const tl=Array.isArray(s.market_timeline)?s.market_timeline:[];
+ const wh=tl.find(x=>String(x?.source||'').includes('William Hill 欧赔'));
+ const asia=tl.filter(x=>String(x?.source||'').includes('亚洲盘'));
+ const had=tl.find(x=>String(x?.source||'').includes('竞彩HAD'));
+ const hhad=tl.find(x=>String(x?.source||'').includes('竞彩HHAD'));
+ const whTxt=wh?('初 '+(wh.initial||'未确认')+' → 即 '+(wh.current||'未确认')+' → 临 '+(wh.closing||wh.close||'未确认')):'未确认';
+ const asiaTxt=asia.length?asia.map(x=>String(x.source||'')+'：'+String(x.current||'未确认')).join('；'):'未确认';
+ const hadTxt=had?String(had.current||'未确认'):'未确认';
+ const hhadTxt=hhad?String(hhad.current||'未确认'):'未确认';
+ const eloTxt=Number.isFinite(e)?((e>0?'主队 +':'客队 +')+Math.abs(e).toFixed(1)+(r.top1?('；对Top1='+( (r.top1==='主胜'&&e>0)||(r.top1==='客胜'&&e<0) ?'支持':'反向')):'')):'未确认';
+ const lh=Number(s.hhad_lambda_home),la=Number(s.hhad_lambda_away);
+ const poiTxt=(Number.isFinite(lh)&&Number.isFinite(la))?('主λ '+lh.toFixed(2)+' / 客λ '+la.toFixed(2)+'；让球市场 '+(s.hhad_market_top1||'未确认')+'；Poisson '+(s.hhad_poisson_top1||'未确认')):'未确认';
+ const riskTxt='HUR '+(r.hur||'未确认')+' / DTR '+(r.dtr||'未确认')+' / DLR '+(r.dlr||'未确认');
+
+ const basicPieces=[];
+ const basicMap=[
+  ['首发/伤停',s.teacher_g_lineup_injury_audit||s.lineup_injury_audit],
+  ['核心缺阵/轮换',s.teacher_g_rotation_audit||s.rotation_audit],
+  ['体能/休息',s.teacher_g_fatigue_rest_audit||s.fatigue_rest_audit],
+  ['战意/赛程密度',s.teacher_g_motivation_schedule_audit||s.motivation_schedule_audit],
+  ['战术克制',s.teacher_g_tactical_matchup_audit||s.tactical_matchup_audit],
+  ['门将/定位球',s.teacher_g_gk_setpiece_audit||s.gk_setpiece_audit],
+  ['旅行/天气/场地',s.teacher_g_travel_weather_pitch_audit||s.travel_weather_pitch_audit]
+ ];
+ basicMap.forEach(([k,v])=>basicPieces.push(k+'：'+(v||'未确认，不猜')));
+ const basicTxt=basicPieces.join('；');
+
  let final=s.teacher_g_final_conclusion||s.teacher_final_conclusion||'';
- if(!final){if(!g)final='GPT-5.6 Sol本轮未注入，ABSTAIN；不伪造二审结论。';else if(a==='STRONG_CONFLICT')final='二审强冲突：不进入正式选腿。';else if(a==='REVIEW')final='二审要求复核：维持观察或降级，不升正式绿灯。';else if(a==='SUPPORT'&&String(s.final_selection_light||'').toUpperCase()==='GREEN')final='二审支持首选方向，且正式门槛通过：可进入正式稳腿。';else if(a==='SUPPORT')final='二审支持首选方向，但基础门槛未通过：保持观察，不强行升绿。';else final='二审未产生方向性调整，最终仍按正式门槛执行。'}
- return '<section class="section"><div class="shead"><h2>🤖 GPT-5.6 Sol 二审明细</h2><span>唯一正式二审 · 比赛级红队审计</span></div><div class="cards"><div class="card feature"><div class="kv"><div>二审状态</div><div>'+esc(sz)+'</div><div>二审方向</div><div>'+esc(g||'ABSTAIN')+'</div><div>二审动作</div><div>'+esc(az)+'</div><div>最终结论</div><div><b>'+esc(final)+'</b></div></div></div><div class="card"><div class="kv"><div>支持证据</div><div>'+esc(sup.length?sup.join('；'):'未保存明确支持证据')+'</div><div>反方证据 / 风险</div><div>'+esc(opp.length?opp.join('；'):'未发现已保存的明确反方证据')+'</div><div>正式首选</div><div>'+esc(r.top1||'未确认')+'</div><div>最终胜平负灯</div><div>'+esc(s.final_selection_light_label||s.primary_selection_label||'—')+'</div></div></div></div></section>';
+ if(!final){if(!g)final='GPT-5.6 Sol本轮未注入，ABSTAIN；不伪造二审结论。';else if(a==='STRONG_CONFLICT')final='二审强冲突：不进入正式选腿。';else if(a==='REVIEW')final='二审反对/要求复核：维持观察或降级。';else if(a==='SUPPORT'&&String(s.final_selection_light||'').toUpperCase()==='GREEN')final='二审支持Top1，且正式门槛通过：可进入正式稳腿。';else if(a==='SUPPORT')final='二审支持Top1，但是否升绿必须另看黄灯仲裁与硬证据。';else final='二审ABSTAIN，最终仍按正式门槛执行。'}
+ const arbReason=s.teacher_g_yellow_reason||'未保存独立黄灯仲裁理由';
+ return '<section class="section"><div class="shead"><h2>🤖 GPT-5.6 Sol 二审明细</h2><span>方向判断 + 黄灯仲裁 + 证据审计</span></div>'+
+ '<div class="cards"><div class="card feature"><div class="kv">'+
+ '<div>二审状态</div><div>'+esc(sz)+'</div>'+
+ '<div>方向判断</div><div><b>'+esc(g?az:'ABSTAIN')+'</b></div>'+
+ '<div>GPT方向</div><div>'+esc(g||'ABSTAIN')+'</div>'+
+ '<div>黄灯仲裁</div><div><b>'+esc(arb)+'</b></div>'+
+ '<div>仲裁理由</div><div>'+esc(arbReason)+'</div>'+
+ '<div>最终说明</div><div><b>'+esc(final)+'</b></div>'+
+ '</div></div></div>'+
+ '<div class="cards"><div class="card"><div class="kv">'+
+ '<div>William Hill欧赔</div><div>'+esc(whTxt)+'</div>'+
+ '<div>Asia4盘口/水位</div><div>'+esc(asiaTxt)+'</div>'+
+ '<div>竞彩HAD SP</div><div>'+esc(hadTxt)+'</div>'+
+ '<div>竞彩HHAD SP</div><div>'+esc(hhadTxt)+'</div>'+
+ '<div>Elo实力差</div><div>'+esc(eloTxt)+'</div>'+
+ '<div>Poisson / 净胜球</div><div>'+esc(poiTxt)+'</div>'+
+ '<div>HUR / DTR / DLR</div><div>'+esc(riskTxt)+'</div>'+
+ '</div></div>'+
+ '<div class="card"><div class="kv">'+
+ '<div>最强支持证据</div><div>'+esc(sup.length?sup.join('；'):'未保存明确支持证据')+'</div>'+
+ '<div>最强反方证据</div><div>'+esc(opp.length?opp.join('；'):'未保存明确反方证据')+'</div>'+
+ '<div>基本面审计</div><div>'+esc(basicTxt)+'</div>'+
+ '<div>正式首选</div><div>'+esc(r.top1||'未确认')+'</div>'+
+ '<div>最终胜平负灯</div><div>'+esc(s.final_selection_light_label||s.primary_selection_label||'—')+'</div>'+
+ '</div></div></div></section>';
 }
 function strongestSupportZh(r){
  const s=r?.source_status||{};
