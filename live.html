@@ -84,7 +84,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-04 GPT二审真执行闸门v4';
+const APP_BUILD='2026-09-04 GPT二审完整字段v5';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
 function forcePageRefresh(){const u=new URL(location.href);u.searchParams.set('v',APP_BUILD);u.searchParams.set('t',Date.now().toString());location.replace(u.toString())}
@@ -281,6 +281,11 @@ function hjTeacherDetailSection(r){
  '<div>二审状态</div><div>'+esc(sz)+'</div>'+
  '<div>方向判断</div><div><b>'+esc(g?az:'ABSTAIN')+'</b></div>'+
  '<div>GPT方向</div><div>'+esc(g||'ABSTAIN')+'</div>'+
+ '<div>GPT第二方向</div><div>'+esc(s.teacher_g_second_pick||'—')+'</div>'+
+ '<div>GPT信心</div><div>'+esc(s.teacher_g_confidence||'—')+'</div>'+
+ '<div>平局风险</div><div>'+esc(s.teacher_g_draw_risk||'—')+'</div>'+
+ '<div>爆冷风险</div><div>'+esc(s.teacher_g_upset_risk||'—')+'</div>'+
+ '<div>热门陷阱</div><div>'+esc(s.teacher_g_favorite_trap||'—')+'</div>'+
  '<div>黄灯仲裁</div><div><b>'+esc(arb)+'</b></div>'+
  '<div>仲裁理由</div><div>'+esc(arbReason)+'</div>'+
  '<div>最终说明</div><div><b>'+esc(final)+'</b></div>'+
