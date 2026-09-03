@@ -84,7 +84,7 @@ nav::-webkit-scrollbar{display:none}
 <div id="app"><div class="loading">正在连接豪模型控制台…</div></div>
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
-const APP_BUILD='2026-09-03 数据精简v1';
+const APP_BUILD='2026-09-03 系统健康三态修复v1';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const u=new URL(location.href);u.searchParams.set('v',j.build);u.searchParams.set('t',Date.now());location.replace(u.toString());return true}return false}catch(_){return false}}
 function forcePageRefresh(){const u=new URL(location.href);u.searchParams.set('v',APP_BUILD);u.searchParams.set('t',Date.now().toString());location.replace(u.toString())}
@@ -231,17 +231,25 @@ function matchDetail(){const d=DETAIL,r=d?.row;if(!r)return '';if(d.kind==='hc')
 function systemHealthSection(){
  const H=DATA?.system_health||{},x=H.latest||null;
  if(!x)return '<section class="section"><div class="shead"><h2>🛡️ 系统健康</h2><span>每小时自检 + 自动修复</span></div><div class="notice warn" style="margin:12px">⚠️ 尚无系统自检记录。</div></section>';
- const st=String(x.overall_status||'attention'),tone=st==='ok'?'good':st==='healed'?'warn':'bad';
- const label=st==='ok'?'✅ 系统正常':st==='healed'?'🛠️ 已自动修复':'🚨 需要处理';
- const acts=Array.isArray(x.actions)?x.actions:[],bad=Array.isArray(x.unresolved)?x.unresolved:[],rs=x.run_status||{};
+ const st=String(x.overall_status||'attention'),rs=x.run_status||{};
+ const waits=Array.isArray(rs.source_warnings)?rs.source_warnings:[];
+ const acts=Array.isArray(x.actions)?x.actions:[],bad=Array.isArray(x.unresolved)?x.unresolved:[];
+ const tone=st==='ok'?'good':st==='healed'||st==='waiting'?'warn':'bad';
+ const label=st==='ok'?'✅ 系统正常':st==='waiting'?'⏳ 系统正常 · 等待数据':st==='healed'?'🛠️ 已自动修复':'🚨 真故障';
  const snap=H.last_snapshot||{},ago=ageMinutes(x.checked_at);
  const modelState=(r,name)=>{if(!r)return name+'：等待真实在售池';return name+'：run '+(r.id??'—')+' · '+(r.status||'—')};
  let html='<section class="section"><div class="shead"><h2>🛡️ 系统健康</h2><span>每小时第10分自检 · 第40分Watchdog</span></div>';
- html+='<div class="grid4" style="padding:12px">'+metric('总体',label,'最近自检 '+(ago==null?'—':ago+'分钟前'),tone)+metric('自动修复',String(acts.length)+'项',acts.length?(acts.map(a=>a.type).join(' / ')):'本轮无需修复',acts.length?'warn':'good')+metric('未解决',String(bad.length)+'项',bad.length?'需要人工处理':'没有遗留故障',bad.length?'bad':'good')+metric('灾备快照',snap.snapshot_date||'—',snap.created_at?fmtTime(snap.created_at):'每天23:35自动保存',snap.snapshot_date?'good':'warn')+'</div>';
+ html+='<div class="grid4" style="padding:12px">'+
+   metric('总体',label,'最近自检 '+(ago==null?'—':ago+'分钟前'),tone)+
+   metric('数据等待',String(waits.length)+'项',waits.length?waits.map(w=>w.source||w.type).join(' / '):'没有等待项',waits.length?'warn':'good')+
+   metric('硬故障',String(bad.length)+'项',bad.length?'需要处理':'0项 · 系统链路正常',bad.length?'bad':'good')+
+   metric('灾备快照',snap.snapshot_date||'—',snap.created_at?fmtTime(snap.created_at):'每天23:35自动保存',snap.snapshot_date?'good':'warn')+
+ '</div>';
  html+='<div class="cards" style="padding:0 12px 12px"><div class="card"><b>豪竞</b><div class="tiny" style="margin-top:6px">'+esc(modelState(rs.haojing,'豪竞'))+'</div></div><div class="card"><b>豪传</b><div class="tiny" style="margin-top:6px">'+esc(modelState(rs.haochuan,'豪传'))+'</div></div><div class="card"><b>豪篮</b><div class="tiny" style="margin-top:6px">'+esc(modelState(rs.haolan,'豪篮'))+'</div></div></div>';
- if(bad.length)html+='<div class="notice bad" style="margin:0 12px 12px"><b>未解决：</b> '+esc(bad.map(v=>v.type||'unknown').join('、'))+'</div>';
- else if(acts.length)html+='<div class="notice warn" style="margin:0 12px 12px">🛠️ 本轮已自动处理：'+esc(acts.map(v=>v.type||'repair').join('、'))+'</div>';
- else html+='<div class="notice good" style="margin:0 12px 12px">✅ 网页、核心数据源、三模型revision、定时任务当前未发现需要处理的异常。</div>';
+ if(bad.length)html+='<div class="notice bad" style="margin:0 12px 12px"><b>真故障：</b> '+esc(bad.map(v=>(v.source?String(v.source)+' · ':'')+(v.type||'unknown')).join('、'))+'</div>';
+ if(waits.length)html+='<div class="notice warn" style="margin:0 12px 12px"><b>等待/非阻断：</b> '+waits.map(v=>esc(v.message||((v.source||'数据源')+'等待更新'))).join('；')+'</div>';
+ else if(!bad.length&&acts.length)html+='<div class="notice warn" style="margin:0 12px 12px">🛠️ 本轮已自动处理：'+esc(acts.map(v=>v.type||'repair').join('、'))+'</div>';
+ else if(!bad.length)html+='<div class="notice good" style="margin:0 12px 12px">✅ 网页、核心数据源、三模型revision、定时任务当前未发现硬故障。</div>';
  return html+'</section>';
 }
 
