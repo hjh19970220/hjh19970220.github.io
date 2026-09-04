@@ -1,0 +1,75 @@
+name: Haochuan Confidence First UI Sync
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/haochuan-confidence-first-ui.yml'
+permissions:
+  contents: write
+jobs:
+  patch-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Haochuan confidence-first labels
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          files=[Path('index.html'),Path('live.html'),Path('latest.html')]
+          build='2026-09-04 豪传Confidence-First命中优先v7'
+          replacements=[
+            ("舍场保留评分 → 舍5留9 → 单双 → 方向一致性闸门 → 64元","Confidence-First → 舍5留最强9 → 单/双/三自适应 → 方向一致性"),
+            ("const singles=s.singles_4||{},doubles=s.doubles_5||{},ticket=s.ticket_310||{}; const ticketNos=Object.keys(ticket).sort((a,b)=>Number(a)-Number(b));",
+             "const singles=s.singles||s.singles_4||{},doubles=s.doubles||s.doubles_5||{},ticket=s.ticket_310||{}; const triples=Object.fromEntries(rows.filter(r=>hcExtra(r,'role')==='三'||hcExtra(r,'role')==='TRIPLE').map(r=>[String(r.match_no).padStart(2,'0'),r.ticket_pick_after_gate||r.ticket_pick||'310'])); const ticketNos=Object.keys(ticket).sort((a,b)=>Number(a)-Number(b));"),
+            ("const doublesText=Object.keys(doubles).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = '+doubles[no]+'（'+String(doubles[no]).split('').map(hcOutcomeLabel).join('/')+'）').join('<br>');",
+             "const doublesText=Object.keys(doubles).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = '+doubles[no]+'（'+String(doubles[no]).split('').map(hcOutcomeLabel).join('/')+'）').join('<br>'); const triplesText=Object.keys(triples).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = 310（主胜/平/客胜）').join('<br>');"),
+            ("ready?'可形成正式64元票':'不要强行下注'","ready?'最强信心方案已形成':'当前未通过信心/方向闸门'"),
+            ("metric('结构',Object.keys(singles).length+'单 + '+Object.keys(doubles).length+'双',(s.combination_count||'—')+'注')",
+             "metric('结构',Object.keys(singles).length+'单 + '+Object.keys(doubles).length+'双 + '+Object.keys(triples).length+'三',(s.combination_count||'—')+'注')"),
+            ("metric('总金额',(s.cost_rmb!=null?s.cost_rmb:'—')+'元','上限64元',Number(s.cost_rmb)<=64?'good':'bad')",
+             "metric('参考注数/金额',(s.combination_count||'—')+'注 / '+(s.cost_rmb!=null?s.cost_rmb:'—')+'元','仅展示，不参与选场或单双三','good')"),
+            ("<b>4个单选</b>","<b>单选（自适应）</b>"),
+            ("<b>5个双选</b>","<b>双选（自适应）</b>"),
+            ("<div class=\"card\"><b>舍5</b><div class=\"tiny\" style=\"line-height:1.8;margin-top:8px\">'+esc(discarded.map(hcMatchLabel).join('、 ')||'—')+'</div></div>",
+             "'+(Object.keys(triples).length?'<div class=\"card feature\"><b>三选310（风险触发）</b><div class=\"tiny\" style=\"line-height:1.8;margin-top:8px\">'+(triplesText||'—')+'</div></div>':'')+'<div class=\"card\"><b>舍5</b><div class=\"tiny\" style=\"line-height:1.8;margin-top:8px\">'+esc(discarded.map(hcMatchLabel).join('、 ')||'—')+'</div></div>"),
+            ("<b>怎么下：</b> 任9选择本期 ","<b>票面说明：</b> 任9选择本期 "),
+            ("。如果你实际下单页面显示的注数或金额不是这个数，先不要提交，说明勾选有误。","。当前注数/金额只是由风险结构自然计算出的参考值，不参与留9或单双三决策。"),
+          ]
+          for p in files:
+            if not p.exists(): continue
+            s=p.read_text(encoding='utf-8')
+            before=s
+            for old,new in replacements:
+              s=s.replace(old,new)
+            s=re.sub(r"const APP_BUILD='[^']*';",f"const APP_BUILD='{build}';",s)
+            if s==before:
+              raise SystemExit(f'no Haochuan UI changes applied to {p}')
+            p.write_text(s,encoding='utf-8')
+          vp=Path('version.json')
+          if vp.exists():
+            try: v=json.loads(vp.read_text(encoding='utf-8'))
+            except Exception: v={}
+            v['build']=build
+            v['updated_at']='2026-09-04'
+            vp.write_text(json.dumps(v,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+          PY
+      - name: Verify old hard-budget labels removed from Haochuan section
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for f in ['index.html','live.html','latest.html']:
+            s=Path(f).read_text(encoding='utf-8')
+            assert 'Confidence-First → 舍5留最强9 → 单/双/三自适应 → 方向一致性' in s
+            assert '单选（自适应）' in s and '双选（自适应）' in s
+            assert "'上限64元'" not in s
+          print('UI verification passed')
+          PY
+      - name: Commit patched UI
+        run: |
+          git config user.name 'hao-model-bot'
+          git config user.email 'hao-model-bot@users.noreply.github.com'
+          git add index.html live.html latest.html version.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: Haochuan confidence-first adaptive ticket UI'
+          git push
