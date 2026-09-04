@@ -1,0 +1,66 @@
+name: Haolan Dual Light UI Patch
+on:
+  push:
+    paths:
+      - '.github/workflows/haolan-dual-light-ui.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Haolan dual lights
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          files = [Path(x) for x in ['index.html','live.html','latest.html','member.html'] if Path(x).exists()]
+          changed=[]
+          old_build="2026-09-04 豪篮赛果展示v8"
+          new_build="2026-09-05 豪篮双灯v9"
+          old_hblight="function hbLight(v){const x=String(v||'').toUpperCase();if(/GREEN|绿|ELIGIBLE|READY/.test(x))return '🟢 通过';if(/YELLOW|黄|REVIEW/.test(x))return '🟡 复核';if(/RED|红|PASS|BLOCK/.test(x))return '🔴 淘汰';return v||'⚪ 未确认'}"
+          new_hblight="function hbLight(v){const x=String(v||'').toUpperCase();if(/FROZEN_LEGACY/.test(x))return '🧊 旧版冻结';if(/GREEN|绿|ELIGIBLE|READY/.test(x))return '🟢 通过';if(/YELLOW|黄|REVIEW/.test(x))return '🟡 复核';if(/RED|红|PASS|BLOCK/.test(x))return '🔴 淘汰';return v||'⚪ 未确认'}"
+          old_td="<td>'+esc(hbLight(r.final_selection_light))+'</td><td>'+esc(hbActual(r))+'</td>"
+          new_td="<td>'+esc(hbLight(r.direction_light||r.final_selection_light))+'</td><td>'+esc(hbLight(r.core_leg_light))+'</td><td>'+esc(hbActual(r))+'</td>"
+          old_th="<th>阵容灯</th><th>市场灯</th><th>最终灯</th><th>赛果/比分</th>"
+          new_th="<th>阵容灯</th><th>市场灯</th><th>方向灯</th><th>核心腿灯</th><th>赛果/比分</th>"
+          old_sub="<span>赛前冻结 + 完场赛果自动结算</span>"
+          new_sub="<span>方向灯=可买方向 · 核心腿灯=最稳串关资格 · 赛前冻结 + 完场结算</span>"
+          old_win="初始正式候选：胜率≥60%、相对市场优势差≥4个百分点、数据质量A级或B级。"
+          new_win="方向灯：胜负概率≥60%、DQ-C以上且市场非红即可绿；核心腿仍要求更高概率、≥4个百分点市场Edge与风险审计。"
+          old_lineup="可靠球员状态未确认时不放行正式绿灯"
+          new_lineup="可靠球员状态未确认时降低核心腿资格；不再自动否定高概率胜负方向"
+          for p in files:
+              s=p.read_text(encoding='utf-8')
+              orig=s
+              s=s.replace(old_build,new_build)
+              s=s.replace(old_hblight,new_hblight)
+              s=s.replace(old_td,new_td)
+              s=s.replace(old_th,new_th)
+              s=s.replace(old_sub,new_sub)
+              s=s.replace(old_win,new_win)
+              s=s.replace(old_lineup,new_lineup)
+              if s!=orig:
+                  p.write_text(s,encoding='utf-8')
+                  changed.append(str(p))
+          if 'index.html' not in changed:
+              raise SystemExit('index.html dual-light patch did not apply')
+          Path('version.json').write_text(json.dumps({'build':new_build,'updated_at':'2026-09-05'},ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+          print('patched',changed)
+          PY
+      - name: Verify patch
+        run: |
+          grep -q '方向灯' index.html
+          grep -q '核心腿灯' index.html
+          grep -q 'FROZEN_LEGACY' index.html
+          grep -q '豪篮双灯v9' version.json
+      - name: Remove one-shot workflow and push
+        run: |
+          rm -f .github/workflows/haolan-dual-light-ui.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: show Haolan direction and core-leg lights [skip ci]'
+          git push
