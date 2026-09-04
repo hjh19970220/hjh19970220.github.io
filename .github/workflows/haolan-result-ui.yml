@@ -1,0 +1,72 @@
+name: Haolan Result UI One Shot
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/haolan-result-ui.yml'
+permissions:
+  contents: write
+jobs:
+  patch-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Haolan result display
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          files=[Path('index.html'),Path('live.html'),Path('latest.html')]
+          build='2026-09-04 豪篮赛果展示v8'
+          old_helper="function hbLight(v){const x=String(v||'').toUpperCase();if(/GREEN|绿|ELIGIBLE|READY/.test(x))return '🟢 通过';if(/YELLOW|黄|REVIEW/.test(x))return '🟡 复核';if(/RED|红|PASS|BLOCK/.test(x))return '🔴 淘汰';return v||'⚪ 未确认'}\nfunction renderHaolan(){"
+          new_helper="function hbLight(v){const x=String(v||'').toUpperCase();if(/GREEN|绿|ELIGIBLE|READY/.test(x))return '🟢 通过';if(/YELLOW|黄|REVIEW/.test(x))return '🟡 复核';if(/RED|红|PASS|BLOCK/.test(x))return '🔴 淘汰';return v||'⚪ 未确认'}\nfunction hbActual(r){if(!r?.result_verified)return '⏳ 未结算';const score=(r.result_away==null||r.result_home==null)?'比分待核验':(r.result_away+' : '+r.result_home);const parts=[];if(r.actual_moneyline)parts.push(r.actual_moneyline);if(r.actual_spread)parts.push(r.actual_spread);if(r.actual_total)parts.push(r.actual_total);return '✅ '+score+(parts.length?'｜'+parts.join(' / '):'')}\nfunction hbHit(r){if(!r?.result_verified)return '—';const market=String(r.best_market||''),pick=String(r.best_pick||'');let actual='';if(/让分/.test(market))actual=String(r.actual_spread||'');else if(/大小|总分/.test(market))actual=String(r.actual_total||'');else actual=String(r.actual_moneyline||'');if(!pick||!actual)return '已结算·推荐未形成';return pick===actual?'✅ 命中':'❌ 未中'}\nfunction renderHaolan(){"
+          old_row="<td>'+esc(hbLight(r.final_selection_light))+'</td></tr>'}).join('');"
+          new_row="<td>'+esc(hbLight(r.final_selection_light))+'</td><td>'+esc(hbActual(r))+'</td><td><b>'+esc(hbHit(r))+'</b></td></tr>'}).join('');"
+          old_head="<th>DQ</th><th>阵容灯</th><th>市场灯</th><th>最终灯</th></tr>"
+          new_head="<th>DQ</th><th>阵容灯</th><th>市场灯</th><th>最终灯</th><th>赛果/比分</th><th>推荐结果</th></tr>"
+          old_span="<h2>今日竞彩篮球全池</h2><span>点击刷新读取最新赛前冻结</span>"
+          new_span="<h2>今日竞彩篮球全池</h2><span>赛前冻结 + 完场赛果自动结算</span>"
+          for p in files:
+            s=p.read_text(encoding='utf-8')
+            before=s
+            if 'function hbActual(r)' not in s:
+              if old_helper not in s: raise SystemExit(f'helper anchor missing: {p}')
+              s=s.replace(old_helper,new_helper,1)
+            if '<th>赛果/比分</th>' not in s:
+              if old_head not in s: raise SystemExit(f'header anchor missing: {p}')
+              s=s.replace(old_head,new_head,1)
+            if "hbActual(r)" not in s.split("function renderHaolan(){",1)[1]:
+              if old_row not in s: raise SystemExit(f'row anchor missing: {p}')
+              s=s.replace(old_row,new_row,1)
+            s=s.replace(old_span,new_span,1)
+            s=re.sub(r"const APP_BUILD='[^']*';",f"const APP_BUILD='{build}';",s)
+            if s==before: raise SystemExit(f'no changes applied: {p}')
+            p.write_text(s,encoding='utf-8')
+          vp=Path('version.json')
+          try: v=json.loads(vp.read_text(encoding='utf-8')) if vp.exists() else {}
+          except Exception: v={}
+          v['build']=build
+          v['updated_at']='2026-09-04'
+          vp.write_text(json.dumps(v,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+          PY
+      - name: Verify Haolan result UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for f in ['index.html','live.html','latest.html']:
+            s=Path(f).read_text(encoding='utf-8')
+            assert 'function hbActual(r)' in s
+            assert 'function hbHit(r)' in s
+            assert '<th>赛果/比分</th><th>推荐结果</th>' in s
+            assert "hbActual(r)" in s and "hbHit(r)" in s
+          print('Haolan result UI verification passed')
+          PY
+      - name: Commit patched UI and remove one-shot workflow
+        run: |
+          git config user.name 'hao-model-bot'
+          git config user.email 'hao-model-bot@users.noreply.github.com'
+          rm -f .github/workflows/haolan-result-ui.yml
+          git add index.html live.html latest.html version.json .github/workflows/haolan-result-ui.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: show Haolan settled scores and hit status'
+          git push
