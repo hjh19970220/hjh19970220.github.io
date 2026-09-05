@@ -1,4 +1,4 @@
-name: Patch R9 Ticket Hard64 v13
+name: Patch R9 Ticket Hard64 v14
 
 on:
   push:
@@ -16,21 +16,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Patch R9 formal ticket display
+      - name: Patch current R9 formal ticket display
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import json
+          import json, re
 
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
 
-          old_build = "const APP_BUILD='2026-09-05 豪篮累计命中率v12';"
-          new_build = "const APP_BUILD='2026-09-05 任9票面硬闸门v13';"
-          if old_build not in s:
-              raise SystemExit('APP_BUILD anchor not found')
-          s = s.replace(old_build, new_build, 1)
+          s, n = re.subn(r"const APP_BUILD='[^']+';", "const APP_BUILD='2026-09-05 任9正式票面v14';", s, count=1)
+          if n != 1:
+              raise SystemExit('APP_BUILD replace failed')
 
           old_calc = " const formalCost=Number(s.cost_rmb||0),formalCombos=Number(s.combination_count||0); const ready=run.formal_allowed===true&&s.ticket_status==='READY'&&ticketNos.length===9&&formalCost>0&&formalCost<=64&&formalCombos>0&&formalCombos<=32;"
           new_calc = " const formalCost=Number(s.cost_rmb||0),candidateCombos=Number(s.combination_count||0); const ready=run.formal_allowed===true&&s.ticket_status==='READY'&&ticketNos.length===9&&formalCost>0&&formalCost<=64&&candidateCombos>0&&candidateCombos<=32; const candidateOverBudget=!ready&&candidateCombos>32; const candidateAuditCost=candidateOverBudget?candidateCombos*2:null;"
@@ -52,7 +50,7 @@ jobs:
 
           p.write_text(s, encoding='utf-8')
           Path('version.json').write_text(json.dumps({
-              'build': '2026-09-05 任9票面硬闸门v13',
+              'build': '2026-09-05 任9正式票面v14',
               'updated_at': '2026-09-05'
           }, ensure_ascii=False, separators=(',', ':')) + '\n', encoding='utf-8')
           PY
@@ -64,5 +62,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html version.json
           git rm .github/workflows/patch-r9-ticket-hard64-v13.yml
-          git commit -m 'fix: separate R9 formal ticket from candidate audit [skip ci]'
+          git commit -m 'fix: make R9 formal ticket unmistakable [skip ci]'
           git push
