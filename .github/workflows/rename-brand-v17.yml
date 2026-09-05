@@ -1,0 +1,56 @@
+name: Rename frontend brand v17
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rename-brand-v17.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename frontend brand
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json
+          p=Path('index.html')
+          s=p.read_text()
+          old='豪·足球模型'
+          new='豪·体彩预测模型'
+          n=s.count(old)
+          if n < 1:
+              raise SystemExit('brand anchor not found')
+          s=s.replace(old,new)
+          s=re.sub(r"const APP_BUILD='[^']+';", "const APP_BUILD='2026-09-05 豪·体彩预测模型v17';", s, count=1)
+          p.write_text(s)
+          Path('version.json').write_text(json.dumps({'build':'2026-09-05 豪·体彩预测模型v17','updated_at':'2026-09-05'},ensure_ascii=False)+'\n')
+          print('brand_replacements=',n)
+          PY
+      - name: JavaScript syntax check
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          s=Path('index.html').read_text()
+          scripts=re.findall(r'<script[^>]*>(.*?)</script>',s,re.S)
+          Path('/tmp/site.js').write_text('\n'.join(scripts))
+          PY
+          node --check /tmp/site.js
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html version.json
+          git commit -m "chore: rename frontend to 豪·体彩预测模型 [skip ci]"
+          git push
+      - name: Remove one-shot workflow
+        run: |
+          git pull --rebase
+          git rm .github/workflows/rename-brand-v17.yml
+          git commit -m "chore: remove rename-brand v17 workflow [skip ci]"
+          git push
