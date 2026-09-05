@@ -1,0 +1,39 @@
+name: Sync 豪竞2.4 frontend label
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hj24-label-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch stale 豪竞2.3 label
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '正式决策仍读取豪竞2.3的胜平负主链与风险闸门。'
+          new = '正式决策仍读取当前active豪竞模型的胜平负主链与风险闸门。'
+          if old not in s:
+              raise SystemExit('stale label not found; refusing blind edit')
+          s = s.replace(old, new, 1)
+          s = s.replace("const APP_BUILD='2026-09-05 独立比分模型全中文v18';", "const APP_BUILD='2026-09-05 豪竞2.4同步v19';", 1)
+          p.write_text(s, encoding='utf-8')
+          Path('version.json').write_text(json.dumps({'build':'2026-09-05 豪竞2.4同步v19','updated_at':'2026-09-05'}, ensure_ascii=False) + '\n', encoding='utf-8')
+          PY
+      - name: Commit frontend sync
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html version.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Sync frontend with 豪竞2.4'
+          git push
