@@ -1,4 +1,4 @@
-name: Haochuan Confidence First UI Sync
+name: Haochuan Primary64 Plus Full Coverage UI Sync
 on:
   push:
     branches: [main]
@@ -8,62 +8,113 @@ permissions:
   contents: write
 jobs:
   patch-ui:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch Haochuan confidence-first labels
+      - name: Patch Haochuan primary64 and full coverage display
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import json,re
+
           files=[Path('index.html'),Path('live.html'),Path('latest.html')]
-          build='2026-09-04 豪传Confidence-First命中优先v7'
-          replacements=[
-            ("舍场保留评分 → 舍5留9 → 单双 → 方向一致性闸门 → 64元","Confidence-First → 舍5留最强9 → 单/双/三自适应 → 方向一致性"),
-            ("const singles=s.singles_4||{},doubles=s.doubles_5||{},ticket=s.ticket_310||{}; const ticketNos=Object.keys(ticket).sort((a,b)=>Number(a)-Number(b));",
-             "const singles=s.singles||s.singles_4||{},doubles=s.doubles||s.doubles_5||{},ticket=s.ticket_310||{}; const triples=Object.fromEntries(rows.filter(r=>hcExtra(r,'role')==='三'||hcExtra(r,'role')==='TRIPLE').map(r=>[String(r.match_no).padStart(2,'0'),r.ticket_pick_after_gate||r.ticket_pick||'310'])); const ticketNos=Object.keys(ticket).sort((a,b)=>Number(a)-Number(b));"),
-            ("const doublesText=Object.keys(doubles).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = '+doubles[no]+'（'+String(doubles[no]).split('').map(hcOutcomeLabel).join('/')+'）').join('<br>');",
-             "const doublesText=Object.keys(doubles).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = '+doubles[no]+'（'+String(doubles[no]).split('').map(hcOutcomeLabel).join('/')+'）').join('<br>'); const triplesText=Object.keys(triples).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = 310（主胜/平/客胜）').join('<br>');"),
-            ("ready?'可形成正式64元票':'不要强行下注'","ready?'最强信心方案已形成':'当前未通过信心/方向闸门'"),
-            ("metric('结构',Object.keys(singles).length+'单 + '+Object.keys(doubles).length+'双',(s.combination_count||'—')+'注')",
-             "metric('结构',Object.keys(singles).length+'单 + '+Object.keys(doubles).length+'双 + '+Object.keys(triples).length+'三',(s.combination_count||'—')+'注')"),
-            ("metric('总金额',(s.cost_rmb!=null?s.cost_rmb:'—')+'元','上限64元',Number(s.cost_rmb)<=64?'good':'bad')",
-             "metric('参考注数/金额',(s.combination_count||'—')+'注 / '+(s.cost_rmb!=null?s.cost_rmb:'—')+'元','仅展示，不参与选场或单双三','good')"),
-            ("<b>4个单选</b>","<b>单选（自适应）</b>"),
-            ("<b>5个双选</b>","<b>双选（自适应）</b>"),
-            ("<div class=\"card\"><b>舍5</b><div class=\"tiny\" style=\"line-height:1.8;margin-top:8px\">'+esc(discarded.map(hcMatchLabel).join('、 ')||'—')+'</div></div>",
-             "'+(Object.keys(triples).length?'<div class=\"card feature\"><b>三选310（风险触发）</b><div class=\"tiny\" style=\"line-height:1.8;margin-top:8px\">'+(triplesText||'—')+'</div></div>':'')+'<div class=\"card\"><b>舍5</b><div class=\"tiny\" style=\"line-height:1.8;margin-top:8px\">'+esc(discarded.map(hcMatchLabel).join('、 ')||'—')+'</div></div>"),
-            ("<b>怎么下：</b> 任9选择本期 ","<b>票面说明：</b> 任9选择本期 "),
-            ("。如果你实际下单页面显示的注数或金额不是这个数，先不要提交，说明勾选有误。","。当前注数/金额只是由风险结构自然计算出的参考值，不参与留9或单双三决策。"),
-          ]
+          build='2026-09-05 豪传64主推+全覆盖v20'
+
+          new_func=r'''function hcSummary(){
+           const run=DATA.hc?.run,rows=DATA.hc?.rows||[],s=run?.raw_summary||{};
+           if(!run)return '';
+           const no2=v=>String(v??'').padStart(2,'0');
+           const retained=s.retained_9||rows.filter(r=>r.keep_discard==='留').map(r=>no2(r.match_no));
+           const discarded=s.discarded_5||rows.filter(r=>r.keep_discard==='舍').map(r=>no2(r.match_no));
+           const primaryTicket=s.ticket_310||Object.fromEntries(rows.filter(r=>r.keep_discard==='留'&&r.ticket_pick).map(r=>[no2(r.match_no),String(r.ticket_pick)]));
+           const primaryNos=Object.keys(primaryTicket).sort((a,b)=>Number(a)-Number(b));
+           const primarySingles=Object.keys(s.singles||s.singles_4||{}).length?(s.singles||s.singles_4):Object.fromEntries(primaryNos.filter(no=>String(primaryTicket[no]).length===1).map(no=>[no,primaryTicket[no]]));
+           const primaryDoubles=Object.keys(s.doubles||s.doubles_5||{}).length?(s.doubles||s.doubles_5):Object.fromEntries(primaryNos.filter(no=>String(primaryTicket[no]).length===2).map(no=>[no,primaryTicket[no]]));
+           const primaryTriples=Object.fromEntries(primaryNos.filter(no=>String(primaryTicket[no])==='310').map(no=>[no,'310']));
+           const formalCost=Number(s.cost_rmb||0),formalCombos=Number(s.combination_count||0);
+           const ready=run.formal_allowed===true&&String(s.ticket_status||'READY').toUpperCase()==='READY'&&primaryNos.length===9&&formalCost>0&&formalCost<=64&&formalCombos>0&&formalCombos<=32;
+
+           const fullTicket={};
+           for(const r of rows.filter(r=>r.keep_discard==='留')){
+             const no=no2(r.match_no),p=r.ticket_pick_before_gate;
+             if(p!=null&&String(p)!=='')fullTicket[no]=String(p);
+           }
+           const fullNos=Object.keys(fullTicket).sort((a,b)=>Number(a)-Number(b));
+           const fullSingles=fullNos.filter(no=>fullTicket[no].length===1).length;
+           const fullDoubles=fullNos.filter(no=>fullTicket[no].length===2).length;
+           const fullTriples=fullNos.filter(no=>fullTicket[no]==='310').length;
+           const fullCombos=fullNos.length===9?Math.pow(2,fullDoubles)*Math.pow(3,fullTriples):0;
+           const fullCost=fullCombos*2;
+
+           const outcome=ready?hcTicketOutcome(rows,primaryTicket):null;
+           const risks=rows.filter(r=>r.keep_discard==='留').sort((a,b)=>hcRiskScore(b)-hcRiskScore(a)).slice(0,3);
+           const issue=s.issue_no||run.pool_label||'—',cut=s.cutoff_bjt?String(s.cutoff_bjt).replace('T',' ').slice(0,16):'未记录';
+           const pickZh=p=>String(p||'').split('').map(hcOutcomeLabel).join('/');
+           const primaryGrid=primaryNos.map(no=>{const rr=rows.find(x=>no2(x?.match_no)===no),settled=!!rr?.result_verified,ok=settled&&String(primaryTicket[no]||'').includes(String(rr.result_1x2)),mark=!settled?'⏳':ok?'✅':'❌';return '<div class="card" style="min-width:120px"><div class="tiny">'+esc(hcMatchLabel(no))+' '+mark+'</div><div style="font-size:24px;font-weight:900;margin-top:6px">'+esc(primaryTicket[no])+'</div><div class="tiny">'+esc(pickZh(primaryTicket[no]))+(settled?' ｜ 实际 '+esc(hcOutcomeLabel(rr.result_1x2)):'')+'</div></div>'}).join('');
+           const singlesText=Object.keys(primarySingles).sort((a,b)=>Number(a)-Number(b)).map(no=>{const rr=rows.find(x=>no2(x.match_no)===no),full=fullTicket[no],compressed=full&&String(full)!==String(primarySingles[no]);return hcMatchLabel(no)+' = '+primarySingles[no]+'（'+hcOutcomeLabel(primarySingles[no])+'）'+(compressed?'　⚠️ 64元压缩单，完整覆盖为 '+full:'')+(rr?'　['+hcExtra(rr,'single')+']':'')}).join('<br>');
+           const doublesText=Object.keys(primaryDoubles).sort((a,b)=>Number(a)-Number(b)).map(no=>hcMatchLabel(no)+' = '+primaryDoubles[no]+'（'+pickZh(primaryDoubles[no])+'）').join('<br>');
+           const fullText=fullNos.map(no=>hcMatchLabel(no)+' = '+fullTicket[no]+'（'+pickZh(fullTicket[no])+'）').join('<br>');
+           const riskText=risks.length?risks.map(r=>'<b>'+esc(no2(r.match_no)+' '+r.home_team+'-'+r.away_team)+'</b> · HUR '+esc(r.hur||'—')+' / DTR '+esc(r.dtr||'—')+' / DLR '+esc(r.dlr||'—')+' · '+esc(hcOppZh(hcExtra(r,'opp')))).join('<br>'):'暂无';
+           const compressed=rows.filter(r=>r.keep_discard==='留'&&r.ticket_pick&&r.ticket_pick_before_gate&&String(r.ticket_pick)!==String(r.ticket_pick_before_gate));
+           const compressedText=compressed.length?compressed.map(r=>'<b>'+esc(no2(r.match_no)+' '+r.home_team+'-'+r.away_team)+'</b>：全覆盖 '+esc(r.ticket_pick_before_gate)+' → 主推 '+esc(r.ticket_pick)+'；单选资格 '+esc(hcExtra(r,'single'))+'，机会成本 '+esc(hcOppZh(hcExtra(r,'opp')))).join('<br>'):'本轮主推无需从全覆盖进一步压缩。';
+           const outcomeNotice=outcome?(outcome.state==='HIT'?'<div class="notice good" style="margin:12px"><b>✅ 本期64元主推已命中：</b> '+esc(outcome.detail)+'</div>':outcome.state==='MISS'?'<div class="notice bad" style="margin:12px"><b>❌ 本期64元主推未命中：</b> '+esc(outcome.detail)+'</div>':'<div class="notice warn" style="margin:12px"><b>⏳ 本期64元主推待结算：</b> '+esc(outcome.detail)+'</div>'):'';
+           const fullMetric=fullNos.length===9?(fullSingles+'单 + '+fullDoubles+'双 + '+fullTriples+'三'):'未形成';
+           const fullMeta=fullNos.length===9?(fullCombos+'注 / '+fullCost+'元 · 参考，不是主推'):'全覆盖结构未完整冻结';
+
+           return '<section class="section"><div class="shead"><h2>本期结论｜'+esc(issue)+'</h2><span>停售 '+esc(cut)+'</span></div>'+outcomeNotice+
+            '<div class="grid4" style="padding:12px">'+
+             metric('票面状态',hcTicketStatusZh(ready?'READY':'PASS'),ready?'64元主推已形成':'当前64元主推未通过安全闸门',ready?'good':'warn')+
+             metric('留9 / 舍5',retained.length+' / '+discarded.length,'舍：'+esc(discarded.join('、')))+
+             metric('🔥 主推票面',ready?(formalCombos+'注 / '+formalCost+'元'):'PASS / 未出票',ready?'正式主推，优先看这一套':'不为凑64元使用禁止单选',ready?'good':'warn')+
+             metric('📊 全覆盖参考',fullMetric,fullMeta,fullNos.length===9&&fullCost>64?'warn':'good')+
+            '</div>'+
+            (ready?'<div class="notice good" style="margin:12px"><b>🔥 64元主推：</b> '+primaryNos.map(no=>no+'='+primaryTicket[no]).join('　')+'<br><span class="tiny">正式方案优先看这一套；32注 / 64元。</span></div>':'<div class="notice warn" style="margin:12px"><b>⚠️ 64元主推：PASS / 未出票。</b> 不允许拿“禁止单选”强行凑4胆。</div>')+
+            (ready?'<div class="cards" style="padding:0 12px 12px">'+primaryGrid+'</div>':'')+
+            '<div class="cards" style="padding:0 12px 12px"><div class="card feature"><b>主推单选</b><div class="tiny" style="line-height:1.8;margin-top:8px">'+(singlesText||'—')+'</div></div><div class="card feature"><b>主推双选</b><div class="tiny" style="line-height:1.8;margin-top:8px">'+(doublesText||'—')+'</div></div><div class="card"><b>64元压缩审计</b><div class="tiny" style="line-height:1.8;margin-top:8px">'+compressedText+'</div></div><div class="card"><b>舍5</b><div class="tiny" style="line-height:1.8;margin-top:8px">'+esc(discarded.map(hcMatchLabel).join('、 ')||'—')+'</div></div><div class="card"><b>最大风险Top3</b><div class="tiny" style="line-height:1.8;margin-top:8px">'+riskText+'</div></div></div>'+
+            (fullNos.length===9?'<div class="notice" style="margin:0 12px 12px"><b>📊 全覆盖参考（审计）：</b> '+fullSingles+'单 + '+fullDoubles+'双 + '+fullTriples+'三 = <b>'+fullCombos+'注 / '+fullCost+'元</b>。这套保留模型真实尾险覆盖，只用于参考/复盘，<b>主推仍以上面的≤64元方案为准</b>。</div><div class="card" style="margin:0 12px 12px"><b>全覆盖明细</b><div class="tiny" style="line-height:1.9;margin-top:8px">'+fullText+'</div></div>':'')+
+            (ready?'<div class="notice" style="margin:0 12px 12px"><b>出票说明：</b> 任9选择本期 '+esc(issue)+' → 只勾“留9”的9场 → 按“🔥 64元主推”勾3/1/0 → 应显示 <b>'+formalCombos+'注 / '+formalCost+'元</b>。全覆盖参考不要误当主推出票。</div>':'')+
+            '</section>';
+          }'''
+
+          pattern=r"function hcSummary\(\)\{.*?\n\}\nfunction renderHaochuan"
+          changed=[]
           for p in files:
-            if not p.exists(): continue
+            if not p.exists():
+              continue
             s=p.read_text(encoding='utf-8')
-            before=s
-            for old,new in replacements:
-              s=s.replace(old,new)
-            s=re.sub(r"const APP_BUILD='[^']*';",f"const APP_BUILD='{build}';",s)
-            if s==before:
-              raise SystemExit(f'no Haochuan UI changes applied to {p}')
-            p.write_text(s,encoding='utf-8')
+            ns,n=re.subn(pattern,new_func+'\nfunction renderHaochuan',s,count=1,flags=re.S)
+            if n!=1:
+              raise SystemExit(f'hcSummary replacement count={n} for {p}')
+            ns=re.sub(r"const APP_BUILD='[^']*';",f"const APP_BUILD='{build}';",ns,count=1)
+            p.write_text(ns,encoding='utf-8')
+            changed.append(str(p))
+
+          if not changed:
+            raise SystemExit('no frontend files patched')
+
           vp=Path('version.json')
-          if vp.exists():
-            try: v=json.loads(vp.read_text(encoding='utf-8'))
-            except Exception: v={}
-            v['build']=build
-            v['updated_at']='2026-09-04'
-            vp.write_text(json.dumps(v,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+          try:
+            v=json.loads(vp.read_text(encoding='utf-8')) if vp.exists() else {}
+          except Exception:
+            v={}
+          v['build']=build
+          v['updated_at']='2026-09-05'
+          vp.write_text(json.dumps(v,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+          print('patched',changed)
           PY
-      - name: Verify old hard-budget labels removed from Haochuan section
+      - name: Verify Primary64 and full-coverage UI
         run: |
           python3 - <<'PY'
           from pathlib import Path
           for f in ['index.html','live.html','latest.html']:
             s=Path(f).read_text(encoding='utf-8')
-            assert 'Confidence-First → 舍5留最强9 → 单/双/三自适应 → 方向一致性' in s
-            assert '单选（自适应）' in s and '双选（自适应）' in s
-            assert "'上限64元'" not in s
-          print('UI verification passed')
+            assert '🔥 主推票面' in s
+            assert '📊 全覆盖参考' in s
+            assert '64元压缩审计' in s
+            assert '全覆盖明细' in s
+            assert '豪传64主推+全覆盖v20' in s
+          print('Primary64 + full coverage UI verification passed')
           PY
       - name: Commit patched UI
         run: |
@@ -71,5 +122,5 @@ jobs:
           git config user.email 'hao-model-bot@users.noreply.github.com'
           git add index.html live.html latest.html version.json
           git diff --cached --quiet && exit 0
-          git commit -m 'fix: Haochuan confidence-first adaptive ticket UI'
+          git commit -m 'fix: show Haochuan 64 RMB primary plus full coverage reference'
           git push
