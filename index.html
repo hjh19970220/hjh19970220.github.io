@@ -85,7 +85,7 @@ nav::-webkit-scrollbar{display:none}
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
 const HB_CUM_API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-basketball-7m-probe-v01';
-const APP_BUILD='2026-09-05 独立比分模型全中文v18';
+const APP_BUILD='2026-09-05 豪竞2.4同步v19';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 let HB_CUM=null;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
@@ -422,7 +422,7 @@ function hjScoreMatrixSection(r){
     '<div style="padding:12px"><div class="scoreTop3">'+d.top3.map(x=>'<div><b>'+esc(x.score)+'</b><span>'+((x.p*100).toFixed(1))+'%</span></div>').join('')+'</div>'+
     '<div class="tiny" style="margin:10px 0">进球区间：<b>'+esc(d.goalBand.label)+'</b> · '+(d.goalBand.p*100).toFixed(1)+'% ｜ 主队预期进球 '+d.lh.toFixed(2)+' / 客队预期进球 '+d.la.toFixed(2)+'</div>'+
     '<div class="scoreMatrix">'+d.top16.map(x=>'<div class="scoreCell"><b>'+esc(x.score)+'</b><span>'+((x.p*100).toFixed(1))+'%</span></div>').join('')+'</div>'+
-    '<div class="tiny" style="margin-top:10px">注意：单一比分概率最高不等于胜平负首选方向必须同方向；正式决策仍读取豪竞2.3的胜平负主链与风险闸门。</div></div></section>';
+    '<div class="tiny" style="margin-top:10px">注意：单一比分概率最高不等于胜平负首选方向必须同方向；正式决策仍读取当前active豪竞模型的胜平负主链与风险闸门。</div></div></section>';
 }
 
 function rowsTable(kind){const d=kind==='hj'?DATA.hj:DATA.hc,n=activeNames(),rows=d?.rows||[];
