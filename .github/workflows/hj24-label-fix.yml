@@ -1,4 +1,4 @@
-name: Sync 豪竞2.4 frontend label
+name: Sync active model frontend labels
 
 on:
   push:
@@ -13,21 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch stale 豪竞2.3 label
+      - name: Patch frontend to display active model version
         run: |
           python - <<'PY'
           from pathlib import Path
           import json
+
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          old = '正式决策仍读取豪竞2.3的胜平负主链与风险闸门。'
-          new = '正式决策仍读取当前active豪竞模型的胜平负主链与风险闸门。'
+
+          old = "function activeNames(){const ks=Object.keys(DATA?.active_models||{});const hj=DATA?.role_models?.hj||ks.find(k=>k.includes('豪竟')||k.includes('豪竞'))||'豪竞';const hc=DATA?.role_models?.hc||ks.find(k=>k.includes('豪传'))||'豪传';const hb=DATA?.role_models?.hb||ks.find(k=>k.includes('豪篮'))||'豪篮1.0';return {hj,hc,hb}}\nfunction activeByRole(role){const n=activeNames(),name=role==='hj'?n.hj:role==='hc'?n.hc:n.hb;return DATA?.active_models?.[name]||null}"
+          new = "function activeKeys(){const ks=Object.keys(DATA?.active_models||{});const hj=DATA?.role_models?.hj||ks.find(k=>k.includes('豪竟')||k.includes('豪竞'))||'豪竞';const hc=DATA?.role_models?.hc||ks.find(k=>k.includes('豪传'))||'豪传';const hb=DATA?.role_models?.hb||ks.find(k=>k.includes('豪篮'))||'豪篮1.0';return {hj,hc,hb}}\nfunction displayModelName(name,version){const n=String(name||'');const v=String(version||'').trim();if(!v)return n;if(n.includes('豪竞')||n.includes('豪竟'))return '豪竞'+v;if(n.includes('豪传'))return '豪传'+v;if(n.includes('豪篮'))return '豪篮'+v;return n}\nfunction activeNames(){const k=activeKeys();const hm=DATA?.active_models?.[k.hj],cm=DATA?.active_models?.[k.hc],bm=DATA?.active_models?.[k.hb];return {hj:displayModelName(k.hj,hm?.model_version),hc:displayModelName(k.hc,cm?.model_version),hb:displayModelName(k.hb,bm?.model_version)}}\nfunction activeByRole(role){const k=activeKeys(),name=role==='hj'?k.hj:role==='hc'?k.hc:k.hb;return DATA?.active_models?.[name]||null}"
+
           if old not in s:
-              raise SystemExit('stale label not found; refusing blind edit')
+              raise SystemExit('activeNames block not found; refusing blind edit')
           s = s.replace(old, new, 1)
-          s = s.replace("const APP_BUILD='2026-09-05 独立比分模型全中文v18';", "const APP_BUILD='2026-09-05 豪竞2.4同步v19';", 1)
+
+          s = s.replace("esc(r.model_name)+' '+esc(r.model_version||'')", "esc(displayModelName(r.model_name,r.model_version))", 1)
+          s = s.replace("metric('模型',run.model_name||'—',run.model_revision_tag||'')", "metric('模型',displayModelName(run.model_name,run.model_version)||'—',run.model_revision_tag||'')", 1)
+
+          old_build = "const APP_BUILD='2026-09-05 豪传64主推+全覆盖v20';"
+          new_build = "const APP_BUILD='2026-09-09 豪竞2.5动态版本显示v21';"
+          if old_build in s:
+              s = s.replace(old_build, new_build, 1)
+
           p.write_text(s, encoding='utf-8')
-          Path('version.json').write_text(json.dumps({'build':'2026-09-05 豪竞2.4同步v19','updated_at':'2026-09-05'}, ensure_ascii=False) + '\n', encoding='utf-8')
+          Path('version.json').write_text(json.dumps({'build':'2026-09-09 豪竞2.5动态版本显示v21','updated_at':'2026-09-09'}, ensure_ascii=False) + '\n', encoding='utf-8')
           PY
       - name: Commit frontend sync
         run: |
@@ -35,5 +46,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html version.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Sync frontend with 豪竞2.4'
+          git commit -m 'Display 豪竞 version from active model metadata'
           git push
