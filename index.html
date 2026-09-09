@@ -85,7 +85,7 @@ nav::-webkit-scrollbar{display:none}
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
 const HB_CUM_API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-basketball-7m-probe-v01';
-const APP_BUILD='2026-09-09 豪竞2.5选腿灯修复v25';
+const APP_BUILD='2026-09-09 豪竞2.5选腿灯API兜底修复v26';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 let HB_CUM=null;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
@@ -200,17 +200,32 @@ function hjHandicapCompact(r){const s=r?.source_status||{},p=s.handicap_final_pi
 function hjHandicapLight(r){const s=r?.source_status||{},x=String(s.handicap_light||'').toUpperCase(),lab=s.handicap_light_label||(x==='GREEN'?'🟢':x==='YELLOW'?'🟡':x==='RED'?'🔴':'⚪'),sup=hjHandicapSupport(r);if(x==='GREEN')return lab+' 可选 · '+sup;if(x==='YELLOW')return lab+' 观察 · '+sup;if(x==='RED')return lab+' 不选 · '+sup;return lab+' 未确认 · '+sup}
 function hjSelectionLightLabel(r){
  const s=r?.source_status||{},v=s.hj25_value_gate||{};
- const raw=String(s.final_selection_light||'').toUpperCase();
+ let raw=String(s.final_selection_light||'').toUpperCase();
  const eligible=(s.final_selection_eligible===true||String(s.final_selection_eligible).toLowerCase()==='true');
  const vBase=(v.base_final_selection_eligible===true||String(v.base_final_selection_eligible).toLowerCase()==='true');
  const vAction=String(v.action||'').toUpperCase(),vLight=String(v.value_light||'').toUpperCase();
+ const handling=String(r?.final_handling||r?.anchor_status||'').toUpperCase();
+ const keep=String(r?.keep_discard||'').toUpperCase();
+ const hasTicket=!!(r?.ticket_pick_after_gate||r?.ticket_pick);
+
+ // 首页API偶尔裁掉 final_selection_light；只在真实灯缺失时，用同一正式决策字段确定性还原展示。
+ if(!raw){
+   if(hasTicket||keep==='KEEP') raw='GREEN';
+   else if(handling.includes('REVIEW_YELLOW')) raw='YELLOW';
+   else if(keep==='DISCARD_VALUE'||handling==='VALUE_PASS'){
+     if(vLight==='RED'||vAction.includes('CONFLICT')||vAction.includes('NEGATIVE')) return '🔴 V Gate淘汰·原绿腿';
+     return '⚪ V Gate淘汰·原绿腿';
+   }
+   else if(keep==='DISCARD'||handling.includes('NO_ANCHOR_RED')||handling.includes('FORMAL_COLD_REVERSAL_TOP1_ONLY')) raw='RED';
+ }
+
+ // Value Gate对原绿腿的正式淘汰优先于基础绿灯展示。
  if(vBase&&!eligible&&vAction&&vAction!=='VALUE_ELIGIBLE'){
    if(vLight==='GREY')return '⚪ V未确认·原绿灯淘汰';
-   return '🔴 V Gate后淘汰';
+   if(vLight==='RED')return '🔴 V Gate淘汰·原绿灯';
+   return '⚪ V Gate淘汰·原绿灯';
  }
- const saved=s.primary_selection_label||s.had_selection_light_label||s.final_selection_light_label;
- if(saved)return saved;
- if(raw==='GREEN')return '🟢 正式选腿绿灯';
+ if(raw==='GREEN')return eligible||hasTicket||keep==='KEEP'?'🟢 正式可选':'🟢 基础绿灯';
  if(raw==='YELLOW')return '🟡 未达选腿质量';
  if(raw==='RED')return '🔴 最终淘汰';
  if(raw==='UNAVAILABLE')return '⚪ 无正式HAD资格';
