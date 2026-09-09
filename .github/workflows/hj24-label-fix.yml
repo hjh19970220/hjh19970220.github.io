@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch frontend for active version and intelligence residual
+      - name: Patch frontend for intelligence residual
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -22,22 +22,13 @@ jobs:
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
 
-          old = "function activeNames(){const ks=Object.keys(DATA?.active_models||{});const hj=DATA?.role_models?.hj||ks.find(k=>k.includes('豪竟')||k.includes('豪竞'))||'豪竞';const hc=DATA?.role_models?.hc||ks.find(k=>k.includes('豪传'))||'豪传';const hb=DATA?.role_models?.hb||ks.find(k=>k.includes('豪篮'))||'豪篮1.0';return {hj,hc,hb}}\nfunction activeByRole(role){const n=activeNames(),name=role==='hj'?n.hj:role==='hc'?n.hc:n.hb;return DATA?.active_models?.[name]||null}"
-          new = "function activeKeys(){const ks=Object.keys(DATA?.active_models||{});const hj=DATA?.role_models?.hj||ks.find(k=>k.includes('豪竟')||k.includes('豪竞'))||'豪竞';const hc=DATA?.role_models?.hc||ks.find(k=>k.includes('豪传'))||'豪传';const hb=DATA?.role_models?.hb||ks.find(k=>k.includes('豪篮'))||'豪篮1.0';return {hj,hc,hb}}\nfunction displayModelName(name,version){const n=String(name||'');const v=String(version||'').trim();if(!v)return n;if(n.includes('豪竞')||n.includes('豪竟'))return '豪竞'+v;if(n.includes('豪传'))return '豪传'+v;if(n.includes('豪篮'))return '豪篮'+v;return n}\nfunction activeNames(){const k=activeKeys();const hm=DATA?.active_models?.[k.hj],cm=DATA?.active_models?.[k.hc],bm=DATA?.active_models?.[k.hb];return {hj:displayModelName(k.hj,hm?.model_version),hc:displayModelName(k.hc,cm?.model_version),hb:displayModelName(k.hb,bm?.model_version)}}\nfunction activeByRole(role){const k=activeKeys(),name=role==='hj'?k.hj:role==='hc'?k.hc:k.hb;return DATA?.active_models?.[name]||null}"
-          if old in s:
-              s = s.replace(old, new, 1)
-          elif 'function activeKeys()' not in s:
-              raise SystemExit('active model display block not found')
-
-          s = s.replace("esc(r.model_name)+' '+esc(r.model_version||'')", "esc(displayModelName(r.model_name,r.model_version))", 1)
-          s = s.replace("metric('模型',run.model_name||'—',run.model_revision_tag||'')", "metric('模型',displayModelName(run.model_name,run.model_version)||'—',run.model_revision_tag||'')", 1)
-
           risk_line = "function hjRiskBadge(r){const xs=[r?.hur,r?.dtr,r?.dlr].filter(Boolean);if(xs.includes('红'))return '🔴 高';if(xs.includes('黄'))return '🟡 中';if(xs.length&&xs.every(x=>x==='绿'||x==='NA'))return '🟢 低';return '⚪ 未确认'}"
-          intel_helpers = r'''function hjIntel(r){return r?.source_status?.intelligence_residual||null}
-function hjIntelBadge(r){const x=hjIntel(r);if(!x)return '';const t=String(x.risk_tier||'NONE').toUpperCase();if(t==='STRONG_WATCH')return '🔴 情报强预警';if(t==='WATCH')return '🟠 情报重点观察';if(t==='INFO')return '🟡 情报提示';return '⚪ 情报无强冲突'}
-function hjIntelNum(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d):'—'}
-function hjIntelDetailSection(r){const x=hjIntel(r);if(!x)return '';const t=String(x.risk_tier||'NONE').toUpperCase(),tone=t==='STRONG_WATCH'?'bad':t==='WATCH'||t==='INFO'?'warn':'good';const tier=t==='STRONG_WATCH'?'🔴 STRONG_WATCH':t==='WATCH'?'🟠 WATCH':t==='INFO'?'🟡 INFO':'⚪ NONE';const fav=x.favorite_side==='home'?'主队':x.favorite_side==='away'?'客队':'未确认';const gk=(x.fav_gk_excess===true||String(x.fav_gk_excess)==='true')?'是':'否';return '<section class="section"><div class="shead"><h2>🛰️ 2.5 情报Residual</h2><span>赛前情报 + 首发/伤停 · 影子验证，不改正式Top1</span></div><div class="cards"><div class="card feature"><div class="kv"><div>情报风险</div><div><b>'+esc(tier)+'</b></div><div>反向证据域</div><div>'+esc(String(x.adverse_domains??0))+'</div><div>当前热门侧</div><div>'+esc(fav)+'</div><div>影子挑战方向</div><div>'+esc(x.challenger_pick||'—')+'</div><div>正式Top1影响</div><div>否（影子层）</div></div></div><div class="card"><div class="kv"><div>热门主力缺阵差</div><div>'+esc(hjIntelNum(x.fav_loss_excess))+'</div><div>热门负面类别差</div><div>'+esc(hjIntelNum(x.fav_neg_excess,0))+'</div><div>热门门将额外缺阵</div><div>'+esc(gk)+'</div><div>对手正面情报差</div><div>'+esc(hjIntelNum(x.opp_pos_excess,0))+'</div><div>主队缺阵主力当量</div><div>'+esc(hjIntelNum(x.home_unavail_startshare))+'</div><div>客队缺阵主力当量</div><div>'+esc(hjIntelNum(x.away_unavail_startshare))+'</div><div>主/客负面类别</div><div>'+esc(String(x.home_neg_cat??0)+' / '+String(x.away_neg_cat??0))+'</div><div>主/客正面类别</div><div>'+esc(String(x.home_pos_cat??0)+' / '+String(x.away_pos_cat??0))+'</div></div></div></div><div class="notice '+tone+'" style="margin:0 12px 12px">情报Residual当前仅用于发现Top1尾部风险；未通过未来OOT升级前，不自动改变正式方向。</div></section>'}
-'''
+          intel_helpers = (
+              "function hjIntel(r){return r?.source_status?.intelligence_residual||null}\n"
+              "function hjIntelBadge(r){const x=hjIntel(r);if(!x)return '';const t=String(x.risk_tier||'NONE').toUpperCase();if(t==='STRONG_WATCH')return '🔴 情报强预警';if(t==='WATCH')return '🟠 情报重点观察';if(t==='INFO')return '🟡 情报提示';return '⚪ 情报无强冲突'}\n"
+              "function hjIntelNum(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d):'—'}\n"
+              "function hjIntelDetailSection(r){const x=hjIntel(r);if(!x)return '';const t=String(x.risk_tier||'NONE').toUpperCase(),tone=t==='STRONG_WATCH'?'bad':t==='WATCH'||t==='INFO'?'warn':'good';const tier=t==='STRONG_WATCH'?'🔴 STRONG_WATCH':t==='WATCH'?'🟠 WATCH':t==='INFO'?'🟡 INFO':'⚪ NONE';const fav=x.favorite_side==='home'?'主队':x.favorite_side==='away'?'客队':'未确认';const gk=(x.fav_gk_excess===true||String(x.fav_gk_excess)==='true')?'是':'否';return '<section class=\"section\"><div class=\"shead\"><h2>🛰️ 2.5 情报Residual</h2><span>赛前情报 + 首发/伤停 · 影子验证，不改正式Top1</span></div><div class=\"cards\"><div class=\"card feature\"><div class=\"kv\"><div>情报风险</div><div><b>'+esc(tier)+'</b></div><div>反向证据域</div><div>'+esc(String(x.adverse_domains??0))+'</div><div>当前热门侧</div><div>'+esc(fav)+'</div><div>影子挑战方向</div><div>'+esc(x.challenger_pick||'—')+'</div><div>正式Top1影响</div><div>否（影子层）</div></div></div><div class=\"card\"><div class=\"kv\"><div>热门主力缺阵差</div><div>'+esc(hjIntelNum(x.fav_loss_excess))+'</div><div>热门负面类别差</div><div>'+esc(hjIntelNum(x.fav_neg_excess,0))+'</div><div>热门门将额外缺阵</div><div>'+esc(gk)+'</div><div>对手正面情报差</div><div>'+esc(hjIntelNum(x.opp_pos_excess,0))+'</div><div>主队缺阵主力当量</div><div>'+esc(hjIntelNum(x.home_unavail_startshare))+'</div><div>客队缺阵主力当量</div><div>'+esc(hjIntelNum(x.away_unavail_startshare))+'</div><div>主/客负面类别</div><div>'+esc(String(x.home_neg_cat??0)+' / '+String(x.away_neg_cat??0))+'</div><div>主/客正面类别</div><div>'+esc(String(x.home_pos_cat??0)+' / '+String(x.away_pos_cat??0))+'</div></div></div></div><div class=\"notice '+tone+'\" style=\"margin:0 12px 12px\">情报Residual当前仅用于发现Top1尾部风险；未通过未来OOT升级前，不自动改变正式方向。</div></section>'}\n"
+          )
           if 'function hjIntel(r)' not in s:
               if risk_line not in s:
                   raise SystemExit('hjRiskBadge anchor not found')
@@ -45,9 +36,10 @@ function hjIntelDetailSection(r){const x=hjIntel(r);if(!x)return '';const t=Stri
 
           quick_old = "(goal?'<span class=\"hjqchip\">⚽ '+esc(goal)+'</span>':'')+'</div>'+"
           quick_new = "(goal?'<span class=\"hjqchip\">⚽ '+esc(goal)+'</span>':'')+(hjIntelBadge(r)?'<span class=\"hjqchip\">'+esc(hjIntelBadge(r))+'</span>':'')+'</div>'+"
+          q0=s.find('function hjQuickCard'); q1=s.find('function hjScoreMatrixSection')
           if quick_old in s:
               s = s.replace(quick_old, quick_new, 1)
-          elif 'hjIntelBadge(r)' not in s[s.find('function hjQuickCard'):s.find('function hjScoreMatrixSection')]:
+          elif q0 < 0 or q1 < 0 or 'hjIntelBadge(r)' not in s[q0:q1]:
               raise SystemExit('hjQuickCard intelligence insertion anchor not found')
 
           detail_old = "+scoreSec+hjIndependentDetailSection(r)+'<section class=\"section\"><div class=\"shead\"><h2>🧠 风险与证据</h2>"
@@ -58,8 +50,8 @@ function hjIntelDetailSection(r){const x=hjIntel(r);if(!x)return '';const t=Stri
               raise SystemExit('matchDetail intelligence section anchor not found')
 
           for old_build in [
-              "const APP_BUILD='2026-09-05 豪传64主推+全覆盖v20';",
-              "const APP_BUILD='2026-09-09 豪竞2.5动态版本显示v21';"
+              "const APP_BUILD='2026-09-09 豪竞2.5动态版本显示v21';",
+              "const APP_BUILD='2026-09-05 豪传64主推+全覆盖v20';"
           ]:
               if old_build in s:
                   s = s.replace(old_build, "const APP_BUILD='2026-09-09 豪竞2.5情报Residual展示v22';", 1)
