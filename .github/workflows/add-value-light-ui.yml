@@ -1,0 +1,70 @@
+name: Add 豪竞2.5 V灯 UI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-value-light-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch V light UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          if 'function hjValue(r)' not in s:
+              anchor='function hjUpsetDiag(r){'
+              helper="""function hjValue(r){return r?.source_status?.hj25_value_gate||null}\nfunction hjValueBadge(r){const x=hjValue(r);if(!x)return '';const l=String(x.value_light||'GREY').toUpperCase();if(l==='GREEN')return '🟢 V';if(l==='RED')return '🔴 V';return '⚪ V'}\nfunction hjValuePct(v){const n=Number(v);return Number.isFinite(n)?(n*100).toFixed(1)+'%':'—'}\nfunction hjValueEdge(v){const n=Number(v);return Number.isFinite(n)?((n>=0?'+':'')+(n*100).toFixed(2)+'pp'):'—'}\nfunction hjValueDetailSection(r){const x=hjValue(r);if(!x)return '';const l=String(x.value_light||'GREY').toUpperCase(),tone=l==='GREEN'?'good':l==='RED'?'bad':'warn',lab=l==='GREEN'?'🟢 V绿灯':l==='RED'?'🔴 V红灯':'⚪ V灰灯';return '<section class=\"section\"><div class=\"shead\"><h2>💎 豪竞2.5 V灯</h2><span>Break-even Value Gate · 不翻Top1</span></div><div class=\"cards\"><div class=\"card feature\"><div class=\"kv\"><div>V灯</div><div><b>'+esc(lab)+'</b></div><div>动作</div><div>'+esc(x.action||'—')+'</div><div>Value理由</div><div>'+esc(x.reason||'—')+'</div><div>原选腿资格</div><div>'+esc(x.base_final_selection_eligible===true?'有':'无')+'</div></div></div><div class=\"card\"><div class=\"kv\"><div>独立概率</div><div>'+esc(hjValuePct(x.independent_p))+'</div><div>体彩Top1 SP</div><div>'+esc(x.executable_sp??'—')+'</div><div>盈亏平衡概率</div><div>'+esc(hjValuePct(x.break_even_p))+'</div><div>BE Edge</div><div>'+esc(hjValueEdge(x.be_edge))+'</div><div>短期DC方向</div><div>'+esc(x.short_top1||'—')+'</div><div>120天xG方向</div><div>'+esc(x.long_top1||'—')+'</div><div>Elo复核</div><div>'+esc(x.elo_status||'UNCONFIRMED')+'</div></div></div></div><div class=\"notice '+tone+'\" style=\"margin:0 12px 12px\">V灯只做价值资格/否决：绿V只能保留原本已合格腿；红/灰V可否决；禁止靠V灯翻Top1或复活PASS。</div></section>'}\n"""
+              if anchor not in s: raise SystemExit('value helper anchor missing')
+              s=s.replace(anchor,helper+anchor,1)
+
+          old="+(hjIntelBadge(r)?'<span class=\"hjqchip\">'+esc(hjIntelBadge(r))+'</span>':'')+'</div>'+"
+          new="+(hjValueBadge(r)?'<span class=\"hjqchip\">'+esc(hjValueBadge(r))+'</span>':'')+(hjIntelBadge(r)?'<span class=\"hjqchip\">'+esc(hjIntelBadge(r))+'</span>':'')+'</div>'+"
+          if old in s:
+              s=s.replace(old,new,1)
+          elif 'hjValueBadge(r)' not in s[s.find('function hjQuickCard'):s.find('function hjScoreMatrixSection')]:
+              raise SystemExit('quick card V anchor missing')
+
+          old2='+scoreSec+hjIntelDetailSection(r)+hjIndependentDetailSection(r)'
+          new2='+scoreSec+hjValueDetailSection(r)+hjIntelDetailSection(r)+hjIndependentDetailSection(r)'
+          if old2 in s:
+              s=s.replace(old2,new2,1)
+          elif '+scoreSec+hjValueDetailSection(r)+hjIntelDetailSection(r)+hjIndependentDetailSection(r)' not in s:
+              raise SystemExit('detail V anchor missing')
+
+          for oldbuild in [
+              "const APP_BUILD='2026-09-09 豪竞2.5二审状态修复v23';",
+              "const APP_BUILD='2026-09-09 豪竞2.5情报Residual展示v22';"
+          ]:
+              if oldbuild in s:
+                  s=s.replace(oldbuild,"const APP_BUILD='2026-09-09 豪竞2.5 V灯展示v24';",1)
+                  break
+          p.write_text(s,encoding='utf-8')
+          Path('version.json').write_text(json.dumps({'build':'2026-09-09 豪竞2.5 V灯展示v24','updated_at':'2026-09-09'},ensure_ascii=False)+'\n',encoding='utf-8')
+          PY
+      - name: Check JS syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/site.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/site.js
+      - name: Commit V light UI
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html version.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Show 豪竞2.5 V light on website'
+          git push
