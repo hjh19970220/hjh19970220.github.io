@@ -1,0 +1,41 @@
+name: Deploy 豪竞2.5 single-double frontend v30
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hj-single-double-v30.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch single-double UI
+        run: python scripts/patch_hj_single_double_v30.py
+      - name: Check JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/app.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+      - name: Verify single-double build
+        run: |
+          grep -q "豪竞2.5单双选前端v30" index.html
+          grep -q "hjSingleDoubleData" index.html
+          grep -q "🟢 单选" index.html
+          grep -q "🟣 强双" index.html
+          grep -q "🟠 候选双" index.html
+          grep -q "🔀单双" index.html
+      - name: Commit deployed UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html version.json
+          git diff --cached --quiet || git commit -m "Deploy 豪竞2.5 single-double frontend v30"
+          git push
