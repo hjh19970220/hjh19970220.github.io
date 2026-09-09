@@ -1,0 +1,39 @@
+name: Deploy 豪竞2.5 full source hydration v29
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hj-fullsource-v29.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch full source hydration
+        run: python scripts/patch_hj_fullsource_v29.py
+      - name: Check JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/app.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+      - name: Verify hydration build
+        run: |
+          grep -q "豪竞2.5完整双灯补水v29" index.html
+          grep -q "hydrateHjFullSource" index.html
+          grep -q "selection_dual_light_v01" index.html
+          grep -q "价值灯" index.html
+      - name: Commit deployed UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html version.json
+          git diff --cached --quiet || git commit -m "Deploy 豪竞2.5 full source hydration v29"
+          git push
