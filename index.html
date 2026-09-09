@@ -85,7 +85,7 @@ nav::-webkit-scrollbar{display:none}
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
 const HB_CUM_API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-basketball-7m-probe-v01';
-const APP_BUILD='2026-09-09 豪竞2.5情报Residual展示v22';
+const APP_BUILD='2026-09-09 豪竞2.5二审状态修复v23';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 let HB_CUM=null;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
@@ -236,8 +236,8 @@ function teacherCoverageZh(s){
 }
 
 function hjTeacherDetailSection(r){
- const s=r?.source_status||{},g=s.teacher_g_had||null,st=String(s.teacher_g_source_status||''),a=String(s.teacher_post_gate_action||'NO_ACTION');
- const reviewedStatus=['confirmed_prematch_independent_review','confirmed_prematch_review','confirmed'].includes(st);
+ const s=r?.source_status||{},g=s.teacher_g_had||null,st=String(s.teacher_g_source_status||''),rs=String(s.teacher_g_review_status||s.gpt_review_status||'').toUpperCase(),a=String(s.teacher_post_gate_action||'NO_ACTION');
+ const reviewedStatus=(s.gpt_review_executed===true)||(s.teacher_g_prematch_verified===true&&rs==='COMPLETED_PREMATCH')||['confirmed_prematch_independent_review','confirmed_prematch_review','confirmed'].includes(st);
  const reviewedEvidence=!!(s.teacher_g_reviewed_at||s.teacher_g_final_conclusion||s.teacher_g_support_evidence||s.teacher_g_opposition_evidence||g);
  const gptReviewed=reviewedStatus&&reviewedEvidence;
  if(!gptReviewed){
@@ -246,7 +246,7 @@ function hjTeacherDetailSection(r){
    '<div class="notice warn" style="margin:12px"><b>⚪ 二审未执行：</b> '+esc(why)+'。本场不生成方向判断、黄灯仲裁、基本面审计或“最强证据”二审结论；页面下方市场/Elo/泊松进球模型属于一审数据，不得冒充GPT二审。</div></section>';
  }
  const az={SUPPORT:'✅ 支持Top1',REVIEW:'🟡 反对/要求复核',STRONG_CONFLICT:'🔴 强冲突',NO_ACTION:'⚪ 未给意见 / 不调整'}[a]||a;
- const sz=st==='not_injected_server_runtime'?'⚪ 本轮未注入 · ABSTAIN':st==='confirmed_prematch_independent_review'?'✅ 已完成赛前独立二审':st==='confirmed_prematch_review'?'✅ 已完成赛前二审':st==='confirmed'?'✅ 已确认':st==='fetch_failed'?'⚠️ 获取失败 · ABSTAIN':st==='not_covered'?'⚪ 未覆盖 · ABSTAIN':(st||'⚪ 未确认');
+ const sz=rs==='COMPLETED_PREMATCH'?'✅ 已完成赛前GPT-5.6 Sol二审':st==='not_injected_server_runtime'?'⚪ 本轮未注入 · ABSTAIN':st==='confirmed_prematch_independent_review'?'✅ 已完成赛前独立二审':st==='confirmed_prematch_review'?'✅ 已完成赛前二审':st==='confirmed'?'✅ 已确认':st==='fetch_failed'?'⚠️ 获取失败 · ABSTAIN':st==='not_covered'?'⚪ 未覆盖 · ABSTAIN':(st||'⚪ 未确认');
  const arbRaw=String(s.teacher_g_yellow_arbitration||'').toUpperCase();
  const arb=arbRaw==='RESCUE'||arbRaw==='可救黄灯'?'🟢 可救黄灯':arbRaw==='HOLD'||arbRaw==='保持黄灯'?'🟡 保持黄灯':arbRaw==='BLOCK'||arbRaw==='禁止救援'?'🔴 禁止救援':'⚪ 未给意见 / 未仲裁';
  const sup=[],opp=[];
