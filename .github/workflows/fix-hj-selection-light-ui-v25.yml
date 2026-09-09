@@ -1,0 +1,72 @@
+name: Fix 豪竞2.5 selection light UI v25
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-hj-selection-light-ui-v25.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch selection light display
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old="function hjFinalLeg(r){const s=r?.source_status||{},x=s.primary_selection_label||s.had_selection_light_label||s.final_selection_light_label||statusZh(r?.final_handling||r?.anchor_status||'—');return s.prematch_lock===true?'🔒 '+x:x}"
+          new="""function hjSelectionLightLabel(r){
+ const s=r?.source_status||{},v=s.hj25_value_gate||{};
+ const raw=String(s.final_selection_light||'').toUpperCase();
+ const eligible=(s.final_selection_eligible===true||String(s.final_selection_eligible).toLowerCase()==='true');
+ const vBase=(v.base_final_selection_eligible===true||String(v.base_final_selection_eligible).toLowerCase()==='true');
+ const vAction=String(v.action||'').toUpperCase(),vLight=String(v.value_light||'').toUpperCase();
+ if(vBase&&!eligible&&vAction&&vAction!=='VALUE_ELIGIBLE'){
+   if(vLight==='GREY')return '⚪ V未确认·原绿灯淘汰';
+   return '🔴 V Gate后淘汰';
+ }
+ const saved=s.primary_selection_label||s.had_selection_light_label||s.final_selection_light_label;
+ if(saved)return saved;
+ if(raw==='GREEN')return '🟢 正式选腿绿灯';
+ if(raw==='YELLOW')return '🟡 未达选腿质量';
+ if(raw==='RED')return '🔴 最终淘汰';
+ if(raw==='UNAVAILABLE')return '⚪ 无正式HAD资格';
+ return '⚪ 未确认';
+}
+function hjFinalLeg(r){const s=r?.source_status||{},x=hjSelectionLightLabel(r);return s.prematch_lock===true?'🔒 '+x:x}"""
+          if old not in s:
+              raise SystemExit('hjFinalLeg target not found')
+          s=s.replace(old,new,1)
+          s=s.replace("s.primary_selection_label||s.had_selection_light_label||s.final_selection_light_label||'—'","hjSelectionLightLabel(r)")
+          s=s.replace("s.final_selection_light_label||s.primary_selection_label||'—'","hjSelectionLightLabel(r)")
+          s=s.replace("const APP_BUILD='2026-09-09 豪竞2.5 V灯展示v24';","const APP_BUILD='2026-09-09 豪竞2.5选腿灯修复v25';")
+          p.write_text(s,encoding='utf-8')
+          Path('version.json').write_text('{"build": "2026-09-09 豪竞2.5选腿灯修复v25", "updated_at": "2026-09-09"}\n',encoding='utf-8')
+          PY
+      - name: Check JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/site.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/site.js
+      - name: Verify selection light helper
+        run: |
+          grep -q "function hjSelectionLightLabel" index.html
+          grep -q "豪竞2.5选腿灯修复v25" index.html
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html version.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix 豪竞2.5 selection light display"
+          git push
