@@ -1,0 +1,32 @@
+name: Fix 豪竞2.5 selection light fallback v26
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-hj-selection-v26.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch selection light fallback
+        run: python scripts/patch_hj_selection_v26.py
+      - name: Check JavaScript syntax
+        run: |
+          python -c "from pathlib import Path; s=Path('index.html').read_text(); a=s.index('<script>')+8; b=s.rindex('</script>'); Path('/tmp/app.js').write_text(s[a:b])"
+          node --check /tmp/app.js
+      - name: Verify fallback
+        run: |
+          grep -q "豪竞2.5选腿灯API兜底修复v26" index.html
+          grep -q "V Gate淘汰·原绿腿" index.html
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html version.json
+          git diff --cached --quiet || git commit -m "Fix 豪竞2.5 selection light API fallback v26"
+          git push
