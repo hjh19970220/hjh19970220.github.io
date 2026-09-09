@@ -1,0 +1,39 @@
+name: Deploy 豪竞2.5 dual-light UI v27
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hj-dual-light-v27.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch dual-light UI
+        run: python scripts/patch_hj_dual_light_v27.py
+      - name: Check JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/app.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+      - name: Verify dual-light build
+        run: |
+          grep -q "豪竞2.5双灯重构v27" index.html
+          grep -q "selection_dual_light_v01" index.html
+          grep -q "🎯方向" index.html
+          grep -q "🎫出手" index.html
+      - name: Commit deployed UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html version.json
+          git diff --cached --quiet || git commit -m "Deploy 豪竞2.5 dual-light UI v27"
+          git push
