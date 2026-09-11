@@ -85,7 +85,7 @@ nav::-webkit-scrollbar{display:none}
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
 const HB_CUM_API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-basketball-7m-probe-v01';
-const APP_BUILD='2026-09-10 豪竞2.5单双选前端v30';
+const APP_BUILD='2026-09-11 豪竞2.7前端v31';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 let HB_CUM=null;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
@@ -288,7 +288,7 @@ function hjSingleDoubleDetailSection(r){
  if(!c)return '';
  const top1Changed=x.top1_unchanged===true?'否':'未确认';
  const probChanged=x.probability_unchanged===true?'否':'未确认';
- return '<section class="section"><div class="shead"><h2>🔀 豪竞2.5 单双选</h2><span>有把握单选 · 有可信第二方向双选 · 不可靠则PASS</span></div><div class="cards"><div class="card feature"><div class="kv"><div>单双类型</div><div><b>'+esc(hjSingleDoubleBadge(r))+'</b></div><div>执行方向</div><div><b>'+esc(hjSingleDoublePicks(r))+'</b></div><div>动作</div><div>'+esc(x.action||'—')+'</div><div>判定理由</div><div>'+esc(x.reason||'—')+'</div></div></div><div class="card"><div class="kv"><div>正式Top1</div><div>'+esc(r.top1||'未确认')+'</div><div>第二方向</div><div>'+esc(r.second_pick||'—')+'</div><div>是否改Top1</div><div>'+esc(top1Changed)+'</div><div>是否改概率</div><div>'+esc(probChanged)+'</div><div>候选双是否强制下注</div><div>'+esc(x.candidate_double_not_forced===true?'否':'未确认')+'</div></div></div></div></section>';
+ return '<section class="section"><div class="shead"><h2>🔀 豪竞2.7 单双选</h2><span>有把握单选 · 有可信第二方向双选 · 不可靠则PASS</span></div><div class="cards"><div class="card feature"><div class="kv"><div>单双类型</div><div><b>'+esc(hjSingleDoubleBadge(r))+'</b></div><div>执行方向</div><div><b>'+esc(hjSingleDoublePicks(r))+'</b></div><div>动作</div><div>'+esc(x.action||'—')+'</div><div>判定理由</div><div>'+esc(x.reason||'—')+'</div></div></div><div class="card"><div class="kv"><div>正式Top1</div><div>'+esc(r.top1||'未确认')+'</div><div>第二方向</div><div>'+esc(r.second_pick||'—')+'</div><div>是否改Top1</div><div>'+esc(top1Changed)+'</div><div>是否改概率</div><div>'+esc(probChanged)+'</div><div>候选双是否强制下注</div><div>'+esc(x.candidate_double_not_forced===true?'否':'未确认')+'</div></div></div></div></section>';
 }
 function hjFinalLeg(r){const s=r?.source_status||{},x=hjDualActionBadge(r);return s.prematch_lock===true?'🔒 '+x:x}
 function spSourceZh(v){const x=String(v||'');const m={okooo_sp_mirror:'澳客竞彩赔率', '500_sp_mirror':'500竞彩赔率', qiulaile_sp_mirror:'球来乐竞彩赔率'};return m[x]||x||'未确认'}
@@ -407,8 +407,8 @@ function hjTeacherDetailSection(r){
  '<div class="cards"><div class="card"><div class="kv">'+
  '<div>William Hill欧赔</div><div>'+esc(whTxt)+'</div>'+
  '<div>四机构亚洲盘盘口/水位</div><div>'+esc(asiaTxt)+'</div>'+
- '<div>竞彩胜平负竞彩赔率</div><div>'+esc(hadTxt)+'</div>'+
- '<div>竞彩H胜平负竞彩赔率</div><div>'+esc(hhadTxt)+'</div>'+
+ '<div>竞彩HAD胜平负SP</div><div>'+esc(hadTxt)+'</div>'+
+ '<div>竞彩HHAD让球胜平负SP</div><div>'+esc(hhadTxt)+'</div>'+
  '<div>实力评分差</div><div>'+esc(eloTxt)+'</div>'+
  '<div>泊松进球模型 / 净胜球</div><div>'+esc(poiTxt)+'</div>'+
  '<div>爆冷 / 平局 / 直接输球三类风险</div><div>'+esc(riskTxt)+'</div>'+
