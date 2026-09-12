@@ -1,0 +1,76 @@
+name: frontend-health-v32
+
+on:
+  push:
+    paths:
+      - ".github/workflows/frontend-health-v32.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Patch frontend health logic
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          old_runfresh = "function runFresh(run){const m=ageMinutes(run?.run_time);if(m==null)return {text:'模型无运行',tone:'bad'};if(m<=75)return {text:'模型更新 '+m+' 分钟前',tone:'good'};if(m<=180)return {text:'模型更新 '+m+' 分钟前',tone:'warn'};return {text:'模型已 '+m+' 分钟未运行',tone:'bad'}}"
+          new_runfresh = "function runFresh(run){const m=ageMinutes(run?.run_time);if(m==null)return {text:'模型无运行',tone:'bad'};const now=DATA?.server_time?new Date(DATA.server_time):new Date();const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hour12:false}).formatToParts(now),p={};for(const x of parts)p[x.type]=x.value;const today=p.year+'-'+p.month+'-'+p.day,h=Number(p.hour);const pool=String(run?.pool_date||'');if(pool&&pool<today&&h<12)return {text:'等待今日12:00首轮 · 展示上一销售日冻结盘',tone:'warn'};if(m<=75)return {text:'模型更新 '+m+' 分钟前',tone:'good'};if(m<=180)return {text:'模型更新 '+m+' 分钟前',tone:'warn'};return {text:'模型已 '+m+' 分钟未运行',tone:'bad'}}"
+
+          old_health = "const acts=Array.isArray(x.actions)?x.actions:[],bad=Array.isArray(x.unresolved)?x.unresolved:[];\n const tone=st==='ok'?'good':st==='healed'||st==='waiting'?'warn':'bad';\n const label=st==='ok'?'✅ 系统正常':st==='waiting'?'⏳ 系统正常 · 等待数据':st==='healed'?'🛠️ 已自动修复':'🚨 真故障';"
+          new_health = "const acts=Array.isArray(x.actions)?x.actions:[],rawBad=Array.isArray(x.unresolved)?x.unresolved:[],bad=rawBad.filter(v=>v&&((v.count==null)||Number(v.count)>0));\n const hasHardFault=bad.length>0;\n const tone=hasHardFault?'bad':(waits.length||st==='waiting'||st==='attention'||st==='healed'?'warn':'good');\n const label=hasHardFault?'🚨 真故障':(waits.length||st==='waiting'||st==='attention'?'⏳ 系统正常 · 等待数据':st==='healed'?'🛠️ 已自动修复':'✅ 系统正常');"
+
+          old_build = "2026-09-11 豪竞2.7前端v31"
+          new_build = "2026-09-12 豪竞2.7前端v32-healthfix"
+
+          changed = []
+          for name in ["index.html", "latest.html", "live.html"]:
+              p = Path(name)
+              if not p.exists():
+                  continue
+              text = p.read_text(encoding="utf-8")
+              before = text
+              if old_runfresh in text:
+                  text = text.replace(old_runfresh, new_runfresh)
+              if old_health in text:
+                  text = text.replace(old_health, new_health)
+              text = text.replace(old_build, new_build)
+              if name == "index.html":
+                  assert "rawBad.filter" in text, "health unresolved filter patch missing"
+                  assert "等待今日12:00首轮" in text, "cross-day freshness patch missing"
+              if text != before:
+                  p.write_text(text, encoding="utf-8")
+                  changed.append(name)
+
+          assert "index.html" in changed, "index.html was not patched"
+          Path("version.json").write_text('{"build":"2026-09-12 豪竞2.7前端v32-healthfix","updated_at":"2026-09-12"}\n', encoding="utf-8")
+          PY
+      - name: Check JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/app.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+      - name: Verify health fix
+        run: |
+          grep -q "rawBad.filter" index.html
+          grep -q "等待今日12:00首轮" index.html
+          grep -q "豪竞2.7前端v32-healthfix" index.html
+      - name: Commit deployed UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html latest.html live.html version.json
+          git diff --cached --quiet || git commit -m "fix frontend health false alarms and cross-day freshness"
+          git push
