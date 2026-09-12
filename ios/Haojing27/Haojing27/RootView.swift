@@ -53,7 +53,7 @@ struct LoginView: View {
                     Button {
                         Task { _ = await store.login(username: username, password: password) }
                     } label: {
-                        HStack { if store.loading { ProgressView() }; Text("进入控制台").fontWeight(.bold()) }
+                        HStack { if store.loading { ProgressView() }; Text("进入控制台").fontWeight(.bold) }
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
