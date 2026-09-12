@@ -5,7 +5,9 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:label="豪竞">
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
+        android:label="豪竞 Professional">
         <activity
             android:name=".MainActivity"
             android:screenOrientation="portrait"
