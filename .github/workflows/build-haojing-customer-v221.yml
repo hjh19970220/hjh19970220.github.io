@@ -1,0 +1,86 @@
+name: Build HaoJing Customer APK v2.2.1
+on:
+  push:
+    branches: [haojing-android]
+    paths: ['.github/workflows/build-haojing-customer-v221.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Validate feeds
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
+          BASE='https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1'
+          curl --retry 3 --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&limit=5" >/tmp/full.json
+          curl --retry 3 --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_picks_customer_v20?select=publish_date,match_no,record_kind&limit=20" >/tmp/picks.json
+          curl --retry 3 --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_risk_stats_v15?select=publish_date,match_no,risk_badge&limit=20" >/tmp/risk.json
+          test "$(jq length /tmp/full.json)" -gt 0
+          test "$(jq length /tmp/picks.json)" -gt 0
+          echo V221_FEEDS_OK
+      - name: Assemble base source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p haojing-customer-v20/app/src/main/java/com/haojing/app
+          cat haojing-customer-v20/srcparts/0*.txt > haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+      - name: Apply v2.2 redesign
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '
+            /^          python3 - <<'\''PY'\''$/ {flag=1; next}
+            flag && /^          PY$/ {exit}
+            flag {sub(/^          /,""); print}
+          ' .github/workflows/build-haojing-customer-v22.yml > /tmp/patch22.py
+          test -s /tmp/patch22.py
+          python3 /tmp/patch22.py
+      - name: Fix v2.2.1 home filters
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java')
+          s=p.read_text()
+          s=s.replace('LinearLayout body,nav,dates; String page="home",day="";', 'LinearLayout body,nav,dates; String page="home",day="",homeFilter="全部";')
+          def repl(start,end,body):
+              global s
+              pat=re.escape(start)+r'.*?(?='+re.escape(end)+r')'
+              ns,n=re.subn(pat,body+'\n ',s,flags=re.S)
+              if n!=1: raise SystemExit(f'patch failed {start} n={n}')
+              s=ns
+          repl('void home(){','LinearLayout homeCard(JSONObject o){',r'''void home(){String latest=day.isEmpty()?latestDate():day;int n=0,featured=0,warns=0,settled=0,hit=0;for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);if(!latest.equals(o.optString("publish_date")))continue;n++;if(isFormalFeatured(latest,o.optString("match_no")))featured++;if(isRiskMatch(latest,o.optString("match_no")))warns++;String st=o.optString("eval_status");if(st.contains("成功")){settled++;hit++;}else if(st.contains("失败")||st.contains("未中"))settled++;}LinearLayout hero=card();hero.setBackground(box(0xFFFFF4E6,18));hero.addView(tv("豪竞2.7  专业版",24,dark,true));hero.addView(tv("数据驱动 · 风险审计 · 精选克制",12,muted,false));LinearLayout nums=new LinearLayout(this);nums.setPadding(0,dp(10),0,0);TextView a=tv("今日赛事\n"+n,15,orange,true);a.setGravity(Gravity.CENTER);TextView b=tv("正式精选\n"+featured,15,orange,true);b.setGravity(Gravity.CENTER);TextView c=tv("风险预警\n"+warns,15,orange,true);c.setGravity(Gravity.CENTER);nums.addView(a,new LinearLayout.LayoutParams(0,-2,1));nums.addView(b,new LinearLayout.LayoutParams(0,-2,1));nums.addView(c,new LinearLayout.LayoutParams(0,-2,1));hero.addView(nums);body.addView(hero);LinearLayout tabs=card();tabs.setOrientation(LinearLayout.HORIZONTAL);String[] ts={"全部","精选","预警"};for(String z:ts){final String zz=z;boolean on=homeFilter.equals(z);TextView q=tv(z,13,on?Color.WHITE:dark,true);q.setGravity(Gravity.CENTER);q.setBackground(box(on?orange:0xFFF2F2F2,14));q.setOnClickListener(v->{homeFilter=zz;render();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(38),1);lp.setMargins(dp(3),0,dp(3),0);tabs.addView(q,lp);}body.addView(tabs);int shown=0;for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);if(!latest.equals(o.optString("publish_date")))continue;String no=o.optString("match_no");boolean ok=homeFilter.equals("全部")||(homeFilter.equals("精选")&&isFormalFeatured(latest,no))||(homeFilter.equals("预警")&&isRiskMatch(latest,no));if(ok){body.addView(homeCard(o));shown++;}}if(shown==0){LinearLayout e=card();e.addView(tv(homeFilter.equals("精选")?"该日期暂无正式精选":homeFilter.equals("预警")?"该日期暂无风险预警":"暂无赛事",18,dark,true));e.addView(tv(homeFilter.equals("精选")?"只有真正达到精选门槛的正式前瞻才会出现在这里。":"豪竞核心研判系统暂未触发对应记录。",12,muted,false));body.addView(e);}}''')
+          repl('LinearLayout homeCard(JSONObject o){','void detail(JSONObject o){',r'''LinearLayout homeCard(JSONObject o){LinearLayout c=card();String d=o.optString("publish_date"),no=fmtNo(o.optString("match_no"));boolean feat=isFormalFeatured(d,o.optString("match_no")),warn=isRiskMatch(d,o.optString("match_no"));ArrayList<JSONObject> ps=pickList(d,o.optString("match_no"));LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.addView(tv(no+"  "+o.optString("league"),12,muted,true),new LinearLayout.LayoutParams(0,-2,1));if(feat){TextView tag=tv("精选",11,Color.WHITE,true);tag.setBackground(box(orange,10));tag.setPadding(dp(8),dp(3),dp(8),dp(3));top.addView(tag);}else if(warn){TextView tag=tv("⚠ 预警",11,0xFFB46A16,true);tag.setBackground(box(0xFFFFF1D8,10));tag.setPadding(dp(8),dp(3),dp(8),dp(3));top.addView(tag);}c.addView(top);TextView teams=tv(o.optString("home_team")+"   VS   "+o.optString("away_team"),17,dark,true);teams.setGravity(Gravity.CENTER);teams.setPadding(0,dp(10),0,dp(8));c.addView(teams);String rs=o.optString("result_text");String st=feat?featuredStatus(ps):"";LinearLayout foot=new LinearLayout(this);foot.setGravity(Gravity.CENTER_VERTICAL);foot.addView(tv(rs.isEmpty()?"未开赛":"完场  "+rs,12,muted,false),new LinearLayout.LayoutParams(0,-2,1));if(!st.isEmpty())foot.addView(tv(st,12,st.contains("成功")?green:st.contains("未中")?red:orange,true));c.addView(foot);c.setOnClickListener(v->detail(o));return c;}''')
+          insert=r'''
+ boolean isFormalFeatured(String d,String n){ArrayList<JSONObject>a=pickList(d,n);for(JSONObject q:a)if("正式前瞻".equals(q.optString("record_kind")))return true;return false;}
+ boolean isRiskMatch(String d,String n){JSONObject r=riskFor(d,n);return !r.optString("risk_badge").isEmpty()||!r.optString("risk_reason").isEmpty();}
+'''
+          idx=s.find(' String featuredStatus(ArrayList<JSONObject>a){')
+          if idx<0: raise SystemExit('featuredStatus not found')
+          s=s[:idx]+insert+s[idx:]
+          p.write_text(s)
+          PY
+          sed -i "s/versionCode 220; versionName '2.2.0'/versionCode 221; versionName '2.2.1'/" haojing-customer-v20/app/build.gradle
+          grep -q 'homeFilter' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q 'isFormalFeatured' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q "versionName '2.2.1'" haojing-customer-v20/app/build.gradle
+      - name: Build APK
+        run: cd haojing-customer-v20 && gradle assembleDebug --no-daemon
+      - name: Package
+        run: cp haojing-customer-v20/app/build/outputs/apk/debug/app-debug.apk HaoJing-Customer-v2.2.1.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HaoJing-Customer-v2.2.1
+          path: HaoJing-Customer-v2.2.1.apk
+          retention-days: 30
