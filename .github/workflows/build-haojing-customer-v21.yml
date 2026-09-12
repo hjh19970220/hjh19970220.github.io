@@ -1,0 +1,68 @@
+name: Build HaoJing Customer APK v2.1
+
+on:
+  push:
+    branches: [haojing-android]
+    paths: ['.github/workflows/build-haojing-customer-v21.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Validate v2.1 featured API
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
+          BASE='https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1'
+          curl --retry 3 --retry-all-errors --retry-delay 2 --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_picks_customer_v20?select=publish_date,match_no,category,selected_pick,selected_model_probability,record_kind,recommendation_rank,settle_status&order=publish_date.desc,match_no.asc,recommendation_rank.asc" >/tmp/picks21.json
+          test "$(jq length /tmp/picks21.json)" -gt 0
+          test "$(jq '[.[]|select(.record_kind=="正式前瞻")]|length' /tmp/picks21.json)" -ge 2
+          jq -e '[.[]|select(.record_kind=="正式前瞻")]|group_by(.publish_date+"#"+.match_no)|all(length<=2)' /tmp/picks21.json >/dev/null
+          echo "FEATURED_V21_OK rows=$(jq length /tmp/picks21.json) formal=$(jq '[.[]|select(.record_kind=="正式前瞻")]|length' /tmp/picks21.json)"
+      - name: Generate v2.0 project source
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '
+            /^      - name: Generate Android project$/ {found=1; next}
+            found && /^        shell:/ {next}
+            found && /^        run: \|/ {body=1; next}
+            body && /^      - name: Build APK$/ {exit}
+            body {sub(/^          /,""); print}
+          ' .github/workflows/build-haojing-customer-v20.yml > /tmp/generate20.sh
+          bash /tmp/generate20.sh
+      - name: Patch customer feed to v2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          P=customer20/app/src/main/java/com/haojing/app/MainActivity.java
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('customer20/app/src/main/java/com/haojing/app/MainActivity.java')
+          s=p.read_text()
+          old='hao_app_picks_snapshot_v14?select=publish_date,match_no,league,home_team,away_team,kickoff_bjt,category,selected_pick,selected_price,selected_model_probability,star_level,short_reason,settle_status,result_text,record_kind&order=publish_date.desc,recommendation_rank.asc'
+          new='hao_app_picks_customer_v20?select=publish_date,match_no,league,home_team,away_team,kickoff_bjt,category,selected_pick,selected_price,selected_model_probability,star_level,short_reason,settle_status,result_text,record_kind,recommendation_rank&order=publish_date.desc,match_no.asc,recommendation_rank.asc'
+          if old not in s: raise SystemExit('old picks endpoint not found')
+          s=s.replace(old,new)
+          s=s.replace('豪竞会员中心','豪竞会员中心 · 客户版2.1')
+          p.write_text(s)
+          PY
+          sed -i "s/versionCode 200; versionName '2.0.0'/versionCode 210; versionName '2.1.0'/" customer20/app/build.gradle
+          grep -q 'hao_app_picks_customer_v20' "$P"
+          grep -q 'versionName '\''2.1.0'\''' customer20/app/build.gradle
+      - name: Build APK
+        run: cd customer20 && gradle assembleDebug --no-daemon
+      - name: Package
+        run: cp customer20/app/build/outputs/apk/debug/app-debug.apk HaoJing-Customer-v2.1.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HaoJing-Customer-v2.1
+          path: HaoJing-Customer-v2.1.apk
