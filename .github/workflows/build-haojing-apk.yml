@@ -1,0 +1,209 @@
+name: Build HaoJing APK
+
+on:
+  push:
+    branches: [haojing-android]
+    paths:
+      - '.github/workflows/build-haojing-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Generate Android project
+        shell: bash
+        run: |
+          rm -rf haojing-apk
+          mkdir -p haojing-apk/app/src/main/java/com/haojing/picks
+          mkdir -p haojing-apk/app/src/main/res/values
+
+          cat > haojing-apk/settings.gradle <<'EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name='HaoJingPicks'
+          include ':app'
+          EOF
+
+          cat > haojing-apk/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          EOF
+
+          cat > haojing-apk/app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.haojing.picks'
+              compileSdk 35
+              defaultConfig {
+                  applicationId 'com.haojing.picks'
+                  minSdk 26
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0.0'
+              }
+          }
+          EOF
+
+          cat > haojing-apk/app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:theme="@style/AppTheme" android:label="豪竞精选" android:allowBackup="true">
+                  <activity android:name=".MainActivity" android:screenOrientation="portrait" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > haojing-apk/app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">#111827</item>
+                  <item name="android:navigationBarColor">#FFFFFF</item>
+                  <item name="android:colorAccent">#E5A50A</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > haojing-apk/app/src/main/java/com/haojing/picks/MainActivity.java <<'EOF'
+          package com.haojing.picks;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.*;
+          import android.graphics.drawable.GradientDrawable;
+
+          public class MainActivity extends Activity {
+              int gold = Color.rgb(229,165,10);
+              int dark = Color.rgb(17,24,39);
+              int muted = Color.rgb(107,114,128);
+              int bg = Color.rgb(246,247,249);
+              LinearLayout content;
+
+              @Override public void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  showHome();
+              }
+
+              TextView tv(String s, int sp, int color, boolean bold) {
+                  TextView v = new TextView(this);
+                  v.setText(s); v.setTextSize(sp); v.setTextColor(color);
+                  if (bold) v.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+                  v.setPadding(dp(4),dp(3),dp(4),dp(3));
+                  return v;
+              }
+
+              GradientDrawable box(int color, int radius) {
+                  GradientDrawable g = new GradientDrawable();
+                  g.setColor(color); g.setCornerRadius(dp(radius));
+                  return g;
+              }
+
+              LinearLayout card(String tag, String match, String pick, String grade, String reason) {
+                  LinearLayout c = new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL);
+                  c.setPadding(dp(16),dp(14),dp(16),dp(14));
+                  c.setBackground(box(Color.WHITE,16));
+                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1,-2);
+                  lp.setMargins(dp(14),dp(8),dp(14),dp(8)); c.setLayoutParams(lp);
+
+                  TextView t = tv(tag,13,gold,true); c.addView(t);
+                  c.addView(tv(match,19,dark,true));
+                  LinearLayout r = new LinearLayout(this); r.setGravity(Gravity.CENTER_VERTICAL);
+                  TextView p = tv(pick,22,Color.rgb(190,120,0),true); r.addView(p);
+                  TextView gr = tv("  "+grade,14,Color.rgb(245,158,11),true); r.addView(gr);
+                  c.addView(r);
+                  c.addView(tv(reason,14,muted,false));
+                  return c;
+              }
+
+              void base(String title, String subtitle) {
+                  LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(bg);
+                  LinearLayout head = new LinearLayout(this); head.setOrientation(LinearLayout.VERTICAL); head.setPadding(dp(18),dp(16),dp(18),dp(14)); head.setBackgroundColor(dark);
+                  head.addView(tv(title,27,Color.WHITE,true)); head.addView(tv(subtitle,13,Color.rgb(209,213,219),false)); root.addView(head);
+                  ScrollView sv = new ScrollView(this); content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(0,dp(8),0,dp(20)); sv.addView(content);
+                  LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1,0,1); root.addView(sv,slp);
+                  root.addView(nav()); setContentView(root);
+              }
+
+              LinearLayout nav() {
+                  LinearLayout n = new LinearLayout(this); n.setGravity(Gravity.CENTER); n.setPadding(dp(6),dp(7),dp(6),dp(9)); n.setBackgroundColor(Color.WHITE);
+                  String[] names={"首页","战绩","说明"};
+                  for (String name:names) {
+                      TextView b=tv(name,15,dark,true); b.setGravity(Gravity.CENTER); b.setBackground(box(Color.rgb(248,250,252),12));
+                      LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(45),1); lp.setMargins(dp(5),0,dp(5),0); b.setLayoutParams(lp);
+                      if(name.equals("首页")) b.setOnClickListener(v->showHome());
+                      if(name.equals("战绩")) b.setOnClickListener(v->showRecord());
+                      if(name.equals("说明")) b.setOnClickListener(v->showAbout()); n.addView(b);
+                  } return n;
+              }
+
+              void showHome() {
+                  base("豪竞精选","少而精 · 单一方向 · 不推比分");
+                  TextView date=tv("今日推荐  ·  2026-09-12",16,dark,true); date.setPadding(dp(18),dp(12),0,dp(4)); content.addView(date);
+                  content.addView(card("🔥 今日重心","切尔西  vs  赫尔城","让负","★★★★★","精确投注层筛选；客户只看最终可执行方向。"));
+                  content.addView(card("⭐ 精选单场","多特蒙德  vs  帕德博恩","让负","★★★★☆","普通胜负与官方让球综合后，最终选择让负。"));
+                  content.addView(card("⚠ 冷门预警","高冲突场次","PASS","—","方向冲突或数据质量不足时不强行出手。"));
+
+                  TextView h=tv("产品规则",18,dark,true); h.setPadding(dp(18),dp(18),0,dp(4)); content.addView(h);
+                  TextView note=tv("• 最终只输出：主胜 / 平 / 客胜 / 让胜 / 让平 / 让负 / PASS\n• 不推比分，不推半全场\n• 重心优先，宁缺毋滥\n• 赛后保留正确与错误记录",14,muted,false);
+                  note.setPadding(dp(18),dp(6),dp(18),dp(12)); content.addView(note);
+              }
+
+              void showRecord() {
+                  base("历史战绩","错单保留 · 不删除历史");
+                  content.addView(card("9月10日","精选4场","4中 / 4","100%","历史冻结回放展示"));
+                  content.addView(card("9月9日","精选7场","7中 / 7","100%","历史冻结回放展示"));
+                  content.addView(card("9月8日","精选1场","1中 / 1","100%","历史冻结回放展示"));
+                  TextView warn=tv("以上为历史冻结数据回放示例，不代表未来保证命中。正式战绩应以赛前真实发布记录自动结算。",13,muted,false); warn.setPadding(dp(18),dp(12),dp(18),dp(12)); content.addView(warn);
+              }
+
+              void showAbout() {
+                  base("关于豪竞精选","客户版 v1.0");
+                  TextView a=tv("豪竞精选用于展示足球赛事分析结论。\n\n后台模型可使用市场、让球、概率、风险与净胜球结构进行筛选，但客户页面只显示最终投注方向。\n\n本应用不提供比分预测，不承诺任何比赛结果或收益。",15,dark,false); a.setPadding(dp(18),dp(20),dp(18),dp(20)); content.addView(a);
+              }
+
+              int dp(int x){return (int)(x*getResources().getDisplayMetrics().density+0.5f);}
+          }
+          EOF
+
+      - name: Build debug APK
+        working-directory: haojing-apk
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Rename APK
+        run: cp haojing-apk/app/build/outputs/apk/debug/app-debug.apk HaoJing-JingXuan.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HaoJing-JingXuan-APK
+          path: HaoJing-JingXuan.apk
+          retention-days: 30
