@@ -1,0 +1,30 @@
+name: Build HaoJing Client APK
+on:
+  push:
+    branches: [ haojing-app-build ]
+    paths:
+      - 'haojing-android/**'
+      - '.github/workflows/build-haojing-client.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build unsigned release APK
+        working-directory: haojing-android
+        run: gradle --no-daemon assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HaoJing-Client-v1.7.0-unsigned
+          path: haojing-android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
