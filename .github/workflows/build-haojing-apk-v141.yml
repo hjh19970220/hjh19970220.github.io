@@ -1,9 +1,9 @@
-name: Build HaoJing APK v1.4.1
+name: Build HaoJing APK v1.4.2 Preview
 
 on:
   push:
     branches: [haojing-android]
-    paths: ['.github/workflows/build-haojing-apk-v141.yml']
+    paths: ['.github/workflows/build-haojing-apk-v141.yml','scripts/patch_haojing_v142.py']
   workflow_dispatch:
 permissions:
   contents: read
@@ -34,6 +34,8 @@ jobs:
             test "$(jq '[.[]|select(.publish_date=="2026-09-12" and .record_kind=="正式前瞻")]|length' /tmp/p)" -ge 1
             echo "SNAPSHOT_PASS_$I"
           done
+          curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_risk_stats_v15?select=publish_date,match_no,risk_badge,risk_status&limit=20" -o /tmp/risk
+          jq -e 'type=="array"' /tmp/risk >/dev/null
       - name: Generate from validated v1.4 source
         shell: bash
         run: |
@@ -55,11 +57,14 @@ jobs:
           if old not in s: raise SystemExit('refreshLoop source not found')
           p.write_text(s.replace(old,new))
           PY
-          sed -i "s/versionCode 140; versionName '1.4.0'/versionCode 141; versionName '1.4.1'/" app14/app/build.gradle
-          sed -i 's/豪竞引擎 v1.4/豪竞引擎 v1.4.1/' app14/app/src/main/java/com/haojing/app/MainActivity.java
+          python3 scripts/patch_haojing_v142.py
+          sed -i "s/versionCode 140; versionName '1.4.0'/versionCode 142; versionName '1.4.2-preview'/" app14/app/build.gradle
+          grep -q '各联赛双选命中率' app14/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q '风险场次避开命中率' app14/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q 'dc++>=15' app14/app/src/main/java/com/haojing/app/MainActivity.java
       - name: Build APK
         run: cd app14 && gradle assembleDebug --no-daemon
       - name: Rename APK
-        run: cp app14/app/build/outputs/apk/debug/app-debug.apk HaoJing-Engine-v1.4.1.apk
+        run: cp app14/app/build/outputs/apk/debug/app-debug.apk HaoJing-Engine-v1.4.2-preview.apk
       - uses: actions/upload-artifact@v4
-        with: {name: HaoJing-Engine-v1.4.1, path: HaoJing-Engine-v1.4.1.apk}
+        with: {name: HaoJing-Engine-v1.4.2-preview, path: HaoJing-Engine-v1.4.2-preview.apk}
