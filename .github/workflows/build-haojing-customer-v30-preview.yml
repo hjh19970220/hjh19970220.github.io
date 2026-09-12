@@ -1,8 +1,8 @@
-name: Build HaoJing Customer APK v3.0 Preview
+name: Build HaoJing Customer APK v3.0.1 Super VIP
 on:
   push:
     branches: [haojing-android]
-    paths: ['.github/workflows/build-haojing-customer-v30-preview.yml','haojing-customer-v20/patch_v30.py']
+    paths: ['.github/workflows/build-haojing-customer-v30-preview.yml','haojing-customer-v20/patch_v30.py','haojing-customer-v20/patch_supervip.py']
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,17 +23,18 @@ jobs:
           cat haojing-customer-v20/srcparts/0*.txt > haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
           python3 haojing-customer-v20/patch_v221.py
           python3 haojing-customer-v20/patch_v30.py
-          sed -i "s/versionCode 220; versionName '2.2.0'/versionCode 300; versionName '3.0.0-preview'/" haojing-customer-v20/app/build.gradle
+          python3 haojing-customer-v20/patch_supervip.py
+          sed -i "s/versionCode 220; versionName '2.2.0'/versionCode 301; versionName '3.0.1-supervip'/" haojing-customer-v20/app/build.gradle
           grep -q '全池双选' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
-          grep -q 'allowedPick' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
-          grep -q '半全场：不展示、不统计' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
-          grep -q "versionName '3.0.0-preview'" haojing-customer-v20/app/build.gradle
+          grep -q 'SUPER VIP · 豪竞2.7' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q 'hao_app_super_match_analysis' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q "versionName '3.0.1-supervip'" haojing-customer-v20/app/build.gradle
       - name: Build APK
         run: cd haojing-customer-v20 && gradle assembleDebug --no-daemon
       - name: Package
-        run: cp haojing-customer-v20/app/build/outputs/apk/debug/app-debug.apk HaoJing-Customer-v3.0-preview.apk
+        run: cp haojing-customer-v20/app/build/outputs/apk/debug/app-debug.apk HaoJing-Customer-v3.0.1-SuperVIP.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: HaoJing-Customer-v3.0-preview
-          path: HaoJing-Customer-v3.0-preview.apk
+          name: HaoJing-Customer-v3.0.1-SuperVIP
+          path: HaoJing-Customer-v3.0.1-SuperVIP.apk
           retention-days: 30
