@@ -1,0 +1,40 @@
+name: fastload-patch-v33
+on:
+  push:
+    paths:
+      - '.github/workflows/fastload-patch-v33.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch first paint loading
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          reps=[
+            ("const APP_BUILD='2026-09-12 豪竞2.7前端v32-healthfix';","const APP_BUILD='2026-09-12 豪竞2.7前端v33-fastload';"),
+            ("async function load(show=false){if(await checkBuildVersion())return;if(!token()){login();return}","async function load(show=false){if(!token()){login();return}"),
+            ("const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'读取失败');await hydrateHjFullSource(j);const oldHistory=Array.isArray(DATA?.history)?DATA.history:null;DATA=j;if(oldHistory)DATA.history=oldHistory;if(TAB==='cumulative')loadHbCumulative();render();clearInterval(AUTO_TIMER);AUTO_TIMER=setInterval(()=>{if(document.visibilityState==='visible')load(false)},60000)","const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'读取失败');const oldHistory=Array.isArray(DATA?.history)?DATA.history:null;DATA=j;if(oldHistory)DATA.history=oldHistory;if(TAB==='cumulative')loadHbCumulative();render();if(TAB==='haojing'){const _d=DATA;hydrateHjFullSource(_d).then(()=>{if(TAB==='haojing'&&DATA===_d)render()})}clearInterval(AUTO_TIMER);AUTO_TIMER=setInterval(()=>{if(document.visibilityState==='visible')load(false)},60000)"),
+            ("function setTab(t){TAB=t;DETAIL=null;if(t==='cumulative')loadHbCumulative();if(t==='haojing')RESET_HJ_SCROLL=true;if(t==='history'&&!Array.isArray(DATA?.history)){render();loadHistory();scrollTo(0,0);return}render();scrollTo(0,0)}","function setTab(t){TAB=t;DETAIL=null;if(t==='cumulative')loadHbCumulative();if(t==='haojing'){RESET_HJ_SCROLL=true;const _d=DATA;hydrateHjFullSource(_d).then(()=>{if(TAB==='haojing'&&DATA===_d)render()})}if(t==='history'&&!Array.isArray(DATA?.history)){render();loadHistory();scrollTo(0,0);return}render();scrollTo(0,0)}")
+          ]
+          for old,new in reps:
+              if old not in s:
+                  raise SystemExit('expected patch target missing: '+old[:90])
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          Path('version.json').write_text('{"build":"2026-09-12 豪竞2.7前端v33-fastload","updated_at":"2026-09-12"}\n',encoding='utf-8')
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "hao-fastload-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html version.json
+          git commit -m "speed up first paint with lazy Haojing hydration"
+          git push
