@@ -1,0 +1,10 @@
+package com.haojing.app;
+
+import android.app.*;import android.os.*;import android.graphics.*;import android.graphics.drawable.*;import android.view.*;import android.widget.*;import android.text.InputType;import android.content.*;import org.json.*;import java.io.*;import java.net.*;import java.nio.charset.StandardCharsets;import java.text.*;import java.util.*;
+
+public class MainActivity extends Activity{
+ static final String API="https://tqlibowvnwfkaseqqvvp.supabase.co", KEY="sb_publishable_FVHoVk1pL1gNtu65-cZ0JQ_lOllpCSs";
+ int orange=0xFFE98720,gold=0xFFF0A23C,dark=0xFF171717,muted=0xFF737373,bg=0xFFF6F5F3,red=0xFFD6423E,green=0xFF248B5A,blue=0xFF2674C8;
+ LinearLayout body,nav,dates; String page="home",day=""; JSONArray full=new JSONArray(),picks=new JSONArray(),risks=new JSONArray(); Handler h=new Handler(Looper.getMainLooper());
+ SharedPreferences sp; String token="",refresh="",uid="",email=""; JSONObject profile=new JSONObject(),wallet=new JSONObject(); JSONArray orders=new JSONArray();
+ Runnable loop=()->{sync(false);h.postDelayed(loop,300000);};
