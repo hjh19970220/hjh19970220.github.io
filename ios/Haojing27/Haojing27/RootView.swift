@@ -168,6 +168,7 @@ struct MatchDetailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("\(row.homeTeam ?? "主队") vs \(row.awayTeam ?? "客队")").font(.title2.bold())
                     item("首选 Top1", row.top1)
+                    item("第二方向", row.secondPick)
                     item("信心", row.confidenceLabel)
                     item("出票", row.ticketPick)
                     item("DQ", row.dq)
@@ -178,8 +179,7 @@ struct MatchDetailView: View {
                     if row.resultVerified == true {
                         item("赛果", "\(row.resultHome ?? 0)-\(row.resultAway ?? 0) · \(resultText(row.result1x2))")
                     }
-                    Text("William / Asia4 / 体彩SP / Elo / GPT二审详细时间线将在下一阶段继续原生化。")
-                        .font(.footnote).foregroundStyle(.secondary).padding(.top, 4)
+                    MarketAuditSection(row: row)
                 }.padding()
             }
         }
@@ -224,10 +224,17 @@ struct SystemView: View {
     var body: some View {
         Form {
             Section("豪竞2.7") {
-                LabeledContent("版本", value: "iOS v0.2")
+                LabeledContent("版本", value: "iOS v0.3")
                 LabeledContent("Run", value: store.run?.id.map(String.init) ?? "—")
                 LabeledContent("销售池", value: store.run?.poolLabel ?? store.run?.poolDate ?? "—")
                 LabeledContent("比赛", value: "\(store.rows.count) 场")
+            }
+            Section("原生审计") {
+                LabeledContent("William", value: "已接入")
+                LabeledContent("Asia4 / 亚洲盘", value: "已接入")
+                LabeledContent("体彩 HAD / HHAD SP", value: "已接入")
+                LabeledContent("Elo", value: "已接入")
+                LabeledContent("GPT-5.6 Sol 二审", value: "已接入真实闸门")
             }
             Section("连接") {
                 Button("立即刷新") { Task { await store.refresh() } }
@@ -235,7 +242,7 @@ struct SystemView: View {
             }
             Section("设备") {
                 LabeledContent("支持", value: "iPhone + iPad")
-                Text("Ad Hoc 安装时再绑定已登记设备 UDID；UDID 不写入公开源码。")
+                Text("免费 Personal Team 真机测试时由 Xcode 完成设备签名；UDID 不写入公开源码。")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
