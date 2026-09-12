@@ -1,0 +1,66 @@
+name: recover-ios-haojing27-v01
+
+on:
+  push:
+    paths:
+      - ".github/workflows/recover-ios-haojing27-v01.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Recreate source from bootstrap workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess, yaml
+          from pathlib import Path
+          p = Path('.github/workflows/bootstrap-ios-haojing27.yml')
+          data = yaml.safe_load(p.read_text())
+          script = data['jobs']['bootstrap']['steps'][1]['run']
+          subprocess.run(['bash','-lc',script], check=True)
+          PY
+
+      - name: Fix generated Info.plist config
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('ios/Haojing27/project.yml')
+          s = p.read_text()
+          marker = '        PRODUCT_BUNDLE_IDENTIFIER: com.hao.haojing27\n'
+          if 'GENERATE_INFOPLIST_FILE: YES' not in s:
+              if marker not in s:
+                  raise SystemExit('bundle id marker not found')
+              s = s.replace(marker, marker + '        GENERATE_INFOPLIST_FILE: YES\n', 1)
+          p.write_text(s)
+          PY
+
+      - name: Generate Xcode project and compile simulator build
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          cd ios/Haojing27
+          xcodegen generate
+          xcodebuild -project Haojing27.xcodeproj -scheme Haojing27 -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
+
+      - name: Commit native app source and project
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ios/Haojing27
+          if ! git diff --cached --quiet; then
+            git commit -m "add native SwiftUI Haojing 2.7 iOS v0.1"
+            git push
+          fi
