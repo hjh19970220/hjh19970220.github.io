@@ -1,0 +1,36 @@
+name: verify-ios-haojing27-v02
+
+on:
+  push:
+    paths:
+      - "ios/Haojing27/**"
+      - ".github/workflows/verify-ios-haojing27-v02.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: |
+          cd ios/Haojing27
+          xcodegen generate
+      - name: Compile simulator app
+        run: |
+          cd ios/Haojing27
+          xcodebuild -project Haojing27.xcodeproj -scheme Haojing27 -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
+      - name: Package simulator app
+        run: |
+          set -euo pipefail
+          APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*Build/Products/Debug-iphonesimulator/Haojing27.app' -print -quit)
+          test -n "$APP"
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent "$APP" out/Haojing27-v0.2-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Haojing27-iOS-v0.2-simulator
+          path: out/Haojing27-v0.2-simulator.zip
+          if-no-files-found: error
