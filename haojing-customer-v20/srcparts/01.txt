@@ -7,4 +7,4 @@ public class MainActivity extends Activity{
  int orange=0xFFE98720,gold=0xFFF0A23C,dark=0xFF171717,muted=0xFF737373,bg=0xFFF6F5F3,red=0xFFD6423E,green=0xFF248B5A,blue=0xFF2674C8;
  LinearLayout body,nav,dates; String page="home",day=""; JSONArray full=new JSONArray(),picks=new JSONArray(),risks=new JSONArray(); Handler h=new Handler(Looper.getMainLooper());
  SharedPreferences sp; String token="",refresh="",uid="",email=""; JSONObject profile=new JSONObject(),wallet=new JSONObject(); JSONArray orders=new JSONArray();
- Runnable loop=()->{sync(false);h.postDelayed(loop,300000);};
+ Runnable loop=new Runnable(){@Override public void run(){sync(false);h.postDelayed(this,300000);}};
