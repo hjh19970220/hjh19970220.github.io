@@ -1,0 +1,80 @@
+name: Build HaoJing APK v1.5 Preview
+
+on:
+  push:
+    branches: [haojing-android]
+    paths: ['.github/workflows/build-haojing-apk-v15-preview.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Validate live data
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
+          BASE='https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1'
+          curl --fail-with-body -sS -X POST -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}' "$BASE/rpc/hao_refresh_app_snapshots_v14" >/tmp/refresh
+          curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&publish_date=eq.2026-09-11" >/tmp/f11
+          curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&publish_date=eq.2026-09-12" >/tmp/f12
+          curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_picks_snapshot_v14?select=publish_date,match_no,record_kind" >/tmp/p
+          curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_risk_stats_v15?select=publish_date,match_no,risk_badge,risk_status" >/tmp/r
+          test "$(jq length /tmp/f11)" -eq 12
+          test "$(jq length /tmp/f12)" -eq 30
+          test "$(jq '[.[]|select(.record_kind=="历史回放")]|length' /tmp/p)" -ge 1
+          jq -e 'type=="array"' /tmp/r >/dev/null
+      - name: Generate from v1.4 source and patch v1.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '
+            /^      - name: Generate project$/ {found=1; next}
+            found && /^        shell:/ {next}
+            found && /^        run: \|/ {body=1; next}
+            body && /^      - name: Build APK$/ {exit}
+            body {sub(/^          /,""); print}
+          ' .github/workflows/build-haojing-apk-v14.yml > /tmp/generate.sh
+          bash /tmp/generate.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app14/app/src/main/java/com/haojing/app/MainActivity.java')
+          s=p.read_text()
+          s=s.replace('Runnable refreshLoop=()->{load();handler.postDelayed(refreshLoop,300000);};','Runnable refreshLoop=new Runnable(){public void run(){load();handler.postDelayed(this,300000);}};')
+          s=s.replace('r=get("hao_app_risk_snapshot_v14?select=publish_date,match_no,risk_badge,risk_reason");','r=get("hao_app_risk_stats_v15?select=publish_date,match_no,league,risk_badge,risk_reason,risk_status,source_kind&order=publish_date.desc,match_no.asc");')
+          s=s.replace('for(String d:set){TextView x=tv(', 'int dc=0;for(String d:set){if(page.equals("full")&&dc++>=15)break;TextView x=tv(')
+          s=s.replace('void render(){drawNav();drawDates();', 'String fmtNo(String n){try{return String.format(Locale.CHINA,"%03d",Integer.parseInt(n));}catch(Exception e){return n;}}\n            void render(){drawNav();drawDates();')
+          s=s.replace('r.addView(tv(o.optString("match_no")+"  "+o.optString("league")', 'r.addView(tv(fmtNo(o.optString("match_no"))+"  "+o.optString("league")')
+          start=s.index('            void record(){')
+          end=s.index('            void me(){',start)
+          new='''            void record(){
+              int h=0,l=0;LinkedHashSet<String> dset=new LinkedHashSet<>();for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);String st=o.optString("eval_status");if(st.equals("评测成功")){h++;}else if(st.equals("评测失败")){l++;}String d=o.optString("publish_date");if(!d.isEmpty())dset.add(d);}LinearLayout a=card();a.addView(tv("双选总命中率",15,muted,true));a.addView(tv((h+l)>0?h+"/"+(h+l)+" · "+String.format(Locale.CHINA,"%.2f%%",100.0*h/(h+l)):"暂无结算",24,orange,true));body.addView(a);
+              HashSet<String> recent=new HashSet<>();int dc=0;for(String d:dset){if(dc++>=15)break;recent.add(d);}int rh=0,rl=0;for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);if(!recent.contains(o.optString("publish_date")))continue;String st=o.optString("eval_status");if(st.equals("评测成功"))rh++;else if(st.equals("评测失败"))rl++;}LinearLayout recentCard=card();recentCard.addView(tv("最近15天双选",15,muted,true));recentCard.addView(tv((rh+rl)>0?rh+"/"+(rh+rl)+" · "+String.format(Locale.CHINA,"%.2f%%",100.0*rh/(rh+rl)):"暂无结算",21,dark,true));body.addView(recentCard);
+              int ph=0,pl=0,hh=0,hl=0,fh=0,fl=0;for(int i=0;i<picks.length();i++){JSONObject o=picks.optJSONObject(i);String st=o.optString("settle_status"),k=o.optString("record_kind");if(st.equals("命中")){ph++;if(k.equals("历史回放"))hh++;else if(k.equals("正式前瞻"))fh++;}else if(st.equals("未中")){pl++;if(k.equals("历史回放"))hl++;else if(k.equals("正式前瞻"))fl++;}}LinearLayout pc=card();pc.addView(tv("精选推荐命中率",15,muted,true));pc.addView(tv((ph+pl)>0?ph+"/"+(ph+pl)+" · "+String.format(Locale.CHINA,"%.2f%%",100.0*ph/(ph+pl)):"暂无结算",21,orange,true));pc.addView(tv("历史回放 "+((hh+hl)>0?String.format(Locale.CHINA,"%.2f%%",100.0*hh/(hh+hl)):"--")+" · 正式前瞻 "+((fh+fl)>0?String.format(Locale.CHINA,"%.2f%%",100.0*fh/(fh+fl)):"--"),13,muted,false));body.addView(pc);
+              int sh=0,sl=0;for(int i=0;i<risks.length();i++){String st=risks.optJSONObject(i).optString("risk_status");if(st.equals("避险成功"))sh++;else if(st.equals("避险失败"))sl++;}LinearLayout rc=card();rc.addView(tv("风险场次避开命中率",15,warn,true));rc.addView(tv((sh+sl)>0?sh+"/"+(sh+sl)+" · "+String.format(Locale.CHINA,"%.2f%%",100.0*sh/(sh+sl)):"暂无可结算风险场",21,dark,true));body.addView(rc);
+              LinkedHashMap<String,int[]> lm=new LinkedHashMap<>();for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);String st=o.optString("eval_status");if(st.equals("待赛"))continue;String lg=o.optString("league","其他");int[] z=lm.containsKey(lg)?lm.get(lg):new int[]{0,0};z[1]++;if(st.equals("评测成功"))z[0]++;lm.put(lg,z);}ArrayList<Map.Entry<String,int[]>> es=new ArrayList<>(lm.entrySet());Collections.sort(es,(x,y)->Integer.compare(y.getValue()[1],x.getValue()[1]));LinearLayout lc=card();lc.addView(tv("各联赛双选命中率",16,dark,true));for(Map.Entry<String,int[]> e:es){int[]z=e.getValue();lc.addView(tv(e.getKey()+"  "+z[0]+"/"+z[1]+"  "+String.format(Locale.CHINA,"%.1f%%",100.0*z[0]/z[1]),14,z[1]>=5?dark:muted,false));}body.addView(lc);
+            }
+'''
+          s=s[:start]+new+s[end:]
+          s=s.replace('豪竞引擎 v1.4','豪竞引擎 v1.5 预览版')
+          s=s.replace('首页 / 全池 / 精选 / 战绩 / 我的：全部可点击。','首页 / 全池 / 精选 / 战绩 / 我的：全部可点击。\\n\\n全池日期条仅展示最近15天，更早数据统一进入战绩统计。')
+          p.write_text(s)
+          PY
+          sed -i "s/versionCode 140; versionName '1.4.0'/versionCode 150; versionName '1.5.0-preview'/" app14/app/build.gradle
+          grep -q 'risk_status' app14/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q '各联赛双选命中率' app14/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q 'dc++>=15' app14/app/src/main/java/com/haojing/app/MainActivity.java
+      - name: Build APK
+        run: cd app14 && gradle assembleDebug --no-daemon
+      - name: Rename APK
+        run: cp app14/app/build/outputs/apk/debug/app-debug.apk HaoJing-Engine-v1.5-preview.apk
+      - uses: actions/upload-artifact@v4
+        with: {name: HaoJing-Engine-v1.5-preview, path: HaoJing-Engine-v1.5-preview.apk}
