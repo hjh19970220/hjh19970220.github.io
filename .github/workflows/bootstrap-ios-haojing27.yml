@@ -1,0 +1,470 @@
+name: bootstrap-ios-haojing27
+
+on:
+  push:
+    paths:
+      - ".github/workflows/bootstrap-ios-haojing27.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create SwiftUI project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ios/Haojing27/Haojing27
+          cat > ios/Haojing27/project.yml <<'YAML'
+          name: Haojing27
+          options:
+            bundleIdPrefix: com.hao
+            deploymentTarget:
+              iOS: "17.0"
+          settings:
+            base:
+              SWIFT_VERSION: 5.0
+              CURRENT_PROJECT_VERSION: 1
+              MARKETING_VERSION: 0.1.0
+              CODE_SIGN_STYLE: Automatic
+          targets:
+            Haojing27:
+              type: application
+              platform: iOS
+              sources:
+                - Haojing27
+              settings:
+                base:
+                  PRODUCT_BUNDLE_IDENTIFIER: com.hao.haojing27
+                  PRODUCT_NAME: 豪竞2.7
+                  INFOPLIST_KEY_CFBundleDisplayName: 豪竞2.7
+                  INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+                  INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+                  INFOPLIST_KEY_UILaunchScreen_Generation: YES
+                  INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+                  TARGETED_DEVICE_FAMILY: "1"
+          YAML
+
+          cat > ios/Haojing27/Haojing27/Haojing27App.swift <<'SWIFT'
+          import SwiftUI
+
+          @main
+          struct Haojing27App: App {
+              @StateObject private var store = HaojingStore()
+
+              var body: some Scene {
+                  WindowGroup {
+                      RootView()
+                          .environmentObject(store)
+                          .preferredColorScheme(.dark)
+                  }
+              }
+          }
+          SWIFT
+
+          cat > ios/Haojing27/Haojing27/Theme.swift <<'SWIFT'
+          import SwiftUI
+
+          enum HaoTheme {
+              static let bg = Color(red: 7/255, green: 17/255, blue: 31/255)
+              static let panel = Color(red: 13/255, green: 27/255, blue: 45/255)
+              static let panel2 = Color(red: 16/255, green: 35/255, blue: 59/255)
+              static let blue = Color(red: 90/255, green: 169/255, blue: 1)
+              static let green = Color(red: 39/255, green: 209/255, blue: 127/255)
+              static let yellow = Color(red: 1, green: 192/255, blue: 75/255)
+              static let red = Color(red: 1, green: 100/255, blue: 117/255)
+          }
+          SWIFT
+
+          cat > ios/Haojing27/Haojing27/Models.swift <<'SWIFT'
+          import Foundation
+
+          struct HaoMatch: Identifiable, Hashable, Codable {
+              var id: String { String(matchNo) }
+              let matchNo: String
+              let league: String?
+              let homeTeam: String
+              let awayTeam: String
+              let top1: String?
+              let secondPick: String?
+              let finalHandling: String?
+              let dq: String?
+              let hur: String?
+              let dtr: String?
+              let dlr: String?
+              let kickoffBjt: String?
+
+              enum CodingKeys: String, CodingKey {
+                  case matchNo = "match_no"
+                  case league
+                  case homeTeam = "home_team"
+                  case awayTeam = "away_team"
+                  case top1
+                  case secondPick = "second_pick"
+                  case finalHandling = "final_handling"
+                  case dq, hur, dtr, dlr
+                  case kickoffBjt = "kickoff_bjt"
+              }
+          }
+
+          struct HaoRun: Codable {
+              let id: Int?
+              let status: String?
+              let poolDate: String?
+              let formalAllowed: Bool?
+
+              enum CodingKeys: String, CodingKey {
+                  case id, status
+                  case poolDate = "pool_date"
+                  case formalAllowed = "formal_allowed"
+              }
+          }
+
+          struct HaoSection: Codable {
+              let run: HaoRun?
+              let rows: [HaoMatch]?
+          }
+
+          struct HaoConsoleResponse: Codable {
+              let ok: Bool?
+              let hj: HaoSection?
+              let serverTime: String?
+
+              enum CodingKeys: String, CodingKey {
+                  case ok, hj
+                  case serverTime = "server_time"
+              }
+          }
+          SWIFT
+
+          cat > ios/Haojing27/Haojing27/APIClient.swift <<'SWIFT'
+          import Foundation
+
+          enum HaoAPIError: LocalizedError {
+              case invalidResponse
+              case http(Int)
+              case decoding
+
+              var errorDescription: String? {
+                  switch self {
+                  case .invalidResponse: return "服务器返回异常"
+                  case .http(let code): return "接口错误 HTTP \(code)"
+                  case .decoding: return "数据结构暂时无法解析"
+                  }
+              }
+          }
+
+          struct HaoAPIClient {
+              static let endpoint = URL(string: "https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1")!
+
+              func load(token: String?) async throws -> HaoConsoleResponse {
+                  var components = URLComponents(url: Self.endpoint, resolvingAgainstBaseURL: false)!
+                  components.queryItems = [URLQueryItem(name: "api", value: "1")]
+                  var request = URLRequest(url: components.url!)
+                  request.cachePolicy = .reloadIgnoringLocalCacheData
+                  request.timeoutInterval = 20
+                  if let token, !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                  }
+                  let (data, response) = try await URLSession.shared.data(for: request)
+                  guard let http = response as? HTTPURLResponse else { throw HaoAPIError.invalidResponse }
+                  guard (200..<300).contains(http.statusCode) else { throw HaoAPIError.http(http.statusCode) }
+                  do {
+                      return try JSONDecoder().decode(HaoConsoleResponse.self, from: data)
+                  } catch {
+                      throw HaoAPIError.decoding
+                  }
+              }
+          }
+
+          @MainActor
+          final class HaojingStore: ObservableObject {
+              @Published var rows: [HaoMatch] = []
+              @Published var run: HaoRun?
+              @Published var loading = false
+              @Published var errorText: String?
+              @Published var lastUpdated: Date?
+              @Published var token: String = UserDefaults.standard.string(forKey: "hao_api_token") ?? ""
+
+              func refresh() async {
+                  loading = true
+                  defer { loading = false }
+                  do {
+                      let payload = try await HaoAPIClient().load(token: token)
+                      rows = payload.hj?.rows ?? []
+                      run = payload.hj?.run
+                      lastUpdated = Date()
+                      errorText = nil
+                  } catch {
+                      errorText = error.localizedDescription
+                  }
+              }
+
+              func saveToken() {
+                  UserDefaults.standard.set(token, forKey: "hao_api_token")
+              }
+          }
+          SWIFT
+
+          cat > ios/Haojing27/Haojing27/ContentView.swift <<'SWIFT'
+          import SwiftUI
+
+          struct RootView: View {
+              var body: some View {
+                  TabView {
+                      NavigationStack { TodayView() }
+                          .tabItem { Label("今日", systemImage: "sportscourt.fill") }
+                      NavigationStack { PicksView() }
+                          .tabItem { Label("选腿", systemImage: "target") }
+                      NavigationStack { HistoryPlaceholder() }
+                          .tabItem { Label("历史", systemImage: "clock.arrow.circlepath") }
+                      NavigationStack { SystemView() }
+                          .tabItem { Label("系统", systemImage: "shield.lefthalf.filled") }
+                  }
+                  .tint(HaoTheme.blue)
+              }
+          }
+
+          struct TodayView: View {
+              @EnvironmentObject private var store: HaojingStore
+
+              var body: some View {
+                  ZStack {
+                      HaoTheme.bg.ignoresSafeArea()
+                      ScrollView {
+                          LazyVStack(spacing: 12) {
+                              header
+                              if let error = store.errorText {
+                                  Text(error)
+                                      .font(.footnote)
+                                      .foregroundStyle(HaoTheme.red)
+                                      .frame(maxWidth: .infinity, alignment: .leading)
+                                      .padding()
+                                      .background(HaoTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+                              }
+                              ForEach(store.rows) { match in
+                                  NavigationLink(value: match) { MatchCard(match: match) }
+                                      .buttonStyle(.plain)
+                              }
+                              if store.rows.isEmpty && !store.loading {
+                                  ContentUnavailableView("等待豪竞2.7数据", systemImage: "soccerball", description: Text("下拉刷新或在“系统”中配置访问令牌"))
+                                      .foregroundStyle(.secondary)
+                                      .padding(.top, 50)
+                              }
+                          }
+                          .padding()
+                      }
+                      .refreshable { await store.refresh() }
+                  }
+                  .navigationTitle("豪竞 2.7")
+                  .navigationDestination(for: HaoMatch.self) { MatchDetailView(match: $0) }
+                  .task { if store.rows.isEmpty { await store.refresh() } }
+                  .toolbar {
+                      ToolbarItem(placement: .topBarTrailing) {
+                          if store.loading { ProgressView() }
+                          else { Button { Task { await store.refresh() } } label: { Image(systemName: "arrow.clockwise") } }
+                      }
+                  }
+              }
+
+              private var header: some View {
+                  VStack(alignment: .leading, spacing: 8) {
+                      HStack {
+                          Text("豪·体彩预测模型").font(.headline)
+                          Spacer()
+                          Circle().fill((store.run?.formalAllowed ?? false) ? HaoTheme.green : HaoTheme.yellow).frame(width: 9, height: 9)
+                      }
+                      Text(store.run?.status ?? "等待当前销售池")
+                          .font(.caption)
+                          .foregroundStyle(.secondary)
+                      HStack {
+                          Label("Run \(store.run?.id.map(String.init) ?? "—")", systemImage: "bolt.fill")
+                          Spacer()
+                          Text(store.lastUpdated.map { $0.formatted(date: .omitted, time: .shortened) } ?? "未刷新")
+                      }
+                      .font(.caption2)
+                      .foregroundStyle(.secondary)
+                  }
+                  .padding(16)
+                  .background(LinearGradient(colors: [HaoTheme.panel2, HaoTheme.panel], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 20))
+              }
+          }
+
+          struct MatchCard: View {
+              let match: HaoMatch
+
+              var body: some View {
+                  VStack(alignment: .leading, spacing: 10) {
+                      HStack {
+                          Text(match.matchNo).font(.caption.bold()).foregroundStyle(.yellow)
+                          Text(match.league ?? "").font(.caption2).foregroundStyle(.secondary)
+                          Spacer()
+                          if let h = match.finalHandling { badge(h) }
+                      }
+                      Text("\(match.homeTeam)  vs  \(match.awayTeam)")
+                          .font(.headline)
+                          .foregroundStyle(.primary)
+                      HStack(alignment: .firstTextBaseline) {
+                          Text(match.top1 ?? "未确认")
+                              .font(.title3.bold())
+                              .foregroundStyle(HaoTheme.blue)
+                          if let second = match.secondPick {
+                              Text("第二 \(second)").font(.caption).foregroundStyle(.secondary)
+                          }
+                          Spacer()
+                          Text("DQ \(match.dq ?? "—")").font(.caption2).foregroundStyle(.secondary)
+                      }
+                      HStack(spacing: 8) {
+                          risk("HUR", match.hur)
+                          risk("DTR", match.dtr)
+                          risk("DLR", match.dlr)
+                      }
+                  }
+                  .padding(15)
+                  .background(HaoTheme.panel, in: RoundedRectangle(cornerRadius: 18))
+                  .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.07)))
+              }
+
+              private func badge(_ text: String) -> some View {
+                  Text(text).font(.caption2.bold()).padding(.horizontal, 8).padding(.vertical, 5)
+                      .background(HaoTheme.blue.opacity(0.18), in: Capsule()).foregroundStyle(HaoTheme.blue)
+              }
+
+              private func risk(_ name: String, _ value: String?) -> some View {
+                  Text("\(name) \(value ?? "—")").font(.caption2).padding(.horizontal, 8).padding(.vertical, 5)
+                      .background(Color.white.opacity(0.05), in: Capsule()).foregroundStyle(.secondary)
+              }
+          }
+
+          struct MatchDetailView: View {
+              let match: HaoMatch
+              var body: some View {
+                  ZStack {
+                      HaoTheme.bg.ignoresSafeArea()
+                      ScrollView {
+                          VStack(alignment: .leading, spacing: 14) {
+                              Text("\(match.homeTeam) vs \(match.awayTeam)").font(.title2.bold())
+                              detail("首选", match.top1)
+                              detail("第二方向", match.secondPick)
+                              detail("处理", match.finalHandling)
+                              detail("DQ", match.dq)
+                              detail("爆冷 HUR", match.hur)
+                              detail("平局 DTR", match.dtr)
+                              detail("直输 DLR", match.dlr)
+                              Text("v0.1 已接入豪竞正式数据。William / Asia4 / 体彩SP / Elo / GPT二审详细卡片下一版继续接入。")
+                                  .font(.footnote).foregroundStyle(.secondary).padding(.top, 8)
+                          }
+                          .padding()
+                      }
+                  }
+                  .navigationTitle(match.matchNo)
+                  .navigationBarTitleDisplayMode(.inline)
+              }
+              private func detail(_ title: String, _ value: String?) -> some View {
+                  HStack { Text(title).foregroundStyle(.secondary); Spacer(); Text(value ?? "未确认").fontWeight(.semibold) }
+                      .padding().background(HaoTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+              }
+          }
+
+          struct PicksView: View {
+              @EnvironmentObject private var store: HaojingStore
+              var body: some View {
+                  List(store.rows.filter { ($0.finalHandling ?? "").localizedCaseInsensitiveContains("PASS") == false }) { match in
+                      NavigationLink(value: match) {
+                          VStack(alignment: .leading, spacing: 5) {
+                              Text("\(match.matchNo)  \(match.top1 ?? "未确认")").font(.headline)
+                              Text("\(match.homeTeam) vs \(match.awayTeam)").font(.caption).foregroundStyle(.secondary)
+                          }
+                      }
+                  }
+                  .scrollContentBackground(.hidden)
+                  .background(HaoTheme.bg)
+                  .navigationTitle("选腿")
+                  .navigationDestination(for: HaoMatch.self) { MatchDetailView(match: $0) }
+              }
+          }
+
+          struct HistoryPlaceholder: View {
+              var body: some View {
+                  ContentUnavailableView("历史模块正在接入", systemImage: "chart.xyaxis.line", description: Text("下一阶段接豪竞2.7赛果、Top1命中率和模拟投注账本"))
+                      .navigationTitle("历史")
+              }
+          }
+
+          struct SystemView: View {
+              @EnvironmentObject private var store: HaojingStore
+              var body: some View {
+                  Form {
+                      Section("豪竞2.7") {
+                          LabeledContent("Run", value: store.run?.id.map(String.init) ?? "—")
+                          LabeledContent("销售日", value: store.run?.poolDate ?? "—")
+                          LabeledContent("正式闸门", value: (store.run?.formalAllowed ?? false) ? "通过" : "等待/未通过")
+                      }
+                      Section("接口访问") {
+                          SecureField("Bearer Token", text: $store.token)
+                              .textInputAutocapitalization(.never)
+                              .autocorrectionDisabled()
+                          Button("保存令牌") { store.saveToken() }
+                          Button("测试并刷新") { Task { store.saveToken(); await store.refresh() } }
+                      }
+                      Section("版本") {
+                          LabeledContent("App", value: "豪竞2.7 iOS v0.1")
+                          LabeledContent("架构", value: "SwiftUI + Supabase")
+                      }
+                  }
+                  .scrollContentBackground(.hidden)
+                  .background(HaoTheme.bg)
+                  .navigationTitle("系统")
+              }
+          }
+          SWIFT
+
+          cat > ios/Haojing27/README.md <<'MD'
+          # 豪竞2.7 iOS
+
+          原生 SwiftUI 私有客户端。模型继续运行在现有 Supabase 后端，iOS 端只负责展示、刷新和后续通知。
+
+          当前 v0.1：
+          - 今日竞彩原生卡片
+          - Top1 / 第二方向 / DQ / HUR / DTR / DLR
+          - 选腿页
+          - 单场详情
+          - 系统页与 Bearer Token
+          - 下拉刷新
+
+          暂未需要 UDID。UDID 只在最终 Ad Hoc 签名/安装阶段需要。
+
+          本地或 CI 生成 Xcode 工程：
+          ```bash
+          brew install xcodegen
+          cd ios/Haojing27
+          xcodegen generate
+          open Haojing27.xcodeproj
+          ```
+          MD
+
+      - name: Generate Xcode project and compile simulator build
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          cd ios/Haojing27
+          xcodegen generate
+          xcodebuild -project Haojing27.xcodeproj -scheme Haojing27 -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
+
+      - name: Commit app source and generated project
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ios/Haojing27
+          if ! git diff --cached --quiet; then
+            git commit -m "add native SwiftUI Haojing 2.7 iOS v0.1"
+            git push
+          fi
