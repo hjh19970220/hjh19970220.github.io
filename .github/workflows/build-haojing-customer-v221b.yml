@@ -21,6 +21,15 @@ jobs:
           set -euo pipefail
           mkdir -p haojing-customer-v20/app/src/main/java/com/haojing/app
           cat haojing-customer-v20/srcparts/0*.txt > haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('haojing-customer-v20/patch_v221.py')
+          s=p.read_text()
+          old="ns,n=re.subn(pat,body+'\\n ',s,flags=re.S)"
+          new="ns,n=re.subn(pat,lambda m: body+'\\n ',s,flags=re.S)"
+          if old not in s: raise SystemExit('replacement line not found')
+          p.write_text(s.replace(old,new))
+          PY
           python3 haojing-customer-v20/patch_v221.py
           sed -i "s/versionCode 220; versionName '2.2.0'/versionCode 221; versionName '2.2.1'/" haojing-customer-v20/app/build.gradle
           grep -q 'homeFilter' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
