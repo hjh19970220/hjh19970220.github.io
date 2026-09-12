@@ -1,0 +1,57 @@
+name: Sync HaoJing App Data
+on:
+  push:
+    branches: [haojing-android]
+    paths: ['.github/workflows/sync-haojing-app-data.yml']
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: haojing-android
+      - name: Fetch resilient snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
+          BASE='https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1'
+          mkdir -p app-data
+          echo '[]' >/tmp/full.json
+          START='2026-08-31'
+          END=$(TZ=Asia/Shanghai date +%F)
+          D="$START"
+          while [[ "$D" < "$END" || "$D" == "$END" ]]; do
+            curl --retry 6 --retry-all-errors --retry-delay 2 --fail-with-body -sS \
+              -H "apikey: $KEY" -H 'Accept: application/json' \
+              "$BASE/hao_fullpool_unbeaten_feed_v01?select=publish_date,match_no,league,home_team,away_team,unbeaten_pick,cover_text,eval_status,result_text,source_kind&publish_date=eq.$D&order=match_no.asc" -o /tmp/day.json
+            jq -s '.[0]+.[1]' /tmp/full.json /tmp/day.json >/tmp/full2.json && mv /tmp/full2.json /tmp/full.json
+            D=$(date -I -d "$D + 1 day")
+          done
+          curl --retry 6 --retry-all-errors --retry-delay 2 --fail-with-body -sS \
+            -H "apikey: $KEY" -H 'Accept: application/json' \
+            "$BASE/hao_customer_feed_v13?select=publish_date,match_no,league,home_team,away_team,category,selected_pick,selected_price,recommendation_rank,settle_status,result_text,record_kind,short_reason&order=publish_date.desc,recommendation_rank.asc" -o /tmp/picks.json
+          curl --retry 6 --retry-all-errors --retry-delay 2 --fail-with-body -sS \
+            -H "apikey: $KEY" -H 'Accept: application/json' \
+            "$BASE/hao_app_risk_feed_v131?select=publish_date,match_no,risk_badge,risk_reason" -o /tmp/risk.json
+          test "$(jq '[.[]|select(.publish_date=="2026-09-11")]|length' /tmp/full.json)" -eq 12
+          test "$(jq '[.[]|select(.publish_date=="2026-09-12")]|length' /tmp/full.json)" -eq 30
+          test "$(jq '[.[]|select(.publish_date=="2026-09-11" and .record_kind=="历史回放")]|length' /tmp/picks.json)" -ge 1
+          cp /tmp/full.json app-data/full.json
+          cp /tmp/picks.json app-data/picks.json
+          cp /tmp/risk.json app-data/risk.json
+          printf '{"updated_at":"%s"}\n' "$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S')" > app-data/meta.json
+      - name: Commit snapshots
+        shell: bash
+        run: |
+          git config user.name 'haojing-bot'
+          git config user.email 'actions@github.com'
+          git add app-data
+          git diff --cached --quiet && exit 0
+          git commit -m 'sync app data'
+          git push origin HEAD:haojing-android
