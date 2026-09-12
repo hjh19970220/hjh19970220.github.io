@@ -1,0 +1,65 @@
+name: Build HaoJing APK v1.4.1
+
+on:
+  push:
+    branches: [haojing-android]
+    paths: ['.github/workflows/build-haojing-apk-v141.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Validate snapshot API
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
+          BASE='https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1'
+          curl --fail-with-body -sS -X POST -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}' "$BASE/rpc/hao_refresh_app_snapshots_v14" -o /tmp/refresh.json
+          for I in 1 2 3; do
+            curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&publish_date=eq.2026-09-11" -o /tmp/f11
+            curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&publish_date=eq.2026-09-12" -o /tmp/f12
+            curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_picks_snapshot_v14?select=publish_date,match_no,record_kind" -o /tmp/p
+            test "$(jq length /tmp/f11)" -eq 12
+            test "$(jq length /tmp/f12)" -eq 30
+            test "$(jq '[.[]|select(.publish_date=="2026-08-31" and .record_kind=="历史回放")]|length' /tmp/p)" -ge 1
+            test "$(jq '[.[]|select(.publish_date=="2026-09-11" and .record_kind=="历史回放")]|length' /tmp/p)" -ge 1
+            test "$(jq '[.[]|select(.publish_date=="2026-09-12" and .record_kind=="正式前瞻")]|length' /tmp/p)" -ge 1
+            echo "SNAPSHOT_PASS_$I"
+          done
+      - name: Generate from validated v1.4 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '
+            /^      - name: Generate project$/ {found=1; next}
+            found && /^        shell:/ {next}
+            found && /^        run: \|/ {body=1; next}
+            body && /^      - name: Build APK$/ {exit}
+            body {sub(/^          /,""); print}
+          ' .github/workflows/build-haojing-apk-v14.yml > /tmp/generate.sh
+          bash /tmp/generate.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app14/app/src/main/java/com/haojing/app/MainActivity.java')
+          s=p.read_text()
+          old='Runnable refreshLoop=()->{load();handler.postDelayed(refreshLoop,300000);};'
+          new='Runnable refreshLoop=new Runnable(){public void run(){load();handler.postDelayed(this,300000);}};'
+          if old not in s: raise SystemExit('refreshLoop source not found')
+          p.write_text(s.replace(old,new))
+          PY
+          sed -i "s/versionCode 140; versionName '1.4.0'/versionCode 141; versionName '1.4.1'/" app14/app/build.gradle
+          sed -i 's/豪竞引擎 v1.4/豪竞引擎 v1.4.1/' app14/app/src/main/java/com/haojing/app/MainActivity.java
+      - name: Build APK
+        run: cd app14 && gradle assembleDebug --no-daemon
+      - name: Rename APK
+        run: cp app14/app/build/outputs/apk/debug/app-debug.apk HaoJing-Engine-v1.4.1.apk
+      - uses: actions/upload-artifact@v4
+        with: {name: HaoJing-Engine-v1.4.1, path: HaoJing-Engine-v1.4.1.apk}
