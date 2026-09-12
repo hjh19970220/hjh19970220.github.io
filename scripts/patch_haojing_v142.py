@@ -20,9 +20,9 @@ s=s.replace(
     'r.addView(tv(fmtNo(o.optString("match_no"))+"  "+o.optString("league")'
 )
 
-a=s.index('            void record(){')
-b=s.index('            void me(){',a)
-rec='''            void record(){
+a=s.index('void record(){')
+b=s.index('void me(){',a)
+rec='''void record(){
               int h=0,l=0;LinkedHashSet<String> ds=new LinkedHashSet<>();
               for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);String st=o.optString("eval_status");if(st.equals("评测成功"))h++;else if(st.equals("评测失败"))l++;String d=o.optString("publish_date");if(!d.isEmpty())ds.add(d);}
               LinearLayout x=card();x.addView(tv("双选总命中率",15,muted,true));x.addView(tv((h+l)>0?h+"/"+(h+l)+" · "+String.format(Locale.CHINA,"%.2f%%",100.0*h/(h+l)):"暂无结算",24,orange,true));body.addView(x);
@@ -39,7 +39,7 @@ rec='''            void record(){
               ArrayList<Map.Entry<String,int[]>> es=new ArrayList<>(lm.entrySet());Collections.sort(es,(u,v)->Integer.compare(v.getValue()[1],u.getValue()[1]));
               LinearLayout lc=card();lc.addView(tv("各联赛双选命中率",16,dark,true));for(Map.Entry<String,int[]> e:es){int[]z=e.getValue();lc.addView(tv(e.getKey()+"  "+z[0]+"/"+z[1]+"  "+String.format(Locale.CHINA,"%.1f%%",100.0*z[0]/z[1]),14,z[1]>=5?dark:muted,false));}body.addView(lc);
             }
-'''
+            '''
 s=s[:a]+rec+s[b:]
 s=s.replace('豪竞引擎 v1.4','豪竞引擎 v1.4.2 预览版')
 s=s.replace('首页 / 全池 / 精选 / 战绩 / 我的：全部可点击。','首页 / 全池 / 精选 / 战绩 / 我的：全部可点击。\\n\\n全池只展示最近15天；更早比赛统一进入战绩统计。')
