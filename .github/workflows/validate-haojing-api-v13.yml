@@ -15,29 +15,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate Supabase REST feed
+      - name: Validate Supabase REST feeds
         shell: bash
         run: |
           set -euo pipefail
           KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
           test -n "$KEY"
           BASE='https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1'
-          curl --fail-with-body --retry 3 -sS \
+
+          curl --fail-with-body -sS \
             -H "apikey: $KEY" \
             -H 'Accept: application/json' \
             "$BASE/hao_fullpool_unbeaten_feed_v01?select=publish_date,match_no,home_team,away_team,unbeaten_pick,eval_status&publish_date=eq.2026-09-11&order=match_no.asc" \
             -o /tmp/d11.json
-          curl --fail-with-body --retry 3 -sS \
+
+          curl --fail-with-body -sS \
             -H "apikey: $KEY" \
             -H 'Accept: application/json' \
             "$BASE/hao_fullpool_unbeaten_feed_v01?select=publish_date,match_no,home_team,away_team,unbeaten_pick,eval_status&publish_date=eq.2026-09-12&order=match_no.asc" \
             -o /tmp/d12.json
+
+          curl --fail-with-body -sS \
+            -H "apikey: $KEY" \
+            -H 'Accept: application/json' \
+            "$BASE/hao_customer_feed_v01?select=publish_date,match_no,home_team,away_team,category,selected_pick,selected_price,settle_status&publish_date=eq.2026-09-12&order=recommendation_rank.asc" \
+            -o /tmp/picks.json
+
           N11=$(jq 'length' /tmp/d11.json)
           N12=$(jq 'length' /tmp/d12.json)
-          echo "9/11 rows=$N11"
-          echo "9/12 rows=$N12"
+          NP=$(jq 'length' /tmp/picks.json)
+          echo "9/11 full rows=$N11"
+          echo "9/12 full rows=$N12"
+          echo "9/12 picks rows=$NP"
           test "$N11" -eq 12
-          test "$N12" -ge 30
+          test "$N12" -eq 30
+          test "$NP" -ge 1
           jq -e 'all(.[]; (.home_team|length)>0 and (.away_team|length)>0 and (.unbeaten_pick=="主队不败" or .unbeaten_pick=="客队不败"))' /tmp/d11.json >/dev/null
           jq -e 'all(.[]; (.home_team|length)>0 and (.away_team|length)>0 and (.unbeaten_pick=="主队不败" or .unbeaten_pick=="客队不败"))' /tmp/d12.json >/dev/null
-          echo 'REST_FEED_OK'
+          jq -e 'all(.[]; (.home_team|length)>0 and (.away_team|length)>0 and (.selected_pick|length)>0)' /tmp/picks.json >/dev/null
+          echo 'ALL_REST_FEEDS_OK'
