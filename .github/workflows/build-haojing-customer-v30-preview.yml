@@ -1,0 +1,39 @@
+name: Build HaoJing Customer APK v3.0 Preview
+on:
+  push:
+    branches: [haojing-android]
+    paths: ['.github/workflows/build-haojing-customer-v30-preview.yml','haojing-customer-v20/patch_v30.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Assemble v3 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p haojing-customer-v20/app/src/main/java/com/haojing/app
+          cat haojing-customer-v20/srcparts/0*.txt > haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          python3 haojing-customer-v20/patch_v221.py
+          python3 haojing-customer-v20/patch_v30.py
+          sed -i "s/versionCode 220; versionName '2.2.0'/versionCode 300; versionName '3.0.0-preview'/" haojing-customer-v20/app/build.gradle
+          grep -q '全池双选' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q 'allowedPick' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q '半全场：不展示、不统计' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q "versionName '3.0.0-preview'" haojing-customer-v20/app/build.gradle
+      - name: Build APK
+        run: cd haojing-customer-v20 && gradle assembleDebug --no-daemon
+      - name: Package
+        run: cp haojing-customer-v20/app/build/outputs/apk/debug/app-debug.apk HaoJing-Customer-v3.0-preview.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HaoJing-Customer-v3.0-preview
+          path: HaoJing-Customer-v3.0-preview.apk
+          retention-days: 30
