@@ -1,0 +1,87 @@
+name: Build HaoJing APK v1.3
+
+on:
+  push:
+    branches: [haojing-android]
+    paths:
+      - '.github/workflows/build-haojing-apk-v13.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Generate Android project
+        shell: bash
+        run: |
+          set -e
+          KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
+          test -n "$KEY"
+          rm -rf appv13
+          mkdir -p appv13/app/src/main/java/com/haojing/app appv13/app/src/main/res/values
+          cat > appv13/settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name='HaoJing13'
+          include ':app'
+          EOF
+          cat > appv13/build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.7.3' apply false }
+          EOF
+          cat > appv13/app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android {
+            namespace 'com.haojing.app'
+            compileSdk 35
+            defaultConfig { applicationId 'com.haojing.app'; minSdk 26; targetSdk 35; versionCode 13; versionName '1.3.0' }
+          }
+          EOF
+          cat > appv13/app/src/main/res/values/styles.xml <<'EOF'
+          <resources><style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar"><item name="android:fontFamily">sans</item><item name="android:statusBarColor">#D86A00</item><item name="android:navigationBarColor">#FFFFFF</item><item name="android:windowLightStatusBar">false</item></style></resources>
+          EOF
+          cat > appv13/app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-permission android:name="android.permission.INTERNET"/><application android:theme="@style/AppTheme" android:label="豪竞引擎" android:usesCleartextTraffic="false"><activity android:name=".MainActivity" android:screenOrientation="portrait" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>
+          EOF
+          cat > appv13/app/src/main/java/com/haojing/app/MainActivity.java <<'EOF'
+          package com.haojing.app;
+          import android.app.*;import android.os.*;import android.graphics.*;import android.graphics.drawable.*;import android.view.*;import android.widget.*;import org.json.*;import java.io.*;import java.net.*;import java.nio.charset.StandardCharsets;import java.util.*;
+          public class MainActivity extends Activity{
+            static final String BASE="https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1/";static final String KEY="__KEY__";
+            int orange=Color.rgb(216,106,0),dark=Color.rgb(33,37,41),muted=Color.rgb(110,114,120),bg=Color.rgb(247,247,247),red=Color.rgb(230,70,60),blue=Color.rgb(40,110,220),warn=Color.rgb(232,130,20);
+            LinearLayout body,dates,nav;JSONArray full=new JSONArray(),picks=new JSONArray();String day="2026-09-12",page="home";
+            int dp(int x){return (int)(x*getResources().getDisplayMetrics().density+.5f);} TextView t(String s,int z,int c,boolean b){TextView v=new TextView(this);v.setText(s);v.setTextSize(z);v.setTextColor(c);if(b)v.setTypeface(null,1);v.setPadding(dp(4),dp(4),dp(4),dp(4));return v;} GradientDrawable g(int c,int r){GradientDrawable x=new GradientDrawable();x.setColor(c);x.setCornerRadius(dp(r));return x;}
+            @Override public void onCreate(Bundle b){super.onCreate(b);buildScreen();loadAll();}
+            void buildScreen(){LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(bg);LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(14),dp(10),dp(14),dp(10));head.setBackgroundColor(orange);LinearLayout title=new LinearLayout(this);title.setOrientation(LinearLayout.VERTICAL);title.addView(t("豪竞引擎",23,Color.WHITE,true));title.addView(t("HAOJING  ·  数据驱动 ·  理性决策",11,0xFFFFE7D1,false));head.addView(title,new LinearLayout.LayoutParams(0,-2,1));TextView ref=t("刷新",13,Color.WHITE,true);ref.setBackground(g(0x33FFFFFF,12));ref.setPadding(dp(11),dp(8),dp(11),dp(8));ref.setOnClickListener(v->loadAll());head.addView(ref);root.addView(head);HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);dates=new LinearLayout(this);dates.setPadding(dp(8),dp(8),dp(8),dp(8));hs.addView(dates);root.addView(hs);ScrollView sc=new ScrollView(this);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(10),0,dp(10),dp(16));sc.addView(body);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));nav=new LinearLayout(this);nav.setBackgroundColor(Color.WHITE);root.addView(nav);setContentView(root);renderNav();}
+            void renderNav(){nav.removeAllViews();String[][] ns={{"首页","home"},{"全池","full"},{"精选","picks"},{"战绩","record"},{"我的","me"}};for(String[] n:ns){boolean on=page.equals(n[1]);TextView x=t(n[0],13,on?orange:muted,on);x.setGravity(Gravity.CENTER);x.setBackground(g(on?0xFFFFF1E5:Color.WHITE,0));x.setOnClickListener(v->{page=n[1];render();});nav.addView(x,new LinearLayout.LayoutParams(0,dp(52),1));}}
+            void loadAll(){new Thread(()->{JSONArray a=null,b=null;String ea=null,eb=null;try{a=get("hao_fullpool_unbeaten_feed_v13?select=publish_date,match_no,league,home_team,away_team,kickoff_bjt,unbeaten_pick,cover_text,eval_status,result_text,source_kind,risk_badge,risk_reason&order=publish_date.desc,match_no.asc");}catch(Exception e){ea=e.getMessage();}try{b=get("hao_customer_feed_v13?select=publish_date,match_no,league,home_team,away_team,kickoff_bjt,category,selected_pick,selected_price,recommendation_rank,star_level,settle_status,result_text,record_kind,short_reason&order=publish_date.desc,recommendation_rank.asc");}catch(Exception e){eb=e.getMessage();}JSONArray fa=a,fb=b;String fea=ea,feb=eb;runOnUiThread(()->{if(fa!=null)full=fa;if(fb!=null)picks=fb;render();if(fea!=null||feb!=null)Toast.makeText(this,"部分数据同步失败，已显示可用内容",Toast.LENGTH_SHORT).show();});}).start();}
+            JSONArray get(String p)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(BASE+p).openConnection();c.setConnectTimeout(12000);c.setReadTimeout(12000);c.setRequestProperty("apikey",KEY);c.setRequestProperty("Accept","application/json");int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();String s=new String(in.readAllBytes(),StandardCharsets.UTF_8);if(code<200||code>=300)throw new IOException("HTTP "+code);return new JSONArray(s);}
+            void render(){renderNav();renderDates();body.removeAllViews();if(page.equals("home"))renderHome();else if(page.equals("full"))renderFull();else if(page.equals("picks"))renderPicks();else if(page.equals("record"))renderRecord();else renderMe();}
+            void renderDates(){dates.removeAllViews();if(!(page.equals("full")||page.equals("picks"))){dates.setVisibility(View.GONE);return;}dates.setVisibility(View.VISIBLE);LinkedHashSet<String> ds=new LinkedHashSet<>();JSONArray src=page.equals("full")?full:picks;for(int i=0;i<src.length();i++){String d=src.optJSONObject(i).optString("publish_date");if(!d.isEmpty())ds.add(d);}if(!ds.contains(day)&&!ds.isEmpty())day=ds.iterator().next();for(String d:ds){TextView x=t(d.substring(5).replace("-","/"),14,d.equals(day)?Color.WHITE:dark,true);x.setGravity(Gravity.CENTER);x.setBackground(g(d.equals(day)?orange:Color.WHITE,10));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(66),dp(38));lp.setMargins(dp(3),0,dp(3),0);x.setLayoutParams(lp);x.setOnClickListener(v->{day=d;render();});dates.addView(x);}}
+            LinearLayout card(){LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(14),dp(11),dp(14),dp(11));c.setBackground(g(Color.WHITE,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(5),0,dp(5));c.setLayoutParams(lp);return c;}
+            void renderHome(){LinearLayout c=card();c.addView(t("今日概览",15,muted,true));int total=0,hit=0,pending=0,cold=0;for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);if(!day.equals(o.optString("publish_date")))continue;total++;String s=o.optString("eval_status");if(s.equals("评测成功"))hit++;else if(s.equals("待赛"))pending++;if(o.optString("risk_badge").equals("冷门预警"))cold++;}c.addView(t("全池 "+total+" 场 · 已中 "+hit+" · 待赛 "+pending,22,orange,true));c.addView(t("冷门预警 "+cold+" 场",15,warn,true));body.addView(c);LinearLayout p=card();p.addView(t("精选推荐",15,muted,true));int n=0;for(int i=0;i<picks.length();i++)if(day.equals(picks.optJSONObject(i).optString("publish_date")))n++;p.addView(t("今日正式/回放精选 "+n+" 场",20,dark,true));p.addView(t("点击底部“精选”查看赛号、方向、SP与赛果。",13,muted,false));body.addView(p);}
+            void renderFull(){if(full.length()==0){body.addView(t("暂无全池数据",15,muted,false));return;}int hit=0,loss=0,pend=0;for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);if(!day.equals(o.optString("publish_date")))continue;String s=o.optString("eval_status");if(s.equals("评测成功"))hit++;else if(s.equals("评测失败"))loss++;else pend++;}int done=hit+loss;LinearLayout stat=card();stat.addView(t("全池评测",14,muted,true));stat.addView(t(done>0?(hit+"中"+done+"场 · "+String.format(Locale.CHINA,"%.1f%%",100.0*hit/done)):("待赛 "+pend+" 场"),24,orange,true));body.addView(stat);for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);if(!day.equals(o.optString("publish_date")))continue;LinearLayout c=card();LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);String no=o.optString("match_no");if(no.matches("\\d+"))no=String.format(Locale.CHINA,"%03d",Integer.parseInt(no));r.addView(t(no+"  "+o.optString("league"),13,muted,true),new LinearLayout.LayoutParams(0,-2,1));String risk=o.optString("risk_badge");if(!risk.isEmpty())r.addView(t(risk,13,risk.equals("冷门预警")?warn:muted,true));c.addView(r);c.addView(t(o.optString("home_team")+"   vs   "+o.optString("away_team"),17,dark,true));c.addView(t(o.optString("unbeaten_pick"),20,orange,true));String rs=o.optString("result_text");if(!rs.isEmpty())c.addView(t("赛果  "+rs+" · "+o.optString("eval_status"),12,muted,false));if(!risk.isEmpty())c.addView(t(o.optString("risk_reason"),12,risk.equals("冷门预警")?warn:muted,false));c.setOnClickListener(v->new AlertDialog.Builder(this).setTitle(no+" "+o.optString("home_team")+" vs "+o.optString("away_team")).setMessage("评测方向："+o.optString("unbeaten_pick")+"\n覆盖："+o.optString("cover_text")+"\n风险："+(risk.isEmpty()?"无":risk)+"\n赛果："+(rs.isEmpty()?"待赛":rs)+"\n结算："+o.optString("eval_status")).setPositiveButton("确定",null).show());body.addView(c);}}
+            void renderPicks(){if(picks.length()==0){body.addView(t("暂无精选数据",15,muted,false));return;}int n=0;for(int i=0;i<picks.length();i++){JSONObject o=picks.optJSONObject(i);if(!day.equals(o.optString("publish_date")))continue;n++;LinearLayout c=card();LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);r.addView(t(o.optString("match_no")+"  "+o.optString("league"),13,muted,true),new LinearLayout.LayoutParams(0,-2,1));String kind=o.optString("record_kind");r.addView(t(kind,12,kind.equals("正式前瞻")?orange:blue,true));c.addView(r);c.addView(t(o.optString("home_team")+"   vs   "+o.optString("away_team"),17,dark,true));c.addView(t(o.optString("selected_pick"),21,orange,true));String sp=o.optString("selected_price");String st=o.optString("settle_status");c.addView(t((sp.isEmpty()?"":"参考SP "+sp+" · ")+st,13,st.equals("命中")?red:muted,true));String rs=o.optString("result_text");if(!rs.isEmpty())c.addView(t("赛果  "+rs,12,muted,false));c.addView(t(o.optString("short_reason"),12,muted,false));body.addView(c);}if(n==0)body.addView(t("该日期暂无精选",15,muted,false));}
+            void renderRecord(){int hit=0,loss=0;for(int i=0;i<full.length();i++){String s=full.optJSONObject(i).optString("eval_status");if(s.equals("评测成功"))hit++;else if(s.equals("评测失败"))loss++;}LinearLayout c=card();c.addView(t("全池累计",15,muted,true));c.addView(t((hit+loss)==0?"暂无结算":hit+"中"+(hit+loss)+"场 · "+String.format(Locale.CHINA,"%.2f%%",100.0*hit/(hit+loss)),24,orange,true));body.addView(c);int ph=0,pl=0;for(int i=0;i<picks.length();i++){String s=picks.optJSONObject(i).optString("settle_status");if(s.equals("命中"))ph++;else if(s.equals("未中"))pl++;}LinearLayout p=card();p.addView(t("精选累计（历史回放+正式前瞻分开标识）",15,muted,true));p.addView(t((ph+pl)==0?"暂无结算":ph+"中"+(ph+pl)+"场 · "+String.format(Locale.CHINA,"%.2f%%",100.0*ph/(ph+pl)),22,dark,true));body.addView(p);}
+            void renderMe(){LinearLayout c=card();c.addView(t("豪竞引擎 v1.3",22,orange,true));c.addView(t("底部5个页面已启用真实点击导航。\n\n全池：主队不败/客队不败 + PASS/冷门预警。\n\n精选：8/31—9/11为历史回放，9/12起为正式前瞻；每场显示竞彩赛号。\n\n历史回放会明确标识，不冒充当日真实发布。",15,dark,false));body.addView(c);}
+          }
+          EOF
+          sed -i "s|__KEY__|$KEY|g" appv13/app/src/main/java/com/haojing/app/MainActivity.java
+      - name: Build APK
+        run: cd appv13 && gradle assembleDebug --no-daemon
+      - name: Rename APK
+        run: cp appv13/app/build/outputs/apk/debug/app-debug.apk HaoJing-Engine-v1.3.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HaoJing-Engine-v1.3
+          path: HaoJing-Engine-v1.3.apk
