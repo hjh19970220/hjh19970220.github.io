@@ -1,0 +1,40 @@
+name: fix-ios-haojing27-infoplist
+
+on:
+  push:
+    paths:
+      - ".github/workflows/fix-ios-haojing27-infoplist.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch iOS bootstrap workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/bootstrap-ios-haojing27.yml')
+          s = p.read_text()
+          old = '                  PRODUCT_BUNDLE_IDENTIFIER: com.hao.haojing27\n'
+          new = old + '                  GENERATE_INFOPLIST_FILE: YES\n'
+          if 'GENERATE_INFOPLIST_FILE: YES' not in s:
+              if old not in s:
+                  raise SystemExit('target insertion point not found')
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .github/workflows/bootstrap-ios-haojing27.yml
+          if git diff --cached --quiet; then
+            echo "already patched"
+            exit 0
+          fi
+          git commit -m "fix Haojing iOS Info.plist generation"
+          git push
