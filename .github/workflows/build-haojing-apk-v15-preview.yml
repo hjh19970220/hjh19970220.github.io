@@ -45,7 +45,6 @@ jobs:
           bash /tmp/generate.sh
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p=Path('app14/app/src/main/java/com/haojing/app/MainActivity.java')
           s=p.read_text()
           s=s.replace('Runnable refreshLoop=()->{load();handler.postDelayed(refreshLoop,300000);};','Runnable refreshLoop=new Runnable(){public void run(){load();handler.postDelayed(this,300000);}};')
@@ -78,3 +77,4 @@ jobs:
         run: cp app14/app/build/outputs/apk/debug/app-debug.apk HaoJing-Engine-v1.5-preview.apk
       - uses: actions/upload-artifact@v4
         with: {name: HaoJing-Engine-v1.5-preview, path: HaoJing-Engine-v1.5-preview.apk}
+# preview-build-trigger: 2026-09-12
