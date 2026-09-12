@@ -1,8 +1,8 @@
-name: Build HaoJing Customer APK v2.2.1 Fixed
+name: Build HaoJing Customer APK v2.2.2
 on:
   push:
     branches: [haojing-android]
-    paths: ['.github/workflows/build-haojing-customer-v221b.yml','haojing-customer-v20/patch_v221.py']
+    paths: ['.github/workflows/build-haojing-customer-v221b.yml','haojing-customer-v20/patch_v221.py','haojing-customer-v20/srcparts/04.txt']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,17 +22,17 @@ jobs:
           mkdir -p haojing-customer-v20/app/src/main/java/com/haojing/app
           cat haojing-customer-v20/srcparts/0*.txt > haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
           python3 haojing-customer-v20/patch_v221.py
-          sed -i "s/versionCode 220; versionName '2.2.0'/versionCode 221; versionName '2.2.1'/" haojing-customer-v20/app/build.gradle
+          sed -i "s/versionCode 220; versionName '2.2.0'/versionCode 222; versionName '2.2.2'/" haojing-customer-v20/app/build.gradle
           grep -q 'homeFilter' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
           grep -q 'isFormalFeatured' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
-          grep -q 'setOnClickListener(v->{homeFilter=zz;render();})' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
-          grep -q "versionName '2.2.1'" haojing-customer-v20/app/build.gradle
+          grep -q 'depthDetail' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q "versionName '2.2.2'" haojing-customer-v20/app/build.gradle
       - name: Build APK
         run: cd haojing-customer-v20 && gradle assembleDebug --no-daemon
       - name: Package
-        run: cp haojing-customer-v20/app/build/outputs/apk/debug/app-debug.apk HaoJing-Customer-v2.2.1.apk
+        run: cp haojing-customer-v20/app/build/outputs/apk/debug/app-debug.apk HaoJing-Customer-v2.2.2.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: HaoJing-Customer-v2.2.1
-          path: HaoJing-Customer-v2.2.1.apk
+          name: HaoJing-Customer-v2.2.2
+          path: HaoJing-Customer-v2.2.2.apk
           retention-days: 30
