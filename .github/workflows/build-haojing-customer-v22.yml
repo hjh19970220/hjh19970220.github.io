@@ -1,0 +1,78 @@
+name: Build HaoJing Customer APK v2.2
+on:
+  push:
+    branches: [haojing-android]
+    paths: ['.github/workflows/build-haojing-customer-v22.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Validate feeds
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
+          BASE='https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1'
+          curl --retry 3 --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no,league,home_team,away_team,eval_status,result_text&order=publish_date.desc,match_no.asc" >/tmp/full22.json
+          curl --retry 3 --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_picks_customer_v20?select=publish_date,match_no,league,home_team,away_team,kickoff_bjt,category,selected_pick,selected_model_probability,star_level,short_reason,settle_status,result_text,record_kind,recommendation_rank&order=publish_date.desc,match_no.asc,recommendation_rank.asc" >/tmp/picks22.json
+          test "$(jq length /tmp/full22.json)" -gt 0
+          test "$(jq length /tmp/picks22.json)" -gt 0
+          echo "V22_FEEDS_OK full=$(jq length /tmp/full22.json) picks=$(jq length /tmp/picks22.json)"
+      - name: Assemble v2.0 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p haojing-customer-v20/app/src/main/java/com/haojing/app
+          cat haojing-customer-v20/srcparts/0*.txt > haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+      - name: Patch v2.2 UI and customer feed
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java')
+          s=p.read_text()
+          s=s.replace('hao_app_picks_snapshot_v14?select=publish_date,match_no,league,home_team,away_team,kickoff_bjt,category,selected_pick,selected_price,selected_model_probability,star_level,short_reason,settle_status,result_text,record_kind&order=publish_date.desc,recommendation_rank.asc','hao_app_picks_customer_v20?select=publish_date,match_no,league,home_team,away_team,kickoff_bjt,category,selected_pick,selected_price,selected_model_probability,star_level,short_reason,settle_status,result_text,record_kind,recommendation_rank&order=publish_date.desc,match_no.asc,recommendation_rank.asc')
+          def repl(startsig, endsig, body):
+              global s
+              pat=re.escape(startsig)+r'.*?(?='+re.escape(endsig)+r')'
+              ns,n=re.subn(pat,body+'\n ',s,flags=re.S)
+              if n!=1: raise SystemExit(f'patch failed {startsig} n={n}')
+              s=ns
+          repl('void nav(){','void render(){',r'''void nav(){nav.removeAllViews();String[][] a={{"⌂\n首页","home"},{"★\n精选","picks"},{"▣\n战绩","record"},{"◇\n深度","depth"},{"●\n我的","me"}};for(String[]x:a){boolean on=page.equals(x[1]);TextView t=tv(x[0],12,on?orange:0xFF666666,on);t.setGravity(Gravity.CENTER);t.setLines(2);t.setOnClickListener(v->{page=x[1];render();});nav.addView(t,new LinearLayout.LayoutParams(0,dp(58),1));}}''')
+          repl('void render(){','void drawDates(){',r'''void render(){nav();drawDates();body.removeAllViews();if(page.equals("home"))home();else if(page.equals("picks"))picksPage();else if(page.equals("record"))recordPage();else if(page.equals("depth"))depthPage();else mePage();}''')
+          repl('void drawDates(){','void home(){',r'''void drawDates(){dates.removeAllViews();boolean show=page.equals("home")||page.equals("picks");dates.setVisibility(show?View.VISIBLE:View.GONE);if(!show)return;JSONArray src=page.equals("picks")?picks:full;LinkedHashSet<String> ds=new LinkedHashSet<>();for(int i=0;i<src.length();i++){String d=src.optJSONObject(i).optString("publish_date");if(!d.isEmpty())ds.add(d);}if(day.isEmpty()&&!ds.isEmpty())day=ds.iterator().next();for(String d:ds){TextView t=tv(d.length()>=10?d.substring(5).replace("-","/"):d,13,d.equals(day)?Color.WHITE:dark,true);t.setGravity(Gravity.CENTER);t.setBackground(box(d.equals(day)?orange:Color.WHITE,14));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(64),dp(36));lp.setMargins(dp(3),0,dp(3),0);t.setLayoutParams(lp);t.setOnClickListener(v->{day=d;render();});dates.addView(t);}}''')
+          repl('void home(){','LinearLayout homeCard(JSONObject o){',r'''void home(){String latest=day.isEmpty()?latestDate():day;int n=0,featured=0,settled=0,hit=0;for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);if(latest.equals(o.optString("publish_date"))){n++;String st=o.optString("eval_status");if(st.contains("成功")){settled++;hit++;}else if(st.contains("失败")||st.contains("未中"))settled++;if(hasPicks(latest,o.optString("match_no")))featured++;}}LinearLayout hero=card();hero.setBackground(box(0xFFFFF4E6,18));hero.addView(tv("豪竞2.7  专业版",24,dark,true));hero.addView(tv("数据驱动 · 风险审计 · 精选克制",12,muted,false));LinearLayout nums=new LinearLayout(this);nums.setPadding(0,dp(10),0,0);TextView a=tv("今日赛事\n"+n,15,orange,true);a.setGravity(Gravity.CENTER);TextView b=tv("客户精选\n"+featured,15,orange,true);b.setGravity(Gravity.CENTER);TextView c=tv("已结算\n"+(settled==0?"-":hit+"/"+settled),15,orange,true);c.setGravity(Gravity.CENTER);nums.addView(a,new LinearLayout.LayoutParams(0,-2,1));nums.addView(b,new LinearLayout.LayoutParams(0,-2,1));nums.addView(c,new LinearLayout.LayoutParams(0,-2,1));hero.addView(nums);body.addView(hero);LinearLayout tabs=card();tabs.setOrientation(LinearLayout.HORIZONTAL);String[] ts={"全部","精选","预警"};for(String z:ts){TextView q=tv(z,13,z.equals("全部")?Color.WHITE:dark,true);q.setGravity(Gravity.CENTER);q.setBackground(box(z.equals("全部")?orange:0xFFF2F2F2,14));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(36),1);lp.setMargins(dp(3),0,dp(3),0);tabs.addView(q,lp);}body.addView(tabs);for(int i=0;i<full.length();i++){JSONObject o=full.optJSONObject(i);if(latest.equals(o.optString("publish_date")))body.addView(homeCard(o));}}''')
+          repl('LinearLayout homeCard(JSONObject o){','void detail(JSONObject o){',r'''LinearLayout homeCard(JSONObject o){LinearLayout c=card();String d=o.optString("publish_date"),no=fmtNo(o.optString("match_no"));ArrayList<JSONObject> ps=pickList(d,o.optString("match_no"));LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.addView(tv(no+"  "+o.optString("league"),12,muted,true),new LinearLayout.LayoutParams(0,-2,1));if(!ps.isEmpty()){TextView tag=tv("精选",11,Color.WHITE,true);tag.setBackground(box(orange,10));tag.setPadding(dp(8),dp(3),dp(8),dp(3));top.addView(tag);}c.addView(top);TextView teams=tv(o.optString("home_team")+"   VS   "+o.optString("away_team"),17,dark,true);teams.setGravity(Gravity.CENTER);teams.setPadding(0,dp(10),0,dp(8));c.addView(teams);String rs=o.optString("result_text");String st=ps.isEmpty()?"":featuredStatus(ps);LinearLayout foot=new LinearLayout(this);foot.setGravity(Gravity.CENTER_VERTICAL);foot.addView(tv(rs.isEmpty()?"未开赛":"完场  "+rs,12,muted,false),new LinearLayout.LayoutParams(0,-2,1));if(!st.isEmpty())foot.addView(tv(st,12,st.contains("成功")?green:st.contains("未中")?red:orange,true));c.addView(foot);c.setOnClickListener(v->detail(o));return c;}''')
+          repl('void detail(JSONObject o){','void fullPage(){',r'''void detail(JSONObject o){String d=o.optString("publish_date"),n=o.optString("match_no");ArrayList<JSONObject> ps=pickList(d,n);LinearLayout wrap=new LinearLayout(this);wrap.setOrientation(LinearLayout.VERTICAL);wrap.setPadding(dp(18),0,dp(18),0);TextView h=tv(fmtNo(n)+"  "+o.optString("league"),12,orange,true);wrap.addView(h);TextView tm=tv(o.optString("home_team")+"  VS  "+o.optString("away_team"),21,dark,true);tm.setGravity(Gravity.CENTER);tm.setPadding(0,dp(8),0,dp(10));wrap.addView(tm);String k=o.optString("kickoff_bjt");if(!k.isEmpty())wrap.addView(tv("比赛时间  "+k.replace("T"," ").replace("+00:00",""),12,muted,false));wrap.addView(tv("核心推荐",17,dark,true));if(ps.isEmpty())wrap.addView(tv("本场未达到精选标准 · 建议回避",15,muted,true));else{int max=Math.min(2,ps.size());for(int i=0;i<max;i++){JSONObject q=ps.get(i);LinearLayout b=card();b.setBackground(box(i==0?0xFFFFF0E8:0xFFFFF8EE,14));b.addView(tv(catName(q.optString("category")),12,muted,true));b.addView(tv(q.optString("selected_pick"),19,i==0?0xFFD9362B:orange,true));b.addView(tv("信心  "+stars(q.optInt("star_level",0)),12,muted,false));wrap.addView(b);}JSONObject q=ps.get(0);String reason=q.optString("short_reason");if(!reason.isEmpty()){wrap.addView(tv("赛前研判",15,dark,true));wrap.addView(tv(sanitize(reason),13,dark,false));}}JSONObject rr=riskFor(d,n);String reason=rr.optString("risk_reason");if(!reason.isEmpty()){wrap.addView(tv("风险提示",15,red,true));wrap.addView(tv(sanitize(reason),13,0xFFB46A16,false));}String rs=o.optString("result_text");String ev=ps.isEmpty()?"":featuredStatus(ps);if(!rs.isEmpty()){wrap.addView(tv("赛后结果",15,dark,true));wrap.addView(tv("比分  "+rs+(ev.isEmpty()?"":"   "+ev),14,ev.contains("成功")?green:ev.contains("未中")?red:dark,true));}new AlertDialog.Builder(this).setTitle("比赛详情").setView(wrap).setPositiveButton("关闭",null).show();}''')
+          repl('void picksPage(){','String featuredStatus(ArrayList<JSONObject>a){',r'''void picksPage(){LinearLayout head=card();head.addView(tv("精选推荐",22,dark,true));head.addView(tv("只展示达到门槛的少量比赛 · 不够强就 PASS",12,muted,false));body.addView(head);LinkedHashMap<String,ArrayList<JSONObject>> groups=new LinkedHashMap<>();for(int i=0;i<picks.length();i++){JSONObject o=picks.optJSONObject(i);if(!day.equals(o.optString("publish_date")))continue;String k=o.optString("match_no");groups.computeIfAbsent(k,x->new ArrayList<>()).add(o);}if(groups.isEmpty()){LinearLayout c=card();c.addView(tv("今日暂无精选",18,dark,true));c.addView(tv("没有达到客户精选门槛的比赛，宁可不推。",13,muted,false));body.addView(c);return;}for(Map.Entry<String,ArrayList<JSONObject>> e:groups.entrySet()){ArrayList<JSONObject>a=e.getValue();a.sort((x,y)->Integer.compare(x.optInt("recommendation_rank",99),y.optInt("recommendation_rank",99)));JSONObject f=a.get(0);LinearLayout c=card();LinearLayout top=new LinearLayout(this);top.addView(tv(fmtNo(e.getKey())+"  "+f.optString("league"),12,muted,true),new LinearLayout.LayoutParams(0,-2,1));String rk=f.optString("record_kind");top.addView(tv(rk.equals("历史回放")?"历史回放":"正式前瞻",11,rk.equals("历史回放")?muted:orange,true));c.addView(top);c.addView(tv(f.optString("home_team")+"  VS  "+f.optString("away_team"),17,dark,true));int max=Math.min(2,a.size());for(int j=0;j<max;j++){JSONObject q=a.get(j);c.addView(tv(catName(q.optString("category"))+"  "+q.optString("selected_pick")+"  "+stars(q.optInt("star_level",0)),15,j==0?0xFFD9362B:orange,true));}String st=featuredStatus(a);c.addView(tv(st,13,st.contains("成功")?green:st.contains("未中")?red:muted,true));c.setOnClickListener(v->{JSONObject faux=new JSONObject();try{faux.put("publish_date",f.optString("publish_date"));faux.put("match_no",f.optString("match_no"));faux.put("league",f.optString("league"));faux.put("home_team",f.optString("home_team"));faux.put("away_team",f.optString("away_team"));faux.put("kickoff_bjt",f.optString("kickoff_bjt"));faux.put("result_text",f.optString("result_text"));}catch(Exception ignored){}detail(faux);});body.addView(c);}}''')
+          repl('void recordPage(){','int[] stat(ArrayList<JSONObject>a,int days){',r'''void recordPage(){ArrayList<JSONObject> formal=new ArrayList<>(),hist=new ArrayList<>();for(int i=0;i<picks.length();i++){JSONObject q=picks.optJSONObject(i);String ss=q.optString("settle_status");if(!(ss.equals("命中")||ss.equals("未中")||ss.contains("成功")||ss.contains("失败")))continue;if("正式前瞻".equals(q.optString("record_kind")))formal.add(q);else if("历史回放".equals(q.optString("record_kind")))hist.add(q);}LinearLayout c=card();c.addView(tv("历史战绩",22,dark,true));int[] h7=stat(hist,7),h30=stat(hist,30),hall=stat(hist,99999);c.addView(tv("历史回放\n近7日  "+fmtStat(h7)+"\n近30日  "+fmtStat(h30)+"\n累计  "+fmtStat(hall),14,dark,true));c.addView(tv("历史回放用于模型复核，不冒充当日公开实战。",11,muted,false));body.addView(c);LinearLayout f=card();f.addView(tv("正式前瞻实战",19,dark,true));int[] f7=stat(formal,7),f30=stat(formal,30),fall=stat(formal,99999);f.addView(tv("近7日  "+fmtStat(f7)+"\n近30日  "+fmtStat(f30)+"\n累计  "+fmtStat(fall),14,dark,true));f.addView(tv("只统计真正赛前冻结且赛果确认的正式发布记录。",11,muted,false));body.addView(f);ArrayList<JSONObject> all=new ArrayList<>();all.addAll(formal);all.addAll(hist);LinkedHashMap<String,ArrayList<JSONObject>> g=new LinkedHashMap<>();for(JSONObject q:all){String k=q.optString("publish_date")+"|"+q.optString("match_no");g.computeIfAbsent(k,x->new ArrayList<>()).add(q);}for(ArrayList<JSONObject>a:g.values()){JSONObject z=a.get(0);LinearLayout x=card();x.addView(tv(z.optString("publish_date")+"  "+fmtNo(z.optString("match_no"))+"  "+z.optString("league"),11,muted,true));x.addView(tv(z.optString("home_team")+" vs "+z.optString("away_team"),15,dark,true));x.addView(tv((z.optString("result_text").isEmpty()?"赛果待确认":"比分 "+z.optString("result_text"))+"   "+featuredStatus(a),12,featuredStatus(a).contains("成功")?green:red,true));body.addView(x);}}''')
+          insert='''\n void depthPage(){LinearLayout h=card();h.addView(tv("深度研判",22,dark,true));h.addView(tv("对外只展示客户可理解的研判结论，不展示内部算法与流程。",12,muted,false));body.addView(h);String[][] items={{"核心研判","综合比赛强弱、市场方向与赛前信息"},{"平局识别","识别比赛胶着程度与平局风险"},{"冷门预警","提示热门方潜在失手风险"},{"让球判断","区分能否赢球与净胜空间"},{"风险审计","发现冲突时主动降级或 PASS"},{"使用说明","精选少而精，全池负责稳定覆盖"}};for(String[] it:items){LinearLayout c=card();c.addView(tv(it[0],17,dark,true));c.addView(tv(it[1],12,muted,false));body.addView(c);}}\n'''
+          idx=s.find(' void mePage(){')
+          if idx<0: raise SystemExit('mePage not found')
+          s=s[:idx]+insert+s[idx:]
+          s=s.replace('豪竞会员中心','豪竞会员中心 · 客户版2.2')
+          p.write_text(s)
+          PY
+          sed -i "s/versionCode 200; versionName '2.0.0'/versionCode 220; versionName '2.2.0'/" haojing-customer-v20/app/build.gradle
+          grep -q '深度研判' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q 'hao_app_picks_customer_v20' haojing-customer-v20/app/src/main/java/com/haojing/app/MainActivity.java
+          grep -q "versionName '2.2.0'" haojing-customer-v20/app/build.gradle
+      - name: Build APK
+        working-directory: haojing-customer-v20
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Package
+        run: cp haojing-customer-v20/app/build/outputs/apk/debug/app-debug.apk HaoJing-Customer-v2.2.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HaoJing-Customer-v2.2
+          path: HaoJing-Customer-v2.2.apk
+          retention-days: 30
