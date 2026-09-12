@@ -22,11 +22,11 @@ jobs:
           set -euo pipefail
           KEY=$(grep -o 'sb_publishable_[A-Za-z0-9_-]*' .github/workflows/build-haojing-apk.yml | head -1)
           BASE='https://tqlibowvnwfkaseqqvvp.supabase.co/rest/v1'
-          curl --fail-with-body -sS -X POST -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}' "$BASE/rpc/hao_refresh_app_snapshots_v14" -o /tmp/refresh.json
+          curl --fail-with-body --retry 2 -sS -X POST -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}' "$BASE/rpc/hao_refresh_app_snapshots_v14" -o /tmp/refresh.json || true
           for I in 1 2 3; do
-            curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&publish_date=eq.2026-09-11" -o /tmp/f11
-            curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&publish_date=eq.2026-09-12" -o /tmp/f12
-            curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_picks_snapshot_v14?select=publish_date,match_no,record_kind" -o /tmp/p
+            curl --fail-with-body --retry 2 -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&publish_date=eq.2026-09-11" -o /tmp/f11
+            curl --fail-with-body --retry 2 -sS -H "apikey: $KEY" "$BASE/hao_app_full_snapshot_v14?select=publish_date,match_no&publish_date=eq.2026-09-12" -o /tmp/f12
+            curl --fail-with-body --retry 2 -sS -H "apikey: $KEY" "$BASE/hao_app_picks_snapshot_v14?select=publish_date,match_no,record_kind" -o /tmp/p
             test "$(jq length /tmp/f11)" -eq 12
             test "$(jq length /tmp/f12)" -eq 30
             test "$(jq '[.[]|select(.publish_date=="2026-08-31" and .record_kind=="历史回放")]|length' /tmp/p)" -ge 1
@@ -34,7 +34,7 @@ jobs:
             test "$(jq '[.[]|select(.publish_date=="2026-09-12" and .record_kind=="正式前瞻")]|length' /tmp/p)" -ge 1
             echo "SNAPSHOT_PASS_$I"
           done
-          curl --fail-with-body -sS -H "apikey: $KEY" "$BASE/hao_app_risk_stats_v15?select=publish_date,match_no,risk_badge,risk_status&limit=20" -o /tmp/risk
+          curl --fail-with-body --retry 2 -sS -H "apikey: $KEY" "$BASE/hao_app_risk_stats_v15?select=publish_date,match_no,risk_badge,risk_status&limit=20" -o /tmp/risk
           jq -e 'type=="array"' /tmp/risk >/dev/null
       - name: Generate from validated v1.4 source
         shell: bash
