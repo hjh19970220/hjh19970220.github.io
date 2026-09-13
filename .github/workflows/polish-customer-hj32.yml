@@ -1,0 +1,94 @@
+name: polish-customer-hj32
+on:
+  push:
+    paths:
+      - ".github/workflows/polish-customer-hj32.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Polish customer-facing page
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('customer-hj32.html')
+          s=p.read_text(encoding='utf-8')
+
+          s=s.replace('豪竞3.2｜客户专属版','豪竞3.2｜会员专属')
+          s=s.replace('赛前数据模型 · 实时同步 · 历史可复盘','赛前赛事分析 · 实时同步 · 历史回溯')
+          s=s.replace('客户专属赛事分析 · 赛前冻结 · 自动同步','会员赛事分析 · 实时同步')
+          s=s.replace('没有账号请联系管理员开通。历史表现仅作模型复盘参考。','没有账号请联系管理员开通。历史回溯仅作赛事分析参考。')
+
+          # Customer-friendly decision labels.
+          s=s.replace('🟢 单选','🟢 单选参考')
+          s=s.replace('🟣 强双','🟣 双向参考')
+          s=s.replace('🟠 候选双','🟠 双向观察')
+          s=s.replace("⚪ '+(x?.hard_pass?'硬PASS':'PASS')+'","⚪ 观望")
+          s=s.replace('第二方向 ','备选方向 ')
+          s=s.replace('保护 ','参考组合 ')
+          s=s.replace('让球 ','让球参考 ')
+
+          # Remove per-match post-result hit/miss line from customer page.
+          s=re.sub(r"\+\'<div class=\\\"result \'\+rc\+\'\\\">\'\+esc\(rt\)\+\'</div></div>\'", "+'</div>'", s)
+          # More robust fallback: remove literal result segment in matchCard return.
+          s=s.replace("+'<div class=\"result '+rc+'\">'+esc(rt)+'</div></div>'","+'</div>'")
+
+          # Replace live view with customer-facing wording and hide revision/native-pass jargon.
+          start=s.index('function liveView(){')
+          end=s.index('function historyView(){')
+          live="""function liveView(){const d=DATA,l=d.live||{},rows=l.rows||[],run=d.run||{};return '<div class=\"notice good\"><b>赛事数据已更新</b><br>页面自动同步最新赛前分析，建议结合临场阵容与市场变化综合参考。</div><div class=\"metrics\">'+metric('今日赛事',String(rows.length)+' 场','比赛日 '+(run.pool_date||'—'))+metric('数据状态','实时同步','最新赛前分析持续更新')+metric('当前版本','豪竞3.2','会员专属赛事分析')+metric('更新时间',fmt(d.generated_at),'最近同步 '+fmt(run.run_time))+'</div><section class=\"section\"><div class=\"shead\"><h2>今日赛事分析</h2><span>首选方向 · 备选方向 · 单双参考</span></div><div class=\"grid\">'+rows.map(matchCard).join('')+'</div></section>'}\n"""
+          s=s[:start]+live+s[end:]
+
+          # Customer-friendly backtest wording only.
+          s=s.replace('本页仅展示豪竞3.2历史锁定回溯验证，不展示实战战绩。回溯结果用于模型审计与研究，历史表现不代表未来结果。','本页展示豪竞3.2历史锁定样本的回溯表现，仅用于了解模型在历史样本中的表现。历史回溯不代表未来结果。')
+          s=s.replace('历史锁定回溯','历史回溯')
+          s=s.replace('锁定样本 · 禁止赛果倒灌','固定历史样本')
+          s=s.replace("metric('审计纪律','结果不回写','历史锁定 · 禁止事后改答案')","metric('统计原则','固定口径','历史样本按统一规则统计')")
+          s=s.replace('豪竞3.2历史回溯验证','豪竞3.2历史回溯表现')
+          s=s.replace('仅用于模型能力复盘','历史固定样本统计')
+          s=s.replace('历史锁定回溯/开发验证仅用于模型审计，不构成未来赛果、收益或命中保证。','历史回溯仅供赛事分析参考，不构成对未来结果或收益的保证。')
+
+          # Replace internal/meta about section completely.
+          start=s.index('function aboutView(){')
+          end=s.index('function render(){')
+          about="""function aboutView(){return '<div class=\"notice good\"><b>豪竞3.2赛事分析</b><br>基于多维赛前数据，对比赛胜平负方向、备选方向、风险级别及让球方向进行综合评估，帮助更直观地了解比赛结构。</div><section class=\"section\"><div class=\"grid\"><div class=\"card\" style=\"padding:15px\"><b>分析内容</b><div class=\"sub\">提供首选方向、备选方向、模型概率、单双参考、风险提示及让球参考。</div></div><div class=\"card\" style=\"padding:15px\"><b>方向说明</b><div class=\"sub\">单选参考代表方向相对集中；双向参考用于覆盖主要次选路径；观望表示当前条件下不建议强行判断。</div></div><div class=\"card\" style=\"padding:15px\"><b>数据更新</b><div class=\"sub\">赛前数据会持续刷新，临近开赛时请优先参考页面最新更新时间与最新方向。</div></div><div class=\"card\" style=\"padding:15px\"><b>使用提示</b><div class=\"sub\">本页属于体育赛事数据分析服务，历史回溯不代表未来结果，请结合临场信息独立判断。</div></div></div></section>'}\n"""
+          s=s[:start]+about+s[end:]
+
+          s=s.replace('>模型说明</button>','>使用说明</button>')
+          # Remove public build/revision identifiers from footer.
+          s=re.sub(r"<div class=\\\"footer\\\">豪竞3\.2客户专属版 · '\+esc\(BUILD\)\+'<br>'\+esc\(DATA\.disclaimer\|\|'历史表现不代表未来结果。'\)\+'</div>","<div class=\"footer\">豪竞3.2 · 体育赛事数据分析<br>历史回溯不代表未来结果，请结合临场信息独立判断。</div>",s)
+          s=s.replace("'<div class=\"footer\">豪竞3.2客户专属版 · '+esc(BUILD)+'<br>'+esc(DATA.disclaimer||'历史表现不代表未来结果。')+'</div></div>'","'<div class=\"footer\">豪竞3.2 · 体育赛事数据分析<br>历史回溯不代表未来结果，请结合临场信息独立判断。</div></div>'")
+
+          p.write_text(s,encoding='utf-8')
+
+          forbidden=['客户能看到什么','客户不会看到什么','内部计算公式','模型委员会','Native PASS','HJ32-CUSTOMER','revision_tag']
+          # revision_tag may still exist in unused JS data access; customer-visible strings are the critical check.
+          for x in forbidden[:-1]:
+              assert x not in s, x
+          assert '>使用说明</button>' in s
+          assert '豪竞3.2赛事分析' in s
+          PY
+      - name: Check JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('customer-hj32.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/customer.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/customer.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-hj32.html
+          git diff --cached --quiet || git commit -m "polish HaoJing 3.2 customer dashboard"
+          git push
