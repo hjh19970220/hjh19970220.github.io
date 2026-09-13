@@ -1,0 +1,79 @@
+name: Remove retired GPT review UI once
+on:
+  push:
+    paths:
+      - '.github/workflows/remove-gpt-review-ui-once.yml'
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove retired GPT review UI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          before = s
+
+          s = s.replace("const APP_BUILD='2026-09-14 豪竞3.2前端v36-hygiene';", "const APP_BUILD='2026-09-14 豪竞3.2前端v37-no-gpt-ui';")
+          s = s.replace('DTR / DLR / GPT二审 / 情报 = 风险/复核层；HHAD可由豪竞3.2最终玩法路由正式接管', 'DTR / DLR / 情报 = 风险/复核层；HHAD可由豪竞3.2最终玩法路由正式接管')
+          s = s.replace("<div>二审结论</div><div>'+esc(teacherActionZh(r))+'</div>", '')
+          s = s.replace("+kvIf('二审',teacherActionZh(r))", '')
+          s = s.replace('+hjTeacherDetailSection(r)+', '+')
+
+          # Remove the now-unused visible GPT review section builder entirely.
+          start = s.find('function hjTeacherDetailSection(r){')
+          if start >= 0:
+              nxt = s.find('\nfunction ', start + 1)
+              if nxt < 0:
+                  raise SystemExit('Could not find end of hjTeacherDetailSection')
+              s = s[:start] + s[nxt+1:]
+
+          # Remove score/weight rows that existed only for the retired GPT teacher layer.
+          s = re.sub(
+              r"\+\(s\.teacher_base_selection_score==null\?'':.*?\+kvIf\('GPT-5\.6 Sol',teacherMemberVisible\(s\.teacher_g_had,s\.teacher_g_had_agreement,s\.teacher_g_source_status\)\)\+\(teacherHasPick\(s\)\?'<div>二审权重</div><div>GPT-5\.6 Sol 100%（当前唯一正式二审）</div>':''\)",
+              '', s, flags=re.S
+          )
+
+          # If the long score block changed shape, still remove the explicit GPT member/weight widgets.
+          s = s.replace("+kvIf('GPT-5.6 Sol',teacherMemberVisible(s.teacher_g_had,s.teacher_g_had_agreement,s.teacher_g_source_status))", '')
+          s = s.replace("+(teacherHasPick(s)?'<div>二审权重</div><div>GPT-5.6 Sol 100%（当前唯一正式二审）</div>':'')", '')
+
+          if s == before:
+              raise SystemExit('No index.html changes made')
+          p.write_text(s, encoding='utf-8')
+
+          vp = Path('version.json')
+          if vp.exists():
+              data = json.loads(vp.read_text(encoding='utf-8'))
+              data['build'] = '2026-09-14 豪竞3.2前端v37-no-gpt-ui'
+              data['updated_at'] = '2026-09-14'
+              vp.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':'))+'\n', encoding='utf-8')
+
+          # User-visible retired GPT review elements must be gone.
+          checks = [
+              'GPT-5.6 Sol 二审明细',
+              'DTR / DLR / GPT二审 / 情报',
+              '<div>二审结论</div>',
+              '二审权重</div><div>GPT-5.6 Sol 100%'
+          ]
+          bad = [x for x in checks if x in s]
+          if bad:
+              raise SystemExit('Retired GPT UI remnants remain: '+repr(bad))
+          print('GPT review UI removed; build v37-no-gpt-ui')
+          PY
+      - name: Commit cleanup and remove one-time workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/remove-gpt-review-ui-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html version.json .github/workflows/remove-gpt-review-ui-once.yml
+          git commit -m 'fix: remove retired GPT review UI from HJ3.2 frontend'
+          git push
