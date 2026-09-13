@@ -1,0 +1,74 @@
+name: patch-customer-public-clean-v3
+on:
+  push:
+    paths:
+      - ".github/workflows/patch-customer-public-clean-v3.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Clean customer-facing dashboard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('customer-hj32.html')
+          s=p.read_text(encoding='utf-8')
+
+          def replace_func(src,name,next_name,new):
+              a=src.index(f'function {name}(')
+              b=src.index(f'function {next_name}(',a)
+              return src[:a]+new+'\n'+src[b:]
+
+          # Customer-friendly labels only; hide internal execution terminology.
+          s=replace_func(s,'classChip','matchCard',"""function classChip(x){const c=String(x?.code||'');if(c==='SINGLE')return '<span class=\"chip single\">🟢 单选参考</span>';if(c==='STRONG_DOUBLE')return '<span class=\"chip double\">🟣 双向保护</span>';if(c==='CANDIDATE_DOUBLE')return '<span class=\"chip candidate\">🟠 谨慎双选</span>';if(c==='PASS')return '<span class=\"chip pass\">⚪ 暂缓观察</span>';return '<span class=\"chip\">待确认</span>'}""")
+
+          # No live hit/miss or result record on customer cards.
+          s=replace_func(s,'matchCard','liveView',"""function matchCard(r){const sd=r.single_double||{},p=r.top1_probability==null?'—':(r.top1_probability*100).toFixed(1)+'%',picks=(sd.picks||[]).length?(sd.picks||[]).join(' + '):'';return '<div class=\"match\"><div class=\"mh\"><div><span class=\"no\">'+esc(r.match_no)+'</span> <span class=\"league\">'+esc(r.league)+'</span></div><span class=\"time\">'+esc(fmt(r.kickoff_bjt))+'</span></div><div class=\"teams\">'+esc(r.home_team)+' vs '+esc(r.away_team)+'</div><div class=\"mainline\"><div class=\"pick\">'+esc(r.top1||'未确认')+'</div><div class=\"prob\">参考概率 '+esc(p)+'</div></div><div class=\"chips\">'+classChip(sd)+'<span class=\"chip\">第二方向 '+esc(r.second_pick||'—')+'</span><span class=\"chip\">信心 '+esc(r.confidence)+'</span><span class=\"chip\">风险 '+esc(r.risk)+'</span>'+(picks?'<span class=\"chip\">保护方向 '+esc(picks)+'</span>':'')+(r.handicap_pick?'<span class=\"chip\">让球参考 '+esc(r.handicap_pick)+'</span>':'')+'</div></div>'}""")
+
+          s=replace_func(s,'liveView','historyView',"""function liveView(){const d=DATA,rows=d.live?.rows||[],run=d.run||{};return '<div class=\"notice good\"><b>今日分析已同步</b><br>页面展示豪竞3.2当前赛前观点，并按最新赛前数据自动更新。比赛开始前的分析记录独立保存。</div><div class=\"metrics\">'+metric('当前赛事池',String(rows.length)+' 场','日期 '+(run.pool_date||'—'))+metric('更新状态','实时同步','页面自动刷新')+metric('当前版本','豪竞3.2','客户专属分析版')+metric('最后更新',fmt(d.generated_at),'以页面显示为准')+'</div><section class=\"section\"><div class=\"shead\"><h2>今日赛事分析</h2><span>首选方向 · 第二方向 · 单双参考</span></div><div class=\"grid\">'+rows.map(matchCard).join('')+'</div></section>'}""")
+
+          s=replace_func(s,'historyView','aboutView',"""function historyView(){const v=DATA.locked_validation||{};return '<div class=\"notice warn\"><b>历史回溯说明</b><br>以下数据来自豪竞3.2历史锁定回溯，用于展示模型在既定规则下的历史表现。历史结果不代表未来表现。</div><div class=\"metrics\">'+metric('Top1回溯命中率',pct(v.single_direction?.rate),String(v.single_direction?.hits||0)+' / '+String(v.single_direction?.scored||0)+' · 194场历史样本')+metric('单双覆盖回溯',pct(v.single_double_coverage?.rate),String(v.single_double_coverage?.hits||0)+' / '+String(v.single_double_coverage?.scored||0)+' · 194场历史样本')+metric('回溯样本',String(v.single_direction?.scored||0)+' 场','统一历史口径')+metric('记录方式','赛前口径固定','回溯结果独立留档')+'</div><section class=\"section\"><div class=\"shead\"><h2>豪竞3.2历史回溯</h2><span>仅作历史表现参考</span></div><div class=\"grid\"><div class=\"card\" style=\"padding:15px\"><b>FT Top1 单方向</b><div class=\"mv\">'+pct(v.single_direction?.rate)+'</div><div class=\"sub\">'+esc(v.single_direction?.hits||0)+' / '+esc(v.single_direction?.scored||0)+'，每场仅计算第一方向。</div></div><div class=\"card\" style=\"padding:15px\"><b>单双混合覆盖</b><div class=\"mv\">'+pct(v.single_double_coverage?.rate)+'</div><div class=\"sub\">'+esc(v.single_double_coverage?.hits||0)+' / '+esc(v.single_double_coverage?.scored||0)+'，按当时固定单双规则计算。</div></div></div><div class=\"legend\">历史回溯数据仅用于模型表现展示，不构成未来赛果、收益或命中保证。</div></section>'}""")
+
+          # Remove model-internals page entirely.
+          a=s.index('function aboutView(')
+          b=s.index('function render(',a)
+          s=s[:a]+s[b:]
+
+          # Two-tab customer UI only, no build/revision/internal wording in footer.
+          a=s.index('function render(')
+          b=s.index('load(true);',a)
+          render="""function render(){if(!DATA)return;const body=TAB==='history'?historyView():liveView();document.getElementById('app').innerHTML='<div class=\"wrap\"><div class=\"top\"><div><div class=\"brand\">豪竞3.2｜客户专属版</div><div class=\"sub\">赛前赛事分析 · 自动同步 · 历史可回溯</div></div><div class=\"topright\"><span class=\"pill good\">● 已同步</span><span class=\"pill\">'+esc(fmt(DATA.generated_at))+'</span><button class=\"refresh\" onclick=\"load(true)\">刷新</button><button class=\"logout\" onclick=\"logout()\">退出</button></div></div><div class=\"tabs\"><button class=\"'+(TAB==='live'?'on':'')+'\" onclick=\"TAB=\\'live\\';render()\">今日赛事</button><button class=\"'+(TAB==='history'?'on':'')+'\" onclick=\"TAB=\\'history\\';render()\">回溯战绩</button></div>'+body+'<div class=\"footer\">豪竞3.2 客户专属版<br>页面仅用于体育赛事数据分析与历史回溯展示，历史表现不代表未来结果。</div></div>'}\n"""
+          s=s[:a]+render+s[b:]
+
+          # Remove unused public-facing build constant and internal wording.
+          import re
+          s=re.sub(r"const BUILD='[^']*';\n",'',s)
+          for bad in ['模型委员会','参数阈值','数据库结构','Native PASS','HJ32-CUSTOMER','客户不会看到什么','内部计算公式','具体数据源权重','提示词','开发验证','实战战绩','revision_tag']:
+              assert bad not in s, bad
+          assert '模型说明</button>' not in s
+          assert '回溯战绩</button>' in s
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Check JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('customer-hj32.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/customer.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/customer.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-hj32.html
+          git diff --cached --quiet || git commit -m "clean customer dashboard for public presentation"
+          git push
