@@ -1,0 +1,42 @@
+name: hj32-native-pass-ui-sync
+
+on:
+  push:
+    paths:
+      - ".github/workflows/hj32-native-pass-ui-sync.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Patch frontend
+        run: python .github/scripts/patch_hj32_native_pass.py
+      - name: Check JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/app.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+      - name: Verify patch
+        run: |
+          grep -q "豪竞3.2 单双 / Native PASS" index.html
+          grep -q "候选双·禁裸单" index.html
+          grep -q "2026-09-13 豪竞3.2前端v35-native-pass" index.html
+      - name: Commit frontend
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html latest.html live.html version.json
+          git diff --cached --quiet || git commit -m "sync frontend with HJ3.2 Native PASS"
+          git push
