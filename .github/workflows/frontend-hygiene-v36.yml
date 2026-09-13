@@ -1,0 +1,111 @@
+name: frontend-hygiene-v36
+
+on:
+  push:
+    paths:
+      - ".github/workflows/frontend-hygiene-v36.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Remove obsolete frontend display code
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          NEW_BUILD = "2026-09-14 豪竞3.2前端v36-hygiene"
+          files = [Path("index.html"), Path("latest.html"), Path("live.html")]
+          changed = []
+
+          for p in files:
+              if not p.exists():
+                  continue
+              text = p.read_text(encoding="utf-8")
+              before = text
+
+              # Always align visible build stamp.
+              text = re.sub(r"const APP_BUILD='[^']*';", f"const APP_BUILD='{NEW_BUILD}';", text, count=1)
+
+              # HJ3.2 Native PASS is the only live PASS semantics. Remove legacy PASS UI helpers.
+              text = re.sub(r"^function hj32LegacyPassData\(r\)\{[^\n]*\}\n", "", text, flags=re.M)
+              text = re.sub(r"^function hj32LegacyPassText\(r\)\{[^\n]*\}\n", "", text, flags=re.M)
+              text = text.replace("<div>Legacy PASS</div><div>'+esc(hj32LegacyPassText(r))+'</div>", "")
+              text = text.replace("PASS:'🔴 旧执行PASS'", "PASS:'⚪ PASS'")
+
+              # Only GPT-5.6 Sol is the formal teacher in the current model. Remove retired teacher display noise.
+              text = text.replace(
+                  "function teacherHasPick(s){return !!(s?.teacher_b_had||s?.teacher_c_had||s?.teacher_g_had)}",
+                  "function teacherHasPick(s){return !!s?.teacher_g_had}"
+              )
+              text = re.sub(
+                  r"function teacherCoverageZh\(s\)\{.*?\n\}\n\nfunction hjTeacherDetailSection",
+                  "function hjTeacherDetailSection",
+                  text,
+                  count=1,
+                  flags=re.S,
+              )
+              text = re.sub(r"\+kvIf\('捷报 / Nowscore',teacherMemberVisible\(s\.teacher_b_had,s\.teacher_b_had_agreement,s\.teacher_b_source_status\)\)", "", text)
+              text = re.sub(r"\+kvIf\('新浪小炮',teacherMemberVisible\(s\.teacher_c_had,s\.teacher_c_had_agreement,s\.teacher_c_source_status\)\)", "", text)
+              text = text.replace("+kvIf('外部老师',teacherCoverageZh(s))", "")
+
+              # Current HJ3.2 may formally route to HHAD. Remove stale 'auxiliary-only' wording from UI.
+              text = text.replace("metric('让球辅助信号',", "metric('让球方向',")
+              text = text.replace("s.handicap_light_reason||'让球仅作辅助审计'", "s.handicap_light_reason||'HHAD按豪竞3.2正式让球链输出'")
+              text = text.replace("<div>让球辅助状态</div>", "<div>让球方向状态</div>")
+              text = text.replace(
+                  "DTR / DLR / GPT二审 / 情报 / 让球 = 提示层，不再一票否决方向",
+                  "DTR / DLR / GPT二审 / 情报 = 风险/复核层；HHAD可由豪竞3.2最终玩法路由正式接管"
+              )
+
+              if text != before:
+                  p.write_text(text, encoding="utf-8")
+                  changed.append(p.name)
+
+          idx = Path("index.html").read_text(encoding="utf-8")
+          assert "hj32LegacyPassData" not in idx, "legacy PASS data helper still present"
+          assert "hj32LegacyPassText" not in idx, "legacy PASS text helper still present"
+          assert "Legacy PASS" not in idx, "legacy PASS UI row still present"
+          assert "teacher_b_had" not in idx, "retired teacher B still exposed in frontend"
+          assert "teacher_c_had" not in idx, "retired teacher C still exposed in frontend"
+          assert "teacherCoverageZh" not in idx, "retired teacher coverage helper still present"
+          assert "让球仅作辅助审计" not in idx, "stale HHAD auxiliary wording still present"
+          assert NEW_BUILD in idx, "build stamp not updated"
+
+          Path("version.json").write_text(
+              '{"build":"'+NEW_BUILD+'","updated_at":"2026-09-14"}\n',
+              encoding="utf-8",
+          )
+          print("changed:", changed)
+          PY
+      - name: Check JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for name in ["index.html", "latest.html", "live.html"]:
+              p=Path(name)
+              if not p.exists():
+                  continue
+              s=p.read_text(encoding='utf-8')
+              if '<script>' not in s:
+                  continue
+              js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+              Path('/tmp/'+name+'.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/index.html.js
+      - name: Commit cleaned frontend
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html latest.html live.html version.json
+          git diff --cached --quiet || git commit -m "clean obsolete HJ3.2 frontend display logic"
+          git push
