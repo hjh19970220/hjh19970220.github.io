@@ -85,7 +85,7 @@ nav::-webkit-scrollbar{display:none}
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
 const HB_CUM_API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-basketball-7m-probe-v01';
-const APP_BUILD='2026-09-12 豪竞2.7前端v32-healthfix';
+const APP_BUILD='2026-09-13 豪竞3.2前端v35-native-pass';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 let HB_CUM=null;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
@@ -265,31 +265,45 @@ function hjDualValueBadge(r){
  return '⚪ 价值未确认';
 }
 function hjDualActionBadge(r){
+ const sd=hjSingleDoubleData(r),c=String(sd.class_code||'').toUpperCase(),native=hj32NativePassActive(r);
+ if(native&&c==='STRONG_DOUBLE')return '🟣 强双保护';
+ if(native&&c==='CANDIDATE_DOUBLE')return '🟠 候选双·禁裸单';
+ if(native&&c==='PASS')return '⚪ 硬PASS';
  const a=String(hjDualData(r).action_tier||'').toUpperCase();
- const m={PRIORITY:'⭐ 优先出手',DIRECTION:'🟢 方向可打',DIRECTION_NO_HAD:'🟢 方向强·普通胜平负暂不可执行',VALUE_B:'💰 B档价值',WATCH:'🟡 观察',PASS:'🔴 PASS',PASS_UNAVAILABLE:'⚪ 不可用'};
+ const m={PRIORITY:'⭐ 优先出手',DIRECTION:'🟢 方向可打',DIRECTION_NO_HAD:'🟢 方向强·普通胜平负暂不可执行',VALUE_B:'💰 B档价值',WATCH:'🟡 观察',PASS:'🔴 旧执行PASS',PASS_UNAVAILABLE:'⚪ 不可用'};
  return m[a]||'⚪ 出手未确认';
 }
+
 function hjSingleDoubleData(r){return r?.source_status?.single_double_v01||{}}
+function hj32NativePassData(r){return r?.source_status?.hj32_native_pass_v01||{}}
+function hj32LegacyPassData(r){return r?.source_status?.hj32_legacy_pass_shadow_v01||{}}
+function hj32NativePassActive(r){const x=hj32NativePassData(r),sd=hjSingleDoubleData(r);return String(x.status||'')==='ACTIVE_FORMAL_RUNTIME'||String(sd.status||'').includes('HJ32_NATIVE_PASS')||sd.native_pass_v01===true}
+function hj32LegacyPassText(r){const x=hj32LegacyPassData(r);if(x.legacy_would_pass===true)return '旧机制会PASS · 仅影子，不再一票否决';if(String(x.status||'').includes('SHADOW'))return '旧机制未触发硬PASS · 仅影子';return '旧冻结未记录Native PASS影子'}
 function hjSingleDoubleBadge(r){
- const x=hjSingleDoubleData(r),c=String(x.class_code||'').toUpperCase();
+ const x=hjSingleDoubleData(r),c=String(x.class_code||'').toUpperCase(),native=hj32NativePassActive(r);
  if(c==='SINGLE')return '🟢 单选';
  if(c==='STRONG_DOUBLE')return '🟣 强双';
- if(c==='CANDIDATE_DOUBLE')return '🟠 候选双';
- if(c==='PASS')return '⚪ PASS';
+ if(c==='CANDIDATE_DOUBLE')return native?'🟠 候选双·禁裸单':'🟠 候选双';
+ if(c==='PASS')return native?'⚪ 硬PASS':'⚪ PASS（旧冻结）';
  return '⚪ 待新运行';
 }
+
 function hjSingleDoublePicks(r){
  const x=hjSingleDoubleData(r),ps=Array.isArray(x.picks)?x.picks.filter(Boolean):[];
  if(ps.length)return ps.join(' + ');
- return String(x.class_code||'').toUpperCase()==='PASS'?'PASS':'未确认';
+ return String(x.class_code||'').toUpperCase()==='PASS'?(hj32NativePassActive(r)?'硬PASS':'PASS'):'未确认';
 }
+
 function hjSingleDoubleDetailSection(r){
  const x=hjSingleDoubleData(r),c=String(x.class_code||'').toUpperCase();
  if(!c)return '';
- const top1Changed=x.top1_unchanged===true?'否':'未确认';
- const probChanged=x.probability_unchanged===true?'否':'未确认';
- return '<section class="section"><div class="shead"><h2>🔀 豪竞2.7 单双选</h2><span>有把握单选 · 有可信第二方向双选 · 不可靠则PASS</span></div><div class="cards"><div class="card feature"><div class="kv"><div>单双类型</div><div><b>'+esc(hjSingleDoubleBadge(r))+'</b></div><div>执行方向</div><div><b>'+esc(hjSingleDoublePicks(r))+'</b></div><div>动作</div><div>'+esc(x.action||'—')+'</div><div>判定理由</div><div>'+esc(x.reason||'—')+'</div></div></div><div class="card"><div class="kv"><div>正式Top1</div><div>'+esc(r.top1||'未确认')+'</div><div>第二方向</div><div>'+esc(r.second_pick||'—')+'</div><div>是否改Top1</div><div>'+esc(top1Changed)+'</div><div>是否改概率</div><div>'+esc(probChanged)+'</div><div>候选双是否强制下注</div><div>'+esc(x.candidate_double_not_forced===true?'否':'未确认')+'</div></div></div></div></section>';
+ const np=hj32NativePassData(r),native=hj32NativePassActive(r),top1Changed=(x.top1_core_unchanged===true||x.top1_unchanged===true)?'否':'未确认',probChanged=x.probability_unchanged===true?'否':'未确认';
+ const nativeState=native?'✅ Native PASS已生效':'🧊 旧冻结口径';
+ const redPolicy=native?'红灯=禁止裸单；优先保留Top1+可信第二方向，不自动PASS':'按该场冻结时的旧规则解释';
+ const dqPolicy=native?'DQ-C=降执行等级/禁裸单，不自动PASS；DQ-D才是数据硬PASS':'按该场冻结时的旧规则解释';
+ return '<section class="section"><div class="shead"><h2>🔀 豪竞3.2 单双 / Native PASS</h2><span>3.2先完成判断 · PASS只做最后刹车</span></div><div class="cards"><div class="card feature"><div class="kv"><div>单双类型</div><div><b>'+esc(hjSingleDoubleBadge(r))+'</b></div><div>执行方向</div><div><b>'+esc(hjSingleDoublePicks(r))+'</b></div><div>动作</div><div>'+esc(x.action||'—')+'</div><div>Native状态</div><div>'+esc(nativeState)+'</div><div>判定理由</div><div>'+esc(x.reason||np.reason||'—')+'</div></div></div><div class="card"><div class="kv"><div>正式Top1</div><div>'+esc(r.top1||'未确认')+'</div><div>第二方向</div><div>'+esc(r.second_pick||'—')+'</div><div>红灯现在代表</div><div>'+esc(redPolicy)+'</div><div>DQ-C现在代表</div><div>'+esc(dqPolicy)+'</div><div>Legacy PASS</div><div>'+esc(hj32LegacyPassText(r))+'</div><div>是否改Top1</div><div>'+esc(top1Changed)+'</div><div>是否改概率</div><div>'+esc(probChanged)+'</div></div></div></div></section>';
 }
+
 function hjFinalLeg(r){const s=r?.source_status||{},x=hjDualActionBadge(r);return s.prematch_lock===true?'🔒 '+x:x}
 function spSourceZh(v){const x=String(v||'');const m={okooo_sp_mirror:'澳客竞彩赔率', '500_sp_mirror':'500竞彩赔率', qiulaile_sp_mirror:'球来乐竞彩赔率'};return m[x]||x||'未确认'}
 function hjSpDisplay(r){const s=r?.source_status||{},tl=Array.isArray(s.market_timeline)?s.market_timeline:[];const had=tl.find(x=>String(x?.source||'').includes('竞彩HAD'));const hh=tl.find(x=>String(x?.source||'').includes('竞彩HHAD'));const hadTxt=had?.current||((s.had_market_status==='MIRROR_UNAVAILABLE')?'当前镜像暂无可核验胜平负赔率（官方状态未确认）':'未确认');const hhTxt=hh?.current||'未确认';const line=r?.official_handicap!=null?String(r.official_handicap):'—';const src=s.hhad_source_code||s.had_source_code||'';return {had:hadTxt,hhad:hhTxt,line,source:spSourceZh(src),verified:s.hhad_market_status==='VERIFIED'}}
@@ -495,7 +509,11 @@ function hjQuickConclusion(r){
  if(a==='DIRECTION_NO_HAD')return '方向强，但普通胜平负当前暂不可执行；不要把“无赔率”误判成方向不行。';
  if(a==='VALUE_B')return '方向处于观察档，但赔率存在正价值：B档价值机会，不冒充稳腿。';
  if(a==='WATCH')return '方向证据一般，暂列观察；风险提示层不再一票否决。';
- if(a==='PASS'||dir==='RED')return '方向本身偏弱：PASS；即使赔率有价值也不复活。';
+ const sdClass=String(hjSingleDoubleData(r).class_code||'').toUpperCase(),sdNative=hj32NativePassActive(r);
+ if(sdNative&&sdClass==='STRONG_DOUBLE')return '豪竞3.2强双保护：风险存在，但不PASS；按双向保护处理。';
+ if(sdNative&&sdClass==='CANDIDATE_DOUBLE')return '豪竞3.2 Native PASS：禁止裸单，保留Top1 + 第二方向观察；旧红灯不再一票否决。';
+ if(sdNative&&sdClass==='PASS')return '豪竞3.2硬PASS：当前无法形成可靠可执行结构。';
+ if(a==='PASS'||dir==='RED')return '旧方向红灯/旧PASS仅作风险提示；是否硬PASS以3.2 Native PASS为准。';
  return '等待方向灯 / 价值灯 / 出手档位完成确认。';
 }
 function hjQuickScoreHtml(r){
@@ -567,7 +585,8 @@ function systemHealthSection(){
 }
 
 function dashboard(){const hr=DATA.hj?.run||{},cr=DATA.hc?.run||{},hs=DATA.hj?.stats||{},cs=DATA.hc?.stats||{},rec=DATA.hj?.recommendations;return modelHeader()+systemHealthSection()+'<div class="notice '+(rec?.eligible?'good':'bad')+'">'+(rec?.eligible?'✅ 当前豪竞运行已通过正式执行闸门。':'🚨 '+esc(rec?.reason||'当前无正式可执行输出'))+'</div><div class="grid4">'+metric('豪竞Top1',hs.hits+'/'+hs.scored,pct(hs.hits,hs.scored))+metric('豪传票面',cs.hits+'/'+cs.scored,pct(cs.hits,cs.scored))+metric('豪竞状态',hr.formal_allowed?'正式':'不选/观察',hr.status||'—',hr.formal_allowed?'good':'warn')+metric('豪传状态',cr.formal_allowed?'正式':'不选/观察',cr.status||'—',cr.formal_allowed?'good':'warn')+'</div>'+plays()+sourceStatusSection()}
-function renderHaojing(){return modelHeader()+plays()+rowsTable('hj')+sourceStatusSection()}
+function hj32NativePassNotice(){const a=activeByRole('hj'),run=DATA?.hj?.run,tag=String(a?.revision_tag||''),on=tag.includes('native-pass'),cur=!!(on&&run&&Number(run.model_revision_id)===Number(a.id));if(!on)return '';const state=cur?'当前冻结盘已按Native PASS运行':'当前active已升级，等待下一次新赛前冻结正式落地';return '<div class="notice good"><b>🛡️ 豪竞3.2 Native PASS：</b> '+esc(state)+'。红灯不再自动PASS，先禁裸单并寻找第二方向；DQ-C降级但不自动删除模型观点；DQ-D / Top1缺失 / 非法赛前冻结 / 正式硬冲突才允许硬PASS。<br><span class="tiny">A/B/C、Anchor和具体玩法仍有独立执行闸门，可以PASS，但不会反向抹掉全池Top1判断。</span></div>'}
+function renderHaojing(){return modelHeader()+hj32NativePassNotice()+plays()+rowsTable('hj')+sourceStatusSection()}
 function directionConsistencyZh(v){const x=String(v||'').toUpperCase();if(x==='PASS')return '✅ 方向一致';if(x==='FAIL')return '❌ 方向冲突';return '⚪ 未确认'}
 function hcOutcomeLabel(v){return v==='3'?'主胜':v==='1'?'平':v==='0'?'客胜':v}
 function hcMatchLabel(no){const r=(DATA.hc?.rows||[]).find(x=>String(x.match_no).padStart(2,'0')===String(no).padStart(2,'0'));return r?String(no).padStart(2,'0')+' '+r.home_team+'-'+r.away_team:String(no).padStart(2,'0')}
@@ -641,7 +660,7 @@ const rs=rows.map(r=>{const hw=Number(r.p_home_win)>=Number(r.p_away_win),hc=Num
 return h+'<section class="section"><div class="shead"><h2>今日竞彩篮球全池</h2><span>方向灯=可买方向 · 核心腿灯=最稳串关资格 · 赛前冻结 + 完场结算</span></div><div class="tablewrap"><table><thead><tr><th>场</th><th>对阵</th><th>预计比分</th><th>胜负Top1</th><th>胜率</th><th>官方让分</th><th>让分Top1</th><th>穿盘率</th><th>官方总分</th><th>大小Top1</th><th>概率</th><th>DQ</th><th>阵容灯</th><th>市场灯</th><th>方向灯</th><th>核心腿灯</th><th>赛果/比分</th><th>推荐结果</th></tr></thead><tbody>'+rs+'</tbody></table></div></section>'}
 
 async function loadHbCumulative(){try{const r=await fetch(HB_CUM_API+'?t='+Date.now(),{cache:'no-store'}),j=await r.json();if(r.ok&&j.ok)HB_CUM=j;else HB_CUM=null}catch(_){HB_CUM=null}if(TAB==='cumulative'&&DATA)render()}
-function renderCumulative(){const c=DATA.cumulative||{},h=c.hj||{},r=c.hc||{},b=HB_CUM||{},bo=b.overall||{},bm=b.moneyline||{},bs=b.spread||{},bt=b.total||{},bc=b.core||{};const hbMain=HB_CUM?((bo.hits||0)+'/'+(bo.scored||0)):'加载中';const hbPct=HB_CUM?pct(bo.hits,bo.scored):'读取最终冻结盘';return '<div class="grid4">'+metric('豪竞正式Top1',(h.hits||0)+'/'+(h.scored||0),pct(h.hits,h.scored))+metric('豪竞正式竞彩日',String(h.days||0),'完整正式样本')+metric('豪传9/9',String(r.full9||0),'正式期数 '+String(r.issues||0))+metric('豪传累计票面',(r.hits||0)+'/'+(r.scored||0),pct(r.hits,r.scored))+metric('🏀 豪篮全池首选',hbMain,hbPct,HB_CUM?'good':'warn')+'</div><section class="section"><div class="shead"><h2>🏀 豪篮累计命中率</h2><span>按销售日最终冻结盘去重 · 完场后自动累计</span></div><div class="grid4" style="padding:12px">'+metric('全池冻结首选',HB_CUM?((bo.hits||0)+'/'+(bo.scored||0)):'加载中',HB_CUM?pct(bo.hits,bo.scored):'—')+metric('胜负概率Top1',HB_CUM?((bm.hits||0)+'/'+(bm.scored||0)):'—',HB_CUM?pct(bm.hits,bm.scored):'仅有效概率样本')+metric('让分Top1',HB_CUM?((bs.hits||0)+'/'+(bs.scored||0)):'—',HB_CUM?pct(bs.hits,bs.scored):'仅有效盘口样本')+metric('大小分Top1',HB_CUM?((bt.hits||0)+'/'+(bt.scored||0)):'—',HB_CUM?pct(bt.hits,bt.scored):'仅有效总分样本')+metric('核心腿',HB_CUM?((bc.hits||0)+'/'+(bc.scored||0)):'—',HB_CUM?pct(bc.hits,bc.scored):'核心绿灯样本')+metric('完整结算日',HB_CUM?String(b.days||0):'—','每销售日只计一次，不重复revision')+'</div></section><section class="section"><div class="shead"><h2>胜平负决策质量</h2><span>正式累计</span></div><div class="grid4" style="padding:12px">'+metric('稳腿',(h.anchorHits||0)+'/'+(h.anchorScored||0),pct(h.anchorHits,h.anchorScored))+metric('高信心',(h.highHits||0)+'/'+(h.highScored||0),pct(h.highHits,h.highScored))+metric('PASS隔离',String(h.passIsolated||0),'错误场成功隔离')+metric('PASS误杀',String(h.passFalseKills||0),'被PASS但首选命中')+'</div></section><section class="section"><div class="shead"><h2>让球决策质量</h2><span>仅统计上线后真实赛前灯</span></div><div class="grid4" style="padding:12px">'+metric('🟢绿灯',(h.handicapGreenHits||0)+'/'+(h.handicapGreenScored||0),pct(h.handicapGreenHits,h.handicapGreenScored))+metric('🟡黄灯',(h.handicapYellowHits||0)+'/'+(h.handicapYellowScored||0),pct(h.handicapYellowHits,h.handicapYellowScored))+metric('实际出手',(h.handicapOutHits||0)+'/'+(h.handicapOutScored||0),pct(h.handicapOutHits,h.handicapOutScored))+metric('🔴PASS',String(h.handicapRedPass||0),'避错 '+String(h.handicapPassAvoided||0)+' · 误杀 '+String(h.handicapPassFalseKills||0))+'</div></section>'}
+function renderCumulative(){const c=DATA.cumulative||{},h=c.hj||{},r=c.hc||{},b=HB_CUM||{},bo=b.overall||{},bm=b.moneyline||{},bs=b.spread||{},bt=b.total||{},bc=b.core||{};const hbMain=HB_CUM?((bo.hits||0)+'/'+(bo.scored||0)):'加载中';const hbPct=HB_CUM?pct(bo.hits,bo.scored):'读取最终冻结盘';return '<div class="grid4">'+metric('豪竞正式Top1',(h.hits||0)+'/'+(h.scored||0),pct(h.hits,h.scored))+metric('豪竞正式竞彩日',String(h.days||0),'完整正式样本')+metric('豪传9/9',String(r.full9||0),'正式期数 '+String(r.issues||0))+metric('豪传累计票面',(r.hits||0)+'/'+(r.scored||0),pct(r.hits,r.scored))+metric('🏀 豪篮全池首选',hbMain,hbPct,HB_CUM?'good':'warn')+'</div><section class="section"><div class="shead"><h2>🏀 豪篮累计命中率</h2><span>按销售日最终冻结盘去重 · 完场后自动累计</span></div><div class="grid4" style="padding:12px">'+metric('全池冻结首选',HB_CUM?((bo.hits||0)+'/'+(bo.scored||0)):'加载中',HB_CUM?pct(bo.hits,bo.scored):'—')+metric('胜负概率Top1',HB_CUM?((bm.hits||0)+'/'+(bm.scored||0)):'—',HB_CUM?pct(bm.hits,bm.scored):'仅有效概率样本')+metric('让分Top1',HB_CUM?((bs.hits||0)+'/'+(bs.scored||0)):'—',HB_CUM?pct(bs.hits,bs.scored):'仅有效盘口样本')+metric('大小分Top1',HB_CUM?((bt.hits||0)+'/'+(bt.scored||0)):'—',HB_CUM?pct(bt.hits,bt.scored):'仅有效总分样本')+metric('核心腿',HB_CUM?((bc.hits||0)+'/'+(bc.scored||0)):'—',HB_CUM?pct(bc.hits,bc.scored):'核心绿灯样本')+metric('完整结算日',HB_CUM?String(b.days||0):'—','每销售日只计一次，不重复revision')+'</div></section><section class="section"><div class="shead"><h2>胜平负决策质量</h2><span>正式累计</span></div><div class="grid4" style="padding:12px">'+metric('稳腿',(h.anchorHits||0)+'/'+(h.anchorScored||0),pct(h.anchorHits,h.anchorScored))+metric('高信心',(h.highHits||0)+'/'+(h.highScored||0),pct(h.highHits,h.highScored))+metric('历史PASS隔离',String(h.passIsolated||0),'错误场成功隔离')+metric('历史PASS误杀',String(h.passFalseKills||0),'被PASS但首选命中')+'</div></section><section class="section"><div class="shead"><h2>让球决策质量</h2><span>仅统计上线后真实赛前灯</span></div><div class="grid4" style="padding:12px">'+metric('🟢绿灯',(h.handicapGreenHits||0)+'/'+(h.handicapGreenScored||0),pct(h.handicapGreenHits,h.handicapGreenScored))+metric('🟡黄灯',(h.handicapYellowHits||0)+'/'+(h.handicapYellowScored||0),pct(h.handicapYellowHits,h.handicapYellowScored))+metric('实际出手',(h.handicapOutHits||0)+'/'+(h.handicapOutScored||0),pct(h.handicapOutHits,h.handicapOutScored))+metric('🔴PASS',String(h.handicapRedPass||0),'避错 '+String(h.handicapPassAvoided||0)+' · 误杀 '+String(h.handicapPassFalseKills||0))+'</div></section>'}
 function renderHistory(){if(!Array.isArray(DATA?.history))return '<section class="section"><div class="shead"><h2>历史运行记录</h2><span>按需加载，不拖慢首页</span></div><div class="loading" style="min-height:180px">正在读取历史索引…</div></section>';const arr=DATA.history;return '<section class="section"><div class="shead"><h2>历史运行记录</h2><span>点击查看逐场明细</span></div><div class="tablewrap"><table><thead><tr><th>日期</th><th>模型</th><th>修订</th><th>池</th><th>状态</th><th>完整</th><th>正式</th><th>运行时间</th></tr></thead><tbody>'+arr.map(r=>'<tr class="clickrow" onclick="openRun('+Number(r.id)+')"><td>'+esc(r.pool_date)+'</td><td><b>'+esc(displayModelName(r.model_name,r.model_version))+'</b></td><td>'+esc(r.model_revision_tag||'未记录')+'</td><td>'+esc(r.pool_label||r.pool_kind||'—')+'</td><td>'+esc(r.status||'—')+'</td><td>'+(r.data_complete?'✅':'⚠️')+'</td><td>'+(r.formal_allowed?'✅':'否')+'</td><td>'+esc(fmtTime(r.run_time))+'</td></tr>').join('')+'</tbody></table></div></section>'}
 async function loadHistory(){try{const r=await fetch(API+'?api=1&history=1&t='+Date.now(),{headers:{Authorization:'Bearer '+token()},cache:'no-store'}),j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'读取失败');DATA.history=j.history||[];if(TAB==='history')render()}catch(e){DATA.history=[];if(TAB==='history')render()}}
 async function openRun(id){document.getElementById('app').innerHTML='<div class="loading">正在读取历史复盘…</div>';try{const r=await fetch(API+'?api=1&run_id='+id,{headers:{Authorization:'Bearer '+token()},cache:'no-store'}),j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'读取失败');DETAIL={history:j.detail};TAB='history';render()}catch(e){DETAIL=null;render()}}
