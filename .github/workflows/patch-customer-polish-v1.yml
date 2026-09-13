@@ -1,0 +1,70 @@
+name: patch-customer-polish-v1
+on:
+  push:
+    paths:
+      - ".github/workflows/patch-customer-polish-v1.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Polish customer dashboard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('customer-hj32.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('<title>豪竞3.2｜客户专属分析</title>','<title>豪竞3.2｜赛事分析</title>')
+          s=s.replace('const BUILD=\'HJ32-CUSTOMER-20260914-v2\';','const BUILD=\'HJ32-20260914-v3\';')
+          s=s.replace('<h1>豪竞3.2</h1><div class="sub">客户专属赛事分析 · 赛前冻结 · 自动同步</div>','<h1>豪竞3.2</h1><div class="sub">赛前赛事分析 · 数据同步 · 历史回溯</div>')
+          s=s.replace('没有账号请联系管理员开通。历史表现仅作模型复盘参考。','没有账号请联系管理员开通。历史回溯仅供参考。')
+          # Client-friendly execution labels
+          s=s.replace("if(c==='SINGLE')return '<span class=\"chip single\">🟢 单选</span>';if(c==='STRONG_DOUBLE')return '<span class=\"chip double\">🟣 强双</span>';if(c==='CANDIDATE_DOUBLE')return '<span class=\"chip candidate\">🟠 候选双</span>';if(c==='PASS')return '<span class=\"chip pass\">⚪ '+(x?.hard_pass?'硬PASS':'PASS')+'</span>';","if(c==='SINGLE')return '<span class=\"chip single\">🟢 单向关注</span>';if(c==='STRONG_DOUBLE')return '<span class=\"chip double\">🟣 双向保护</span>';if(c==='CANDIDATE_DOUBLE')return '<span class=\"chip candidate\">🟠 双向观察</span>';if(c==='PASS')return '<span class=\"chip pass\">⚪ 暂不建议</span>';" )
+          # Do not show settled outcome rows on client cards; only pre-match view.
+          import re
+          s=re.sub(r"function matchCard\(r\)\{.*?\nfunction liveView\(\)","""function matchCard(r){const sd=r.single_double||{},p=r.top1_probability==null?'—':(r.top1_probability*100).toFixed(1)+'%',picks=(sd.picks||[]).length?(sd.picks||[]).join(' + '):'';return '<div class=\"match\"><div class=\"mh\"><div><span class=\"no\">'+esc(r.match_no)+'</span> <span class=\"league\">'+esc(r.league)+'</span></div><span class=\"time\">'+esc(fmt(r.kickoff_bjt))+'</span></div><div class=\"teams\">'+esc(r.home_team)+' vs '+esc(r.away_team)+'</div><div class=\"mainline\"><div class=\"pick\">'+esc(r.top1||'未确认')+'</div><div class=\"prob\">参考概率 '+esc(p)+'</div></div><div class=\"chips\">'+classChip(sd)+'<span class=\"chip\">第二方向 '+esc(r.second_pick||'—')+'</span><span class=\"chip\">信心 '+esc(r.confidence)+'</span><span class=\"chip\">风险 '+esc(r.risk)+'</span>'+(picks?'<span class=\"chip\">方向组合 '+esc(picks)+'</span>':'')+(r.handicap_pick?'<span class=\"chip\">让球参考 '+esc(r.handicap_pick)+'</span>':'')+'</div></div>'}\nfunction liveView()""",s,flags=re.S)
+          # Hide internal revision tag and Native PASS wording.
+          s=re.sub(r"function liveView\(\)\{.*?\nfunction historyView\(\)","""function liveView(){const d=DATA,l=d.live||{},rows=l.rows||[],run=d.run||{};return '<div class=\"notice good\"><b>今日数据已更新</b><br>赛前分析与数据源同步更新，每60秒自动刷新。临场信息变化时，页面会同步显示最新赛前观点。</div><div class=\"metrics\">'+metric('当前赛事池',String(rows.length)+' 场','日期 '+(run.pool_date||'—'))+metric('数据状态','已同步','赛前观点持续更新')+metric('分析版本','豪竞3.2','当前正式版本')+metric('最后更新',fmt(d.generated_at),'数据更新时间')+'</div><section class=\"section\"><div class=\"shead\"><h2>今日赛事分析</h2><span>首选方向 · 第二方向 · 单双结构</span></div><div class=\"grid\">'+rows.map(matchCard).join('')+'</div></section>'}\nfunction historyView()""",s,flags=re.S)
+          # Make backtest language customer-facing but accurate.
+          s=s.replace('本页仅展示豪竞3.2历史锁定回溯验证，不展示实战战绩。回溯结果用于模型审计与研究，历史表现不代表未来结果。','本页展示豪竞3.2历史锁定回溯结果。回溯数据仅用于展示模型历史表现，不代表未来结果。')
+          s=s.replace('锁定样本 · 禁止赛果倒灌','锁定历史样本')
+          s=s.replace('历史锁定 · 禁止事后改答案','历史记录固定')
+          s=s.replace('仅用于模型能力复盘','历史数据回溯')
+          s=s.replace('历史锁定回溯/开发验证仅用于模型审计，不构成未来赛果、收益或命中保证。','历史回溯仅代表过去样本表现，不构成未来赛果、收益或命中保证。')
+          # Remove model explanation tab and internal-facing about section from navigation.
+          s=s.replace('<button class="'+"'+(TAB==='about'?'on':'')+'"+'" onclick="TAB=\\'about\\';render()">模型说明</button>','')
+          s=s.replace("const body=TAB==='history'?historyView():TAB==='about'?aboutView():liveView();","const body=TAB==='history'?historyView():liveView();")
+          s=s.replace('<div class="brand">豪竞3.2｜客户专属版</div><div class="sub">赛前数据模型 · 实时同步 · 历史可复盘</div>','<div class="brand">豪竞3.2｜赛事分析</div><div class="sub">赛前数据分析 · 实时同步 · 历史回溯</div>')
+          s=s.replace("+'<div class=\"footer\">豪竞3.2客户专属版 · '+esc(BUILD)+'<br>'+esc(DATA.disclaimer||'历史表现不代表未来结果。')+'</div></div>'","+'<div class=\"footer\">豪竞3.2 · 赛前赛事分析<br>历史回溯仅代表过去样本表现，不代表未来结果。</div></div>'")
+          # If exact nav replacement above missed, remove about button by regex.
+          s=re.sub(r'<button class="\'\+\(TAB===\'about\'.*?</button>','',s)
+          p.write_text(s,encoding='utf-8')
+          # Assertions for customer-facing polish
+          banned=['客户能看到什么','客户不会看到什么','模型委员会','Native PASS正式运行','revision_tag','客户专属版 · HJ32','硬PASS']
+          for x in banned:
+              assert x not in s, x
+          assert '豪竞3.2｜赛事分析' in s
+          assert '回溯战绩' in s
+          PY
+      - name: Check JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('customer-hj32.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/customer.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/customer.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-hj32.html
+          git diff --cached --quiet || git commit -m "polish HaoJing customer dashboard"
+          git push
