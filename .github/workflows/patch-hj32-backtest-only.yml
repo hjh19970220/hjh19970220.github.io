@@ -1,0 +1,58 @@
+name: patch-hj32-backtest-only
+on:
+  push:
+    paths:
+      - ".github/workflows/patch-hj32-backtest-only.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Patch customer dashboard to backtest-only performance
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('customer-hj32.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("const BUILD='HJ32-CUSTOMER-20260913-v1';","const BUILD='HJ32-CUSTOMER-20260914-v2';")
+          # Hide live hit/miss result line from match cards.
+          s=s.replace("+'<div class=\"result '+rc+'\">'+esc(rt)+'</div></div>'","+'</div>'")
+          # Replace current live performance metric with a neutral data-status metric.
+          s=s.replace("metric('已结算Top1',String(l.hits||0)+' / '+String(l.settled||0),l.settled?'当前已结算命中率 '+pct(l.rate):'等待赛果')","metric('数据状态','实时同步','赛前观点按当前正式版本更新')")
+          # Replace entire history view with locked backtest only; no live/frozen practical record.
+          start=s.index('function historyView(){')
+          end=s.index('function aboutView(){')
+          new_history="""function historyView(){const v=DATA.locked_validation||{};return '<div class=\"notice warn\"><b>回溯口径说明：</b> 本页仅展示豪竞3.2历史锁定回溯验证，不展示实战战绩。回溯结果用于模型审计与研究，历史表现不代表未来结果。</div><div class=\"metrics\">'+metric('Top1回溯命中率',pct(v.single_direction?.rate),String(v.single_direction?.hits||0)+' / '+String(v.single_direction?.scored||0)+' · 历史锁定回溯')+metric('单双覆盖回溯',pct(v.single_double_coverage?.rate),String(v.single_double_coverage?.hits||0)+' / '+String(v.single_double_coverage?.scored||0)+' · 历史锁定回溯')+metric('回溯样本',String(v.single_direction?.scored||0)+' 场','锁定样本 · 禁止赛果倒灌')+metric('审计纪律','结果不回写','历史锁定 · 禁止事后改答案')+'</div><section class=\"section\"><div class=\"shead\"><h2>豪竞3.2历史回溯验证</h2><span>仅用于模型能力复盘</span></div><div class=\"grid\"><div class=\"card\" style=\"padding:15px\"><b>FT Top1 单方向</b><div class=\"mv\">'+pct(v.single_direction?.rate)+'</div><div class=\"sub\">'+esc(v.single_direction?.hits||0)+' / '+esc(v.single_direction?.scored||0)+'。每场只计算第一方向。</div></div><div class=\"card\" style=\"padding:15px\"><b>单双混合覆盖</b><div class=\"mv\">'+pct(v.single_double_coverage?.rate)+'</div><div class=\"sub\">'+esc(v.single_double_coverage?.hits||0)+' / '+esc(v.single_double_coverage?.scored||0)+'。按锁定单双规则计算覆盖。</div></div></div><div class=\"legend\">历史锁定回溯/开发验证仅用于模型审计，不构成未来赛果、收益或命中保证。</div></section>'}\n"""
+          s=s[:start]+new_history+s[end:]
+          s=s.replace('<b>历史成绩</b><div class="sub">实战冻结与历史锁定验证严格分栏，不把开发回放包装成未来保证。</div>','<b>回溯成绩</b><div class="sub">客户页只展示历史锁定回溯验证，不展示实战战绩，并明确区分回溯结果与未来表现。</div>')
+          s=s.replace('>历史命中</button>','>回溯战绩</button>')
+          p.write_text(s,encoding='utf-8')
+          assert '8/31—9/12实战累计' not in s
+          assert '真实赛前冻结实战记录' not in s
+          assert '当前已结算命中率' not in s
+          assert '>回溯战绩</button>' in s
+          assert 'Top1回溯命中率' in s
+          PY
+      - name: Check JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('customer-hj32.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/customer.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/customer.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-hj32.html
+          git diff --cached --quiet || git commit -m "show backtest record only on customer dashboard"
+          git push
