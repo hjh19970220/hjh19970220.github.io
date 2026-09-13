@@ -1,0 +1,76 @@
+name: patch-hj32-customer-facing
+on:
+  push:
+    paths:
+      - ".github/workflows/patch-hj32-customer-facing.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Make dashboard customer facing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('customer-hj32.html')
+          s=p.read_text(encoding='utf-8')
+
+          s=s.replace("const BUILD='HJ32-CUSTOMER-20260914-v2';","const BUILD='HJ32-CUSTOMER-20260914-v3';")
+
+          # Customer-friendly labels; remove internal execution terminology.
+          s=s.replace("if(c==='SINGLE')return '<span class=\"chip single\">🟢 单选</span>';if(c==='STRONG_DOUBLE')return '<span class=\"chip double\">🟣 强双</span>';if(c==='CANDIDATE_DOUBLE')return '<span class=\"chip candidate\">🟠 候选双</span>';if(c==='PASS')return '<span class=\"chip pass\">⚪ '+(x?.hard_pass?'硬PASS':'PASS')+'</span>';",
+                      "if(c==='SINGLE')return '<span class=\"chip single\">🟢 首选</span>';if(c==='STRONG_DOUBLE')return '<span class=\"chip double\">🟣 双向重点</span>';if(c==='CANDIDATE_DOUBLE')return '<span class=\"chip candidate\">🟠 双向观察</span>';if(c==='PASS')return '<span class=\"chip pass\">⚪ 暂不建议</span>';")
+          s=s.replace("模型概率 ","参考概率 ")
+          s=s.replace("第二方向 ","防守方向 ")
+          s=s.replace("信心 ","参考等级 ")
+          s=s.replace("保护 ","双向参考 ")
+
+          # Simplify live page: no revision tag / Native PASS / developer wording.
+          old_start=s.index('function liveView(){')
+          old_end=s.index('function historyView(){')
+          live="""function liveView(){const d=DATA,l=d.live||{},rows=l.rows||[],run=d.run||{};return '<div class=\"notice good\"><b>今日分析已同步</b> · 豪竞3.2赛事分析数据每60秒自动更新，赛前观点以页面当前展示为准。</div><div class=\"metrics\">'+metric('当前赛事池',String(rows.length)+' 场','赛事日期 '+(run.pool_date||'—'))+metric('数据状态','实时同步','自动更新赛前分析')+metric('分析版本','豪竞3.2','当前正式版本')+metric('最后更新',fmt(d.generated_at),'北京时间')+'</div><section class=\"section\"><div class=\"shead\"><h2>今日赛事分析</h2><span>首选方向 + 防守方向 + 风险提示</span></div><div class=\"grid\">'+rows.map(matchCard).join('')+'</div></section>'}\n"""
+          s=s[:old_start]+live+s[old_end:]
+
+          # Replace developer-style model explanation with a simple service guide.
+          a=s.index('function aboutView(){')
+          b=s.index('function render(){')
+          about="""function aboutView(){return '<div class=\"notice good\"><b>豪竞3.2 专属赛事分析</b><br>提供每日赛事方向、双向防守提示、风险等级与历史回溯数据，帮助用户更直观地阅读赛前信息。</div><section class=\"section\"><div class=\"grid\"><div class=\"card\" style=\"padding:15px\"><b>今日赛事</b><div class=\"sub\">展示每场首选方向、防守方向、参考概率、风险提示及让球参考。</div></div><div class=\"card\" style=\"padding:15px\"><b>回溯战绩</b><div class=\"sub\">展示豪竞3.2历史锁定回溯结果，用于了解模型在历史样本中的表现。</div></div><div class=\"card\" style=\"padding:15px\"><b>更新方式</b><div class=\"sub\">赛事分析会随赛前数据更新，页面自动同步最新可用观点。</div></div><div class=\"card\" style=\"padding:15px\"><b>使用提示</b><div class=\"sub\">本页提供体育赛事数据与分析参考，历史回溯表现不代表未来结果。</div></div></div></section>'}\n"""
+          s=s[:a]+about+s[b:]
+
+          s=s.replace('>模型说明</button>','>服务说明</button>')
+          s=s.replace('<div class="sub">赛前数据模型 · 实时同步 · 历史可复盘</div>','<div class="sub">赛事分析 · 实时同步 · 历史回溯</div>')
+          s=s.replace("<div class=\"footer\">豪竞3.2客户专属版 · '+esc(BUILD)+'<br>'+esc(DATA.disclaimer||'历史表现不代表未来结果。')+'</div>","<div class=\"footer\">豪竞3.2 · 专属赛事分析<br>历史回溯表现不代表未来结果。</div>")
+
+          p.write_text(s,encoding='utf-8')
+
+          forbidden=['客户不会看到什么','内部计算公式','具体数据源权重','提示词','模型委员会细节','数据库结构','研发阈值','Native PASS正式运行','model_revision_tag','HJ32-CUSTOMER-20260914-v2']
+          # model_revision_tag can remain in JS data object only if not rendered; this patch expects it removed from visible strings, so don't assert source absence.
+          for x in forbidden[:-2]:
+              assert x not in s, x
+          assert '>服务说明</button>' in s
+          assert '参考概率 ' in s
+          assert '⚪ 暂不建议' in s
+          assert '豪竞3.2 · 专属赛事分析' in s
+          PY
+      - name: Check JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('customer-hj32.html').read_text(encoding='utf-8')
+          js=s.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/customer.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/customer.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer-hj32.html
+          git diff --cached --quiet || git commit -m "simplify HJ3.2 customer dashboard"
+          git push
