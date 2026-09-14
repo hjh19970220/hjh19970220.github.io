@@ -1,8 +1,8 @@
 {
-  "schema_version": "freeze-v1",
+  "schema_version": "freeze-v2",
   "pool_date": "2026-09-14",
   "source": "https://api.lazq.com/MobileFoot/dateGameSpf",
-  "capture_mode": "scheduled_prematch",
+  "capture_mode": "scheduled_live_and_prematch",
   "is_prematch": true,
   "note": "历史接口当前状态，仅用于页面预览，不视为赛前冻结",
   "matches": [
@@ -21,9 +21,45 @@
       ],
       "yuChe": "胜平",
       "drawOdds": "1",
-      "zhiShu": "8",
-      "judge": "0",
-      "snapshots": []
+      "zhiShu": 8,
+      "judge": 0,
+      "snapshots": [],
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": -5805,
+        "gaiLv": [
+          "0.2026",
+          "0.2663",
+          "0.5311"
+        ],
+        "yuChe": "胜平",
+        "drawOdds": "1",
+        "zhiShu": 8,
+        "judge": 0,
+        "had": null,
+        "has_prediction": true,
+        "is_prematch": false,
+        "phase": "LIVE_OR_POST"
+      },
+      "latest_prematch": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": -5805,
+        "gaiLv": [
+          "0.2026",
+          "0.2663",
+          "0.5311"
+        ],
+        "yuChe": "胜平",
+        "drawOdds": "1",
+        "zhiShu": 8,
+        "judge": 0,
+        "had": null,
+        "has_prediction": true,
+        "is_prematch": false,
+        "phase": "LIVE_OR_POST",
+        "freeze_slot": "POST_RELEASE"
+      }
     },
     {
       "game_id": "8fa45a97a54a74bde00e9c924b3598b0",
@@ -36,8 +72,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "1.75",
-      "zhiShu": "8",
-      "judge": "0",
+      "zhiShu": 8,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -61,6 +97,20 @@
         "judge": 0,
         "had": null,
         "freeze_slot": "T60"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": -405,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "1.75",
+        "zhiShu": 8,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": false,
+        "phase": "LIVE_OR_POST"
       }
     },
     {
@@ -74,8 +124,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "-1",
-      "zhiShu": "9",
-      "judge": "0",
+      "zhiShu": 9,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -99,6 +149,20 @@
         "judge": 0,
         "had": null,
         "freeze_slot": "T60"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": -405,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "-1",
+        "zhiShu": 9,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": false,
+        "phase": "LIVE_OR_POST"
       }
     },
     {
@@ -112,8 +176,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "1.25",
-      "zhiShu": "9",
-      "judge": "0",
+      "zhiShu": 9,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -125,18 +189,49 @@
           "judge": 0,
           "had": null,
           "freeze_slot": "T60"
+        },
+        {
+          "captured_at": "2026-09-14T16:36:45.447061Z",
+          "seconds_to_kickoff": 1394,
+          "gaiLv": null,
+          "yuChe": null,
+          "drawOdds": "1.25",
+          "zhiShu": 9,
+          "judge": 0,
+          "had": null,
+          "has_prediction": false,
+          "is_prematch": true,
+          "phase": "PREMATCH",
+          "freeze_slot": "T30"
         }
       ],
       "latest_prematch": {
-        "captured_at": "2026-09-14T16:29:29.599158Z",
-        "seconds_to_kickoff": 1830,
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 1394,
         "gaiLv": null,
         "yuChe": null,
         "drawOdds": "1.25",
         "zhiShu": 9,
         "judge": 0,
         "had": null,
-        "freeze_slot": "T60"
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH",
+        "freeze_slot": "T30"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 1394,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "1.25",
+        "zhiShu": 9,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH"
       }
     },
     {
@@ -150,8 +245,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "2.75",
-      "zhiShu": "9",
-      "judge": "0",
+      "zhiShu": 9,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -163,18 +258,49 @@
           "judge": 0,
           "had": null,
           "freeze_slot": "T60"
+        },
+        {
+          "captured_at": "2026-09-14T16:36:45.447061Z",
+          "seconds_to_kickoff": 1394,
+          "gaiLv": null,
+          "yuChe": null,
+          "drawOdds": "2.75",
+          "zhiShu": 9,
+          "judge": 0,
+          "had": null,
+          "has_prediction": false,
+          "is_prematch": true,
+          "phase": "PREMATCH",
+          "freeze_slot": "T30"
         }
       ],
       "latest_prematch": {
-        "captured_at": "2026-09-14T16:29:29.599158Z",
-        "seconds_to_kickoff": 1830,
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 1394,
         "gaiLv": null,
         "yuChe": null,
         "drawOdds": "2.75",
         "zhiShu": 9,
         "judge": 0,
         "had": null,
-        "freeze_slot": "T60"
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH",
+        "freeze_slot": "T30"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 1394,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "2.75",
+        "zhiShu": 9,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH"
       }
     },
     {
@@ -188,8 +314,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "2",
-      "zhiShu": "9",
-      "judge": "0",
+      "zhiShu": 9,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -204,15 +330,32 @@
         }
       ],
       "latest_prematch": {
-        "captured_at": "2026-09-14T16:29:29.599158Z",
-        "seconds_to_kickoff": 6330,
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 5894,
         "gaiLv": null,
         "yuChe": null,
         "drawOdds": "2",
         "zhiShu": 9,
         "judge": 0,
         "had": null,
-        "freeze_slot": "FIRST_SEEN"
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH",
+        "freeze_slot": "LATEST_PREMATCH"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 5894,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "2",
+        "zhiShu": 9,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH"
       }
     },
     {
@@ -226,8 +369,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "2",
-      "zhiShu": "8",
-      "judge": "0",
+      "zhiShu": 8,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -242,15 +385,32 @@
         }
       ],
       "latest_prematch": {
-        "captured_at": "2026-09-14T16:29:29.599158Z",
-        "seconds_to_kickoff": 8130,
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 7694,
         "gaiLv": null,
         "yuChe": null,
         "drawOdds": "2",
         "zhiShu": 8,
         "judge": 0,
         "had": null,
-        "freeze_slot": "FIRST_SEEN"
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH",
+        "freeze_slot": "LATEST_PREMATCH"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 7694,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "2",
+        "zhiShu": 8,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH"
       }
     },
     {
@@ -264,8 +424,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "0",
-      "zhiShu": "9",
-      "judge": "0",
+      "zhiShu": 9,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -280,15 +440,32 @@
         }
       ],
       "latest_prematch": {
-        "captured_at": "2026-09-14T16:29:29.599158Z",
-        "seconds_to_kickoff": 8130,
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 7694,
         "gaiLv": null,
         "yuChe": null,
         "drawOdds": "0",
         "zhiShu": 9,
         "judge": 0,
         "had": null,
-        "freeze_slot": "FIRST_SEEN"
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH",
+        "freeze_slot": "LATEST_PREMATCH"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 7694,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "0",
+        "zhiShu": 9,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH"
       }
     },
     {
@@ -302,8 +479,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "0.25",
-      "zhiShu": "8",
-      "judge": "0",
+      "zhiShu": 8,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -318,15 +495,32 @@
         }
       ],
       "latest_prematch": {
-        "captured_at": "2026-09-14T16:29:29.599158Z",
-        "seconds_to_kickoff": 9030,
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 8594,
         "gaiLv": null,
         "yuChe": null,
         "drawOdds": "0.25",
         "zhiShu": 8,
         "judge": 0,
         "had": null,
-        "freeze_slot": "FIRST_SEEN"
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH",
+        "freeze_slot": "LATEST_PREMATCH"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 8594,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "0.25",
+        "zhiShu": 8,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH"
       }
     },
     {
@@ -340,8 +534,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "0.5",
-      "zhiShu": "8",
-      "judge": "0",
+      "zhiShu": 8,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -356,15 +550,32 @@
         }
       ],
       "latest_prematch": {
-        "captured_at": "2026-09-14T16:29:29.599158Z",
-        "seconds_to_kickoff": 9030,
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 8594,
         "gaiLv": null,
         "yuChe": null,
         "drawOdds": "0.5",
         "zhiShu": 8,
         "judge": 0,
         "had": null,
-        "freeze_slot": "FIRST_SEEN"
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH",
+        "freeze_slot": "LATEST_PREMATCH"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 8594,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "0.5",
+        "zhiShu": 8,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH"
       }
     },
     {
@@ -378,8 +589,8 @@
       "gaiLv": null,
       "yuChe": null,
       "drawOdds": "1.25",
-      "zhiShu": "8",
-      "judge": "0",
+      "zhiShu": 8,
+      "judge": 0,
       "snapshots": [
         {
           "captured_at": "2026-09-14T16:29:29.599158Z",
@@ -394,15 +605,32 @@
         }
       ],
       "latest_prematch": {
-        "captured_at": "2026-09-14T16:29:29.599158Z",
-        "seconds_to_kickoff": 11730,
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 11294,
         "gaiLv": null,
         "yuChe": null,
         "drawOdds": "1.25",
         "zhiShu": 8,
         "judge": 0,
         "had": null,
-        "freeze_slot": "FIRST_SEEN"
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH",
+        "freeze_slot": "LATEST_PREMATCH"
+      },
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": 11294,
+        "gaiLv": null,
+        "yuChe": null,
+        "drawOdds": "1.25",
+        "zhiShu": 8,
+        "judge": 0,
+        "had": null,
+        "has_prediction": false,
+        "is_prematch": true,
+        "phase": "PREMATCH"
       }
     },
     {
@@ -420,10 +648,48 @@
       ],
       "yuChe": "负",
       "drawOdds": "-4.5",
-      "zhiShu": "10",
-      "judge": "0",
-      "snapshots": []
+      "zhiShu": 10,
+      "judge": 0,
+      "snapshots": [],
+      "had": null,
+      "latest_seen": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": -23805,
+        "gaiLv": [
+          "0.9435",
+          "0.02",
+          "0.0365"
+        ],
+        "yuChe": "负",
+        "drawOdds": "-4.5",
+        "zhiShu": 10,
+        "judge": 0,
+        "had": null,
+        "has_prediction": true,
+        "is_prematch": false,
+        "phase": "LIVE_OR_POST"
+      },
+      "latest_prematch": {
+        "captured_at": "2026-09-14T16:36:45.447061Z",
+        "seconds_to_kickoff": -23805,
+        "gaiLv": [
+          "0.9435",
+          "0.02",
+          "0.0365"
+        ],
+        "yuChe": "负",
+        "drawOdds": "-4.5",
+        "zhiShu": 10,
+        "judge": 0,
+        "had": null,
+        "has_prediction": true,
+        "is_prematch": false,
+        "phase": "LIVE_OR_POST",
+        "freeze_slot": "POST_RELEASE"
+      }
     }
   ],
-  "updated_at": "2026-09-14T16:29:29.599158Z"
+  "updated_at": "2026-09-14T16:29:29.599158Z",
+  "collector_note": "页面显示接口最新可见值；正式赛前比较只认 is_prematch=true 的冻结。POST_RELEASE 只展示，不计赛前命中。",
+  "last_checked_at": "2026-09-14T16:36:45.447061Z"
 }
