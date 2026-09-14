@@ -1,6 +1,10 @@
 name: Lazq prematch capture
 
 on:
+  push:
+    paths:
+      - 'scripts/lazq_capture.py'
+      - '.github/workflows/lazq-capture.yml'
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
