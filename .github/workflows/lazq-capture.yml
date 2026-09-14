@@ -1,0 +1,35 @@
+name: Lazq prematch capture
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lazq-prematch-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture public prematch data
+        run: python scripts/lazq_capture.py
+      - name: Commit new freeze snapshots
+        run: |
+          if git diff --quiet -- data/lazq; then
+            echo "No new snapshot"
+            exit 0
+          fi
+          git config user.name "soren-capture-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/lazq
+          git commit -m "data: freeze Lazq prematch snapshot"
+          git push
