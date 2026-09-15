@@ -1,0 +1,36 @@
+name: Sauron Full Video V1
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'sauron-video/tools/build_full_video.py'
+      - '.github/workflows/sauron-full-video-v1.yml'
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk
+      - name: Install voice dependencies
+        run: pip install --disable-pip-version-check kokoro soundfile numpy misaki[zh]
+      - name: Render full video
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: python sauron-video/tools/build_full_video.py
+      - name: Verify final MP4
+        run: ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height -of default=nw=1 sauron-video/output/full-video/sauron-ipswich-arsenal-v1.mp4
+      - name: Upload final MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: sauron-ipswich-arsenal-v1
+          path: sauron-video/output/full-video/sauron-ipswich-arsenal-v1.mp4
+          retention-days: 3
