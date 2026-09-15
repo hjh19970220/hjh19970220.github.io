@@ -1,0 +1,37 @@
+name: Sauron Real B-roll Download Test
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'sauron-video/tools/download_broll.py'
+      - '.github/workflows/sauron-broll-download-test.yml'
+permissions:
+  contents: read
+jobs:
+  broll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Search licensed football footage
+        run: python sauron-video/tools/pexels_fetch.py
+      - name: Download selected real B-roll
+        run: python sauron-video/tools/download_broll.py
+      - name: Verify media with ffprobe
+        shell: bash
+        run: |
+          for f in sauron-video/output/broll-test/*.mp4; do
+            echo "=== $f ==="
+            ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,codec_name -of default=nw=1 "$f"
+          done
+      - name: Upload B-roll test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sauron-real-broll-test
+          path: sauron-video/output/broll-test/
+          retention-days: 1
