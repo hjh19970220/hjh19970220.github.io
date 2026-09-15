@@ -1,0 +1,69 @@
+name: soren33-dedupe-matches-v39
+
+on:
+  push:
+    paths:
+      - ".github/workflows/soren33-dedupe-matches-v39.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Remove duplicate match display rows
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Main console: dedupe only HJ rows by match_no, keeping the first visible frozen row.
+          p=Path('index.html')
+          t=p.read_text(encoding='utf-8')
+          old="function rowsTable(kind){const d=kind==='hj'?DATA.hj:DATA.hc,n=activeNames(),rows=d?.rows||[];"
+          new="function rowsTable(kind){const d=kind==='hj'?DATA.hj:DATA.hc,n=activeNames(),rawRows=d?.rows||[],rows=kind==='hj'?rawRows.filter((r,i,a)=>a.findIndex(x=>String(x.match_no).padStart(3,'0')===String(r.match_no).padStart(3,'0'))===i):rawRows;"
+          if old not in t:
+              raise SystemExit('index rowsTable anchor not found')
+          t=t.replace(old,new,1)
+          p.write_text(t,encoding='utf-8')
+
+          # Dedicated Soren 3.3 page: dedupe all cards/stats by match_no.
+          p=Path('hj33.html')
+          t=p.read_text(encoding='utf-8')
+          old="function render(){const rows=DATA?.hj?.rows||[];"
+          new="function render(){const rawRows=DATA?.hj?.rows||[],rows=rawRows.filter((r,i,a)=>a.findIndex(x=>String(x.match_no).padStart(3,'0')===String(r.match_no).padStart(3,'0'))===i);"
+          if old not in t:
+              raise SystemExit('hj33 render anchor not found')
+          t=t.replace(old,new,1)
+          p.write_text(t,encoding='utf-8')
+
+          # Version marker
+          vp=Path('version.json')
+          vp.write_text('{"build":"2026-09-15 索伦引擎3.3前端v39-dedupe","updated_at":"2026-09-15"}\n',encoding='utf-8')
+          PY
+      - name: Syntax-check embedded JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          for f in ['index.html','hj33.html']:
+              t=Path(f).read_text(encoding='utf-8')
+              scripts=re.findall(r'<script(?:[^>]*)>(.*?)</script>',t,re.S)
+              Path('/tmp/'+f+'.js').write_text('\n'.join(scripts),encoding='utf-8')
+          PY
+          node --check /tmp/index.html.js
+          node --check /tmp/hj33.html.js
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html hj33.html version.json
+          if ! git diff --cached --quiet; then
+            git commit -m "fix frontend: dedupe repeated match numbers"
+            git push
+          fi
