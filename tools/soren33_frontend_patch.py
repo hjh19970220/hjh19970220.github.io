@@ -1,0 +1,240 @@
+from pathlib import Path
+import re
+
+
+def sub1(text, pattern, repl, label, flags=re.S):
+    out, n = re.subn(pattern, repl, text, count=1, flags=flags)
+    if n != 1:
+        raise SystemExit(f"{label}: expected 1 replacement, got {n}")
+    return out
+
+
+# ---------------- index.html ----------------
+p = Path("index.html")
+text = p.read_text(encoding="utf-8")
+
+text = text.replace(
+    "if(n.includes('豪竞')||n.includes('豪竟'))return '豪竞'+v;",
+    "if(n.includes('豪竞')||n.includes('豪竟'))return '索伦引擎'+v;",
+)
+text = text.replace(
+    "const APP_BUILD='2026-09-14 豪竞3.2前端v37-no-gpt-ui';",
+    "const APP_BUILD='2026-09-15 索伦引擎3.3前端v38-result-semantics';",
+)
+
+helpers = r'''function hjPickZh(v){
+ const x=String(v??'').trim(),m={H:'主胜',D:'平',A:'客胜','3':'主胜','1':'平','0':'客胜',HWIN:'让胜',HDRAW:'让平',HLOSS:'让负'};
+ return m[x]||x;
+}
+function hjFinalPlan(r){
+ const route=r?.optimal_market_route||{},fh=String(r?.final_handling||''),up=fh.toUpperCase(),sd=hjSingleDoubleData(r),sc=String(sd?.class_code||'').toUpperCase(),sp=Array.isArray(sd?.picks)?sd.picks.filter(Boolean).map(hjPickZh):[];
+ const rr=String(route?.route_status||'').toUpperCase(),rm=String(route?.selected_market||'').toUpperCase(),rp=hjPickZh(route?.selected_pick||'');
+ if(rr==='RECOMMEND'&&rp&&rm&&rm!=='FT_HAD'){
+   const market=rm==='OFFICIAL_HHAD'?'官方让球':rm==='ASIAN_HANDICAP'?'亚洲盘':rm;
+   return {kind:'reco',formal:true,market,picks:[rp],label:rp,line:route?.selected_line??r?.official_handicap??null,single:true,double:false,source:'最优玩法路由'};
+ }
+ if(/DOUBLE/.test(up)&&r?.top1&&r?.second_pick){const ps=[hjPickZh(r.top1),hjPickZh(r.second_pick)];return {kind:'reco',formal:true,market:'胜平负',picks:ps,label:ps.join(' + '),line:null,single:false,double:true,source:'3.3双选'};}
+ if(sc==='STRONG_DOUBLE'||sc==='CANDIDATE_DOUBLE'){const ps=sp.length>=2?sp:[hjPickZh(r?.top1),hjPickZh(r?.second_pick)].filter(Boolean);if(ps.length>=2)return {kind:'reco',formal:true,market:'胜平负',picks:ps,label:ps.join(' + '),line:null,single:false,double:true,source:'3.3双选'};}
+ if(/SINGLE/.test(up)){const pk=hjPickZh(r?.ticket_pick||r?.top1);if(pk)return {kind:'reco',formal:true,market:'胜平负',picks:[pk],label:pk,line:null,single:true,double:false,source:'3.3单选'};}
+ if(sc==='SINGLE'&&sp.length){return {kind:'reco',formal:true,market:'胜平负',picks:[sp[0]],label:sp[0],line:null,single:true,double:false,source:'3.3单选'};}
+ if(rr==='RECOMMEND'&&rp){return {kind:'reco',formal:true,market:'胜平负',picks:[rp],label:rp,line:null,single:true,double:false,source:'最优玩法路由'};}
+ if(r?.ticket_pick){const pk=hjPickZh(r.ticket_pick);return {kind:'reco',formal:true,market:'胜平负',picks:[pk],label:pk,line:null,single:true,double:false,source:'正式票面'};}
+ if(/PASS/.test(up)||sc==='PASS')return {kind:'pass',formal:false,market:'—',picks:[],label:'PASS',line:null,single:false,double:false,source:'PASS'};
+ return {kind:'analysis',formal:false,market:'胜平负',picks:[],label:'仅分析',line:null,single:false,double:false,source:'未形成最终玩法'};
+}
+function hjPlanActual(r,pl){
+ if(!r?.result_verified)return null;
+ if(pl.market==='胜平负')return r.result_1x2==='3'?'主胜':r.result_1x2==='1'?'平':'客胜';
+ if(pl.market==='官方让球'){
+   const h=Number(r.result_home),a=Number(r.result_away),line=Number(pl.line??r.official_handicap);
+   if(!Number.isFinite(h)||!Number.isFinite(a)||!Number.isFinite(line))return null;
+   const x=h+line-a;return x>0?'让胜':x===0?'让平':'让负';
+ }
+ return null;
+}
+function hjPlanHit(r,pl=hjFinalPlan(r)){const a=hjPlanActual(r,pl);return a==null?null:pl.picks.includes(a);}
+function hjDisplayedScorePicks(r){
+ const out=[];const add=x=>{const v=String(x||'').trim();if(v&&/^\d+-\d+$/.test(v)&&!out.includes(v))out.push(v)};
+ const d=hjPoissonScoreData(r);if(d)for(const x of d.top3||[])add(x.score);
+ const z=hjIndependentScore(r);if(z)for(const x of (z.scores||[]).slice(0,3))add(x.score);
+ return out;
+}
+function hjScorePicksText(r){const xs=hjDisplayedScorePicks(r);return xs.length?xs.join(' / '):'未形成';}
+function hjScoreHit(r){if(!r?.result_verified)return null;const actual=String(r.result_home)+'-'+String(r.result_away),xs=hjDisplayedScorePicks(r);return xs.length?xs.includes(actual):null;}
+function hjOutcome(r){
+ if(!r?.result_verified)return {state:'pending',label:'⏳ 待结算'};
+ const pl=hjFinalPlan(r),ph=hjPlanHit(r,pl),sh=hjScoreHit(r),tags=[];
+ if(ph===true)tags.push(pl.double?'双选命中':pl.market==='官方让球'?'让球命中':'玩法命中');
+ if(sh===true)tags.push('比分命中');
+ if(tags.length)return {state:'hit',label:'✅ '+tags.join(' + '),playHit:ph,scoreHit:sh};
+ if(pl.kind==='pass'||pl.kind==='analysis')return {state:'neutral',label:pl.kind==='pass'?'PASS':'已结算',playHit:ph,scoreHit:sh};
+ if(ph===false)return {state:'miss',label:'❌ 未中',playHit:ph,scoreHit:sh};
+ return {state:'neutral',label:'已结算',playHit:ph,scoreHit:sh};
+}
+'''
+
+new_quick = helpers + r'''function hjQuickConclusion(r){
+ const pl=hjFinalPlan(r);
+ if(pl.kind==='pass')return '本场最终玩法PASS；如比分预测命中，仍单独标记“比分命中”。';
+ if(pl.double)return '双选按组合结算：任一方向命中即计成功。';
+ if(pl.market==='官方让球')return '本场最终玩法为竞彩让球，按让胜 / 让平 / 让负结算。';
+ if(pl.kind==='analysis')return '当前仅保留分析，不冒充正式推荐。';
+ return '按索伦引擎3.3最终玩法结算，不再使用方向灯或价值灯作为前台结果口径。';
+}
+function hjQuickScoreHtml(r){
+ const d=hjPoissonScoreData(r);if(!d)return '';
+ const actual=r?.result_verified?(String(r.result_home)+'-'+String(r.result_away)):'';
+ return '<div class="hjqscoreline"><div class="hjqscoretitle">最高概率3个比分 · 命中会直接标记成功</div><div class="hjqscores">'+d.top3.map(x=>'<div class="hjqscore"><b>'+esc(x.score)+(actual===String(x.score)?' ✅':'')+'</b><span>'+((x.p*100).toFixed(1))+'%</span></div>').join('')+'</div></div>';
+}
+function hjQuickCard'''
+
+text = sub1(
+    text,
+    r"function hjQuickConclusion\(r\)\{.*?\n\}\nfunction hjQuickScoreHtml\(r\)\{.*?\n\}\nfunction hjQuickCard",
+    new_quick,
+    "replace quick helpers/conclusion/score",
+)
+
+new_card = r'''function hjQuickCard(r){
+ const pl=hjFinalPlan(r),oc=hjOutcome(r),p=topProb(r);
+ const t=fmtTime(r.kickoff_bjt),time=t==='—'?'—':t.split(' ').pop()||t;
+ const resClass=oc.state==='hit'?'good':oc.state==='miss'?'bad':'warn';
+ const resText=!r.result_verified?'⏳ 赛果：待结算':('赛果：'+result(r)+' · '+oc.label);
+ const type=pl.double?'双选 · 任一中=成功':pl.single?'单选':pl.kind==='pass'?'PASS':'仅分析';
+ return '<div class="hjqcard" onclick="showMatch(\'hj\',\''+esc(r.match_no)+'\')">'+
+   '<div class="hjqhead"><div><span class="hjqno">'+esc(r.match_no)+'</span> <span class="hjqleague">'+esc(r.league||'')+'</span></div><span class="hjqtime">'+esc(time)+'</span></div>'+
+   '<div class="hjqteams">'+esc(r.home_team)+' <span style="color:#5f7892;font-weight:600">vs</span> '+esc(r.away_team)+'</div>'+
+   '<div class="hjqline"><div class="hjqpick">'+esc(pl.label)+'</div><div class="hjqprob">'+esc(pl.market)+' · FT参考 '+esc(r.top1||'—')+' '+esc(p)+'</div></div>'+
+   '<div class="hjqchips"><span class="hjqchip">🔀 '+esc(type)+'</span><span class="hjqchip">⚽ 比分 '+esc(hjScorePicksText(r))+'</span></div>'+
+   hjQuickScoreHtml(r)+hjIndependentQuickHtml(r)+
+   '<div class="hjqresult '+resClass+'">'+esc(resText)+'</div>'+
+   '<div class="hjqfoot">'+esc(hjQuickConclusion(r))+'</div>'+
+ '</div>';
+}
+function hjScoreMatrixSection'''
+
+text = sub1(
+    text,
+    r"function hjQuickCard\(r\)\{.*?\n\}\nfunction hjScoreMatrixSection",
+    new_card,
+    "replace quick card",
+)
+
+new_score_matrix = r'''function hjScoreMatrixSection(r){
+ const d=hjPoissonScoreData(r);if(!d)return '';
+ const actual=r?.result_verified?(String(r.result_home)+'-'+String(r.result_away)):'';
+ const mark=x=>actual===String(x)?' ✅':'';
+ return '<section class="section"><div class="shead"><h2>🎯 比分预测</h2><span>实际比分进入展示预测时，直接标记“比分命中”</span></div>'+
+   '<div style="padding:12px"><div class="scoreTop3">'+d.top3.map(x=>'<div><b>'+esc(x.score)+mark(x.score)+'</b><span>'+((x.p*100).toFixed(1))+'%</span></div>').join('')+'</div>'+
+   '<div class="tiny" style="margin:10px 0">进球区间：<b>'+esc(d.goalBand.label)+'</b> · '+(d.goalBand.p*100).toFixed(1)+'% ｜ 主队预期进球 '+d.lh.toFixed(2)+' / 客队预期进球 '+d.la.toFixed(2)+(hjScoreHit(r)===true?' ｜ ✅ 比分命中':'')+'</div>'+
+   '<div class="scoreMatrix">'+d.top16.map(x=>'<div class="scoreCell"><b>'+esc(x.score)+mark(x.score)+'</b><span>'+((x.p*100).toFixed(1))+'%</span></div>').join('')+'</div></div></section>';
+}
+
+function rowsTable'''
+
+text = sub1(
+    text,
+    r"function hjScoreMatrixSection\(r\)\{.*?\n\}\n\nfunction rowsTable",
+    new_score_matrix,
+    "replace score matrix",
+)
+
+text = text.replace(
+    "const scores=z.scores.slice(0,3).map(x=>'<div class=\"hjqscore\"><b>'+esc(x.score||'—')+'</b><span>'+((Number(x.p||0)*100).toFixed(1))+'%</span></div>').join('');",
+    "const actual=r?.result_verified?(String(r.result_home)+'-'+String(r.result_away)):'';const scores=z.scores.slice(0,3).map(x=>'<div class=\"hjqscore\"><b>'+esc(x.score||'—')+(actual===String(x.score||'')?' ✅':'')+'</b><span>'+((Number(x.p||0)*100).toFixed(1))+'%</span></div>').join('');",
+)
+
+new_hj_branch = r'''if(kind==='hj'){
+ const quick='<section class="section"><div class="shead"><h2>'+esc(n.hj)+'｜全池极速总览</h2><span>只看最终玩法 · 单/双选 · 让球 · 比分 · 结算结果</span></div><div class="hjquickgrid">'+rows.map(hjQuickCard).join('')+'</div>'+
+ '<details class="hjqlegacy"><summary>展开全池结算表</summary><div class="tablewrap hjtablewrap"><table class="hjcompact"><thead><tr><th>场</th><th>对阵</th><th>最终玩法</th><th>比分预测</th><th>赛果</th><th>结果</th></tr></thead><tbody>'+rows.map(r=>{const pl=hjFinalPlan(r),oc=hjOutcome(r),tone=oc.state==='hit'?'good':oc.state==='miss'?'bad':'warn';return '<tr class="clickrow" onclick="showMatch(\'hj\',\''+esc(r.match_no)+'\')"><td><b>'+esc(r.match_no)+'</b></td><td><b>'+esc(r.home_team)+' - '+esc(r.away_team)+'</b></td><td><b>'+esc(pl.market+' · '+pl.label)+'</b></td><td>'+esc(hjScorePicksText(r))+'</td><td>'+esc(result(r))+'</td><td class="'+tone+'"><b>'+esc(oc.label)+'</b></td></tr>'}).join('')+'</tbody></table></div></details></section>';
+ return quick;
+}'''
+
+text = sub1(
+    text,
+    r"if\(kind==='hj'\)\{\n  const quick=.*?\n  return quick;\n\}\nif\(!rows.length\)",
+    new_hj_branch + "\nif(!rows.length)",
+    "replace HJ rows table",
+)
+
+new_detail = r'''function matchDetail(){
+ const d=DETAIL,r=d?.row;if(!r)return '';if(d.kind==='hc')return hcMatchDetail(r);
+ const s=r.source_status||{},e=s.evidence_domains||s.evidence_completeness||{},tl=Array.isArray(s.market_timeline)?s.market_timeline:[],sp=hjSpDisplay(r),diag=hjUpsetDiag(r),pl=hjFinalPlan(r),oc=hjOutcome(r),scoreSec=hjScoreMatrixSection(r);
+ const settle=r.result_verified?(result(r)+' · '+oc.label):'待结算';
+ const sd=pl.double?'双选（任一命中即成功）':pl.single?'单选':pl.kind==='pass'?'PASS':'仅分析';
+ return '<div><button class="backbtn" onclick="DETAIL=null;render()">← 返回</button></div>'+
+ '<div class="hero" style="margin-top:10px"><div class="heroMain"><div class="heroTitle">'+esc(r.match_no||'—')+' '+esc(r.league||'')+'</div><div class="heroValue">'+esc(r.home_team)+' vs '+esc(r.away_team)+'</div><div class="tiny">开赛：'+esc(fmtTime(r.kickoff_bjt))+' ｜ 冻结：'+esc(fmtTime(r.frozen_at))+'</div></div><div class="heroSide">'+
+ metric('最终玩法',pl.label,pl.market+' · '+sd)+metric('结算',settle,'按最终玩法 / 比分预测分别判定')+metric('FT参考',r.top1||'未确认','第二：'+(r.second_pick||'—'))+metric('比分预测',hjScorePicksText(r),hjScoreHit(r)===true?'✅ 比分命中':'展示Top3命中即计成功')+metric('让球方向',r.handicap_pick||'未确认','官方让球 '+(r.official_handicap??'—'))+metric('竞彩赔率','胜平负 '+sp.had,'让球胜平负 '+sp.line+'：'+sp.hhad+' · '+sp.source+(sp.verified?' ✅':''))+'</div></div>'+
+ scoreSec+hjIntelDetailSection(r)+hjIndependentDetailSection(r)+
+ '<section class="section"><div class="shead"><h2>🧠 风险与证据</h2><span>前台只保留最终玩法和风险证据</span></div><div class="cards"><div class="card"><div class="kv"><div>最终玩法</div><div><b>'+esc(pl.market+' · '+pl.label)+'</b></div><div>单双结构</div><div>'+esc(sd)+'</div><div>爆冷总风险</div><div>'+esc(r.hur||'—')+'</div><div>平局尾险</div><div>'+esc(r.dtr||'—')+'</div><div>直接输球风险</div><div>'+esc(r.dlr||'—')+'</div><div>最可能爆冷出口</div><div>'+esc(diag.primary)+'</div><div>第三方向威胁</div><div>'+esc(diag.third)+'</div><div>市场与模型冲突</div><div>'+esc(diag.conflict)+'</div><div>数据质量</div><div>'+esc(dqZh(r.dq))+'</div><div>让球最终方向</div><div>'+esc(r.handicap_pick||s.handicap_final_pick||'未确认')+'</div><div>让球证据支持率</div><div>'+esc(hjHandicapSupport(r))+'</div></div></div><div class="card"><div class="kv">'+kvIf('市场',evidenceFlagZh(e.market,'市场',s))+kvIf('实力',evidenceFlagZh(e.strength,'实力',s))+kvIf('基本面',evidenceFlagZh(e.fundamentals,'基本面',s))+kvIf('最强支持',strongestSupportZh(r))+kvIf('最强反对',strongestOppositionZh(r))+'</div></div></div></section>'+
+ (tl.length?'<section class="section"><div class="shead"><h2>📈 市场走势</h2><span>赛前冻结市场链</span></div><div class="cards"><div class="card" style="grid-column:1/-1">'+tl.map(x=>'<div class="tiny"><b>'+esc(x.source||'—')+'</b> ｜ 初 '+esc(x.initial??'—')+' → 即 '+esc(x.current??'—')+' → 临 '+esc(x.close??'—')+'</div>').join('')+'</div></div></section>':'');
+}
+function systemHealthSection(){'''
+
+text = sub1(
+    text,
+    r"function matchDetail\(\)\{.*?\nfunction systemHealthSection\(\)\{",
+    new_detail,
+    "replace HJ match detail",
+)
+
+p.write_text(text, encoding="utf-8")
+
+
+# ---------------- hj33.html ----------------
+p = Path("hj33.html")
+h = p.read_text(encoding="utf-8")
+for old, new in [
+    ("<title>豪竞3.3｜实战版</title>", "<title>索伦引擎3.3｜实战版</title>"),
+    ("正在读取豪竞3.3…", "正在读取索伦引擎3.3…"),
+    ("const BUILD='豪竞3.3实战前端-v2-20260915';", "const BUILD='索伦引擎3.3实战前端-v3-20260915';"),
+    ("<h1>豪竞3.3</h1>", "<h1>索伦引擎3.3</h1>"),
+    ("<div class=\"brand\">豪竞3.3 · 实战版</div>", "<div class=\"brand\">索伦引擎3.3 · 实战版</div>"),
+    ("当前没有豪竞比赛数据", "当前没有索伦引擎比赛数据"),
+]:
+    h = h.replace(old, new)
+
+new_plan = r'''function plan(r){
+ const b=bp(r),d=sd(r),route=r?.optimal_market_route||{},fh=String(r?.final_handling||''),up=fh.toUpperCase();
+ const rr=String(route?.route_status||'').toUpperCase(),rm=String(route?.selected_market||'').toUpperCase(),rp=String(route?.selected_pick||'');
+ if(rr==='RECOMMEND'&&rp&&rm&&rm!=='FT_HAD'){const market=rm==='OFFICIAL_HHAD'?'官方让球':rm==='ASIAN_HANDICAP'?'亚洲盘':rm;return {kind:'reco',formal:true,market,picks:[rp],label:rp,line:route?.selected_line??r?.official_handicap??null,single:true,double:false,reason:route?.route_reason||'最优玩法路由'}}
+ const ba=String(b?.action||''),bm=String(b?.selected_market||''),bc=String(b?.class_code||''),bpicks=arr(b?.selected_picks).filter(Boolean);
+ if(ba.startsWith('RECOMMEND')&&bpicks.length){return {kind:'reco',formal:true,market:bm==='OFFICIAL_HHAD'?'官方让球':'胜平负',picks:bpicks,label:bpicks.join(' + '),line:r?.official_handicap??null,classCode:bc,reason:b?.reason||'',single:ba==='RECOMMEND_SINGLE'||bpicks.length===1,double:ba==='RECOMMEND_DOUBLE'||bpicks.length>1}}
+ if(/DOUBLE/.test(up)&&r?.top1&&r?.second_pick){const ps=[r.top1,r.second_pick];return {kind:'reco',formal:true,market:'胜平负',picks:ps,label:ps.join(' + '),line:null,classCode:'HJ33_DOUBLE',reason:'3.3最终双选',single:false,double:true}}
+ if(/SINGLE/.test(up)){const pk=r?.ticket_pick||r?.top1;if(pk)return {kind:'reco',formal:true,market:'胜平负',picks:[pk],label:String(pk),line:null,classCode:'HJ33_SINGLE',reason:'3.3最终单选',single:true,double:false}}
+ const dc=String(d?.class_code||''),dp=arr(d?.picks).filter(Boolean);
+ if((dc==='CANDIDATE_DOUBLE'||dc==='STRONG_DOUBLE')&&dp.length>=2)return {kind:'reco',formal:true,market:'胜平负',picks:dp,label:dp.join(' + '),line:null,classCode:dc,reason:d?.reason||'',single:false,double:true};
+ if(dc==='SINGLE'&&dp.length===1)return {kind:'reco',formal:true,market:'胜平负',picks:dp,label:dp[0],line:null,classCode:dc,reason:d?.reason||'',single:true,double:false};
+ if(rr==='RECOMMEND'&&rp)return {kind:'reco',formal:true,market:'胜平负',picks:[rp],label:rp,line:null,classCode:'ROUTE',reason:route?.route_reason||'',single:true,double:false};
+ if(r?.ticket_pick)return {kind:'reco',formal:true,market:'胜平负',picks:[r.ticket_pick],label:String(r.ticket_pick),line:null,classCode:'FT_SINGLE_FALLBACK',reason:'读取正式ticket_pick',single:true,double:false};
+ return {kind:'pass',formal:false,market:'—',picks:[],label:'PASS',line:null,classCode:bc||dc||'PASS',reason:b?.reason||d?.reason||'当前没有正式可执行玩法',single:false,double:false};
+}'''
+h = sub1(h, r"function plan\(r\)\{.*?\n\}", new_plan, "replace hj33 plan")
+
+new_actual = r'''function actualCode(r,pl){if(!r.result_verified)return null;if(pl.market==='胜平负')return r.result_1x2==='3'?'主胜':r.result_1x2==='1'?'平':'客胜';if(pl.market==='官方让球'){const h=Number(r.result_home),a=Number(r.result_away),hd=Number(pl.line??r.official_handicap);if(!Number.isFinite(h)||!Number.isFinite(a)||!Number.isFinite(hd))return null;const x=h+hd-a;return x>0?'让胜':x===0?'让平':'让负'}return null}
+function hit(r,pl){const a=actualCode(r,pl);return a?pl.picks.includes(a):null}
+function scoreData(r){const s=ss(r),lh=Number(s.hhad_lambda_home),la=Number(s.hhad_lambda_away);if(!Number.isFinite(lh)||!Number.isFinite(la)||lh<=0||la<=0)return null;const f=n=>{let x=1;for(let i=2;i<=n;i++)x*=i;return x},pp=(l,k)=>Math.exp(-l)*Math.pow(l,k)/f(k),xs=[];for(let h=0;h<=6;h++)for(let a=0;a<=6;a++)xs.push({score:h+'-'+a,p:pp(lh,h)*pp(la,a)});xs.sort((a,b)=>b.p-a.p);return xs.slice(0,3)}
+function scorePicksText(r){const x=scoreData(r);return x?x.map(v=>v.score).join(' / '):'未形成'}
+function scoreHit(r){if(!r.result_verified)return null;const x=scoreData(r);return x?x.some(v=>v.score===String(r.result_home)+'-'+String(r.result_away)):null}
+function outcome(r,pl){if(!r.result_verified)return {state:'pending',label:'待结算'};const ph=hit(r,pl),sh=scoreHit(r),tags=[];if(ph===true)tags.push(pl.double?'双选命中':pl.market==='官方让球'?'让球命中':'玩法命中');if(sh===true)tags.push('比分命中');if(tags.length)return {state:'hit',label:'✅ '+tags.join(' + ')};if(pl.kind==='pass')return {state:'neutral',label:'PASS'};return {state:'miss',label:'❌ 未中'}}'''
+h = sub1(
+    h,
+    r"function actualCode\(r,market\)\{.*?\nfunction hit\(r,pl\)\{.*?\n",
+    new_actual + "\n",
+    "replace hj33 settle helpers",
+)
+
+new_card2 = r'''function card(r){const pl=plan(r),oc=outcome(r,pl),tone=oc.state==='hit'?'good':oc.state==='miss'?'bad':pl.kind==='reco'?'good':'warn',settled=r.result_verified;let settle=!settled?'待结算':oc.label+' · '+resultText(r);const score=scorePicksText(r);return `<div class="match ${pl.kind}" data-kind="${pl.kind}"><div class="main" onclick="this.parentElement.classList.toggle('open')"><div class="head"><div><span class="no">${esc(r.match_no)}</span> <span class="league">${esc(r.league||'')}</span></div><span class="time">${esc(fmt(r.kickoff_bjt))}</span></div><div class="teams">${esc(r.home_team)} <span style="color:#617c96;font-weight:500">vs</span> ${esc(r.away_team)}</div><div class="pickrow"><div><div class="ftLabel">FT参考</div><div class="ft">${esc(r.top1||'未确认')}</div><div class="sub">第二方向 ${esc(r.second_pick||'—')} · ${esc(topProb(r))} · 信心${esc(r.confidence_label||'—')}</div></div><div class="best"><small>${esc(pl.market)}最终玩法</small><strong>${esc(pl.label)}</strong></div></div><div class="badgebar"><span class="badge ${tone}">${esc(pl.double?'双选·任一中=成功':pl.single?'单选':pl.kind==='pass'?'PASS':'最终玩法')}</span><span class="badge">比分 ${esc(score)}</span><span class="badge">${esc(r.dq||'DQ—')}</span></div><div class="statusLine"><span class="status ${tone}">${esc(settle)}</span><span class="settle">${scoreHit(r)===true?'✅ 比分命中':''}</span></div></div><div class="simple"><div class="five"><div class="signal"><span>最终玩法</span><b>${esc(pl.label)}</b></div><div class="signal"><span>玩法市场</span><b>${esc(pl.market)}</b></div><div class="signal"><span>比分Top3</span><b>${esc(score)}</b></div><div class="signal"><span>平局风险</span><b>${esc(r.dtr||'—')}</b></div><div class="signal"><span>冷门风险</span><b>${esc(r.hur||'—')}</b></div></div><div class="reason"><b>结算口径：</b>${esc(pl.double?'双选任一方向命中即成功；':'按最终玩法结算；')}${esc(scoreHit(r)===true?'比分预测同时命中。':'比分预测命中时另标成功。')}<br><b>理由：</b>${esc(pl.reason||'—')}</div></div></div>`}'''
+h = sub1(h, r"function card\(r\)\{.*?\nfunction setFilter", new_card2 + "\nfunction setFilter", "replace hj33 card")
+h = h.replace(
+    '“观察”≠PASS：候选双保留方向，但不计3.3正式Best Play。正式推荐优先读取 source_status → hj33_best_play_selector_v01。',
+    '双选任一方向命中即标记成功；页面展示的比分Top3若命中，也直接标记“比分命中”。最终玩法可为胜平负或官方让球。',
+)
+p.write_text(h, encoding="utf-8")
+
+Path("version.json").write_text(
+    '{"build":"2026-09-15 索伦引擎3.3前端v38-result-semantics","updated_at":"2026-09-15"}\n',
+    encoding="utf-8",
+)
+
+print("patched index.html, hj33.html, version.json")
