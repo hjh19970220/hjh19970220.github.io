@@ -491,7 +491,7 @@ function hjScoreMatrixSection(r){
    '<div class="scoreMatrix">'+d.top16.map(x=>'<div class="scoreCell"><b>'+esc(x.score)+mark(x.score)+'</b><span>'+((x.p*100).toFixed(1))+'%</span></div>').join('')+'</div></div></section>';
 }
 
-function rowsTable(kind){const d=kind==='hj'?DATA.hj:DATA.hc,n=activeNames(),rawRows=d?.rows||[],rows=kind==='hj'?rawRows.filter((r,i,a)=>a.findIndex(x=>String(x.match_no).padStart(3,'0')===String(r.match_no).padStart(3,'0'))===i):rawRows;
+function rowsTable(kind){const d=kind==='hj'?DATA.hj:DATA.hc,n=activeNames(),rawRows=d?.rows||[],rows=kind==='hj'?rawRows.filter((r,i,a)=>a.findIndex(x=>String(x.home_team||'').trim()+'|'+String(x.away_team||'').trim()===String(r.home_team||'').trim()+'|'+String(r.away_team||'').trim())===i):rawRows;
 if(kind==='hj'){
  const quick='<section class="section"><div class="shead"><h2>'+esc(n.hj)+'｜全池极速总览</h2><span>只看最终玩法 · 单/双选 · 让球 · 比分 · 结算结果</span></div><div class="hjquickgrid">'+rows.map(hjQuickCard).join('')+'</div>'+
  '<details class="hjqlegacy"><summary>展开全池结算表</summary><div class="tablewrap hjtablewrap"><table class="hjcompact"><thead><tr><th>场</th><th>对阵</th><th>最终玩法</th><th>比分预测</th><th>赛果</th><th>结果</th></tr></thead><tbody>'+rows.map(r=>{const pl=hjFinalPlan(r),oc=hjOutcome(r),tone=oc.state==='hit'?'good':oc.state==='miss'?'bad':'warn';return '<tr class="clickrow" onclick="showMatch(\'hj\',\''+esc(r.match_no)+'\')"><td><b>'+esc(r.match_no)+'</b></td><td><b>'+esc(r.home_team)+' - '+esc(r.away_team)+'</b></td><td><b>'+esc(pl.market+' · '+pl.label)+'</b></td><td>'+esc(hjScorePicksText(r))+'</td><td>'+esc(result(r))+'</td><td class="'+tone+'"><b>'+esc(oc.label)+'</b></td></tr>'}).join('')+'</tbody></table></div></details></section>';
