@@ -1,0 +1,32 @@
+name: Sauron Kokoro Male Voice Test
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'sauron-video/tools/kokoro_voice_test.py'
+      - '.github/workflows/sauron-kokoro-voice-test.yml'
+permissions:
+  contents: read
+jobs:
+  voice-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Kokoro TTS
+        run: pip install --disable-pip-version-check kokoro soundfile numpy misaki[zh]
+      - name: Generate Sauron Chinese male voice
+        run: python sauron-video/tools/kokoro_voice_test.py
+      - name: Inspect generated voice
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 sauron-video/output/kokoro-test/sauron-male-test.wav
+      - name: Upload voice audition
+        uses: actions/upload-artifact@v4
+        with:
+          name: sauron-kokoro-male-audition
+          path: sauron-video/output/kokoro-test/sauron-male-test.wav
+          retention-days: 3
