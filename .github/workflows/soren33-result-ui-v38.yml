@@ -18,7 +18,15 @@ jobs:
         with:
           python-version: "3.x"
       - name: Patch frontend
-        run: python tools/soren33_frontend_patch.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tools/soren33_frontend_patch.py')
+          t=p.read_text(encoding='utf-8')
+          t=t.replace('out, n = re.subn(pattern, repl, text, count=1, flags=flags)','out, n = re.subn(pattern, lambda m: repl, text, count=1, flags=flags)')
+          p.write_text(t,encoding='utf-8')
+          PY
+          python tools/soren33_frontend_patch.py
       - name: Syntax-check embedded JavaScript
         run: |
           python - <<'PY'
