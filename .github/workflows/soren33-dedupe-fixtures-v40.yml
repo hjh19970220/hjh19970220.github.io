@@ -1,0 +1,61 @@
+name: soren33-dedupe-fixtures-v40
+
+on:
+  push:
+    paths:
+      - ".github/workflows/soren33-dedupe-fixtures-v40.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Dedupe Soren fixtures by teams
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def patch(path):
+              p=Path(path)
+              t=p.read_text(encoding='utf-8')
+              old="a.findIndex(x=>String(x.match_no).padStart(3,'0')===String(r.match_no).padStart(3,'0'))===i"
+              new="a.findIndex(x=>String(x.home_team||'').trim()+'|'+String(x.away_team||'').trim()===String(r.home_team||'').trim()+'|'+String(r.away_team||'').trim())===i"
+              if old not in t:
+                  raise SystemExit(f'dedupe anchor not found in {path}')
+              t=t.replace(old,new,1)
+              p.write_text(t,encoding='utf-8')
+
+          patch('index.html')
+          patch('hj33.html')
+          Path('version.json').write_text('{"build":"2026-09-15 索伦引擎3.3前端v40-fixture-dedupe","updated_at":"2026-09-15"}\n',encoding='utf-8')
+          PY
+      - name: Syntax-check embedded JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          for f in ['index.html','hj33.html']:
+              t=Path(f).read_text(encoding='utf-8')
+              scripts=re.findall(r'<script(?:[^>]*)>(.*?)</script>',t,re.S)
+              if not scripts:
+                  raise SystemExit(f'no script in {f}')
+              Path('/tmp/'+f+'.js').write_text('\n'.join(scripts),encoding='utf-8')
+          PY
+          node --check /tmp/index.html.js
+          node --check /tmp/hj33.html.js
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html hj33.html version.json
+          if ! git diff --cached --quiet; then
+            git commit -m "fix frontend: hide duplicate fixtures regardless of match number"
+            git push
+          fi
