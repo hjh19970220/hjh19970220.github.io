@@ -1,0 +1,53 @@
+name: Sauron Pexels Material Test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'sauron-video/tools/pexels_fetch.py'
+      - '.github/workflows/sauron-pexels-test.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pexels-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify secret without exposing it
+        shell: bash
+        run: |
+          if [ -z "$PEXELS_API_KEY" ]; then
+            echo "PEXELS_API_KEY_MISSING"
+            exit 1
+          fi
+          echo "PEXELS_API_KEY_PRESENT"
+      - name: Search Pexels football B-roll
+        run: python sauron-video/tools/pexels_fetch.py
+      - name: Show safe summary
+        run: |
+          python - <<'PY'
+          import json
+          p='sauron-video/output/pexels-test/manifest.json'
+          d=json.load(open(p, encoding='utf-8'))
+          print('provider=', d['provider'])
+          print('queries=', len(d['queries']))
+          print('selected_videos=', len(d['videos']))
+          for x in d['videos'][:5]:
+              print(x['id'], x['query'], x['duration'], f"{x['file_width']}x{x['file_height']}")
+          PY
+      - name: Upload material manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: sauron-pexels-manifest
+          path: sauron-video/output/pexels-test/manifest.json
+          retention-days: 3
