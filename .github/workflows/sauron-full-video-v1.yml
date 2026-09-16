@@ -1,9 +1,10 @@
-name: Sauron Full Video V1
+name: Sauron Semantic Review Video V3
 on:
   workflow_dispatch:
   push:
     paths:
       - 'sauron-video/tools/build_full_video.py'
+      - 'sauron-video/scripts/2026-09-15/004-johor-buriram-review.md'
       - '.github/workflows/sauron-full-video-v1.yml'
 permissions:
   contents: read
@@ -22,15 +23,19 @@ jobs:
           sudo apt-get install -y -qq ffmpeg fonts-noto-cjk
       - name: Install voice dependencies
         run: pip install --disable-pip-version-check kokoro soundfile numpy misaki[zh]
-      - name: Render full video
+      - name: Render semantic review video
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python sauron-video/tools/build_full_video.py
-      - name: Verify final MP4
-        run: ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height -of default=nw=1 sauron-video/output/full-video/sauron-ipswich-arsenal-v1.mp4
-      - name: Upload final MP4
+      - name: Verify final MP4 and semantic edit manifest
+        run: |
+          ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height -of default=nw=1 sauron-video/output/full-video/sauron-johor-buriram-review-v3.mp4
+          cat sauron-video/output/full-video/edit_manifest.json
+      - name: Upload final video and audit manifest
         uses: actions/upload-artifact@v4
         with:
-          name: sauron-ipswich-arsenal-v1
-          path: sauron-video/output/full-video/sauron-ipswich-arsenal-v1.mp4
+          name: sauron-johor-buriram-review-v3
+          path: |
+            sauron-video/output/full-video/sauron-johor-buriram-review-v3.mp4
+            sauron-video/output/full-video/edit_manifest.json
           retention-days: 3
