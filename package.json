@@ -1,0 +1,1 @@
+{"name":"soren-customer-site","private":true,"version":"1.0.0","scripts":{"test":"node --test tests/soren-*.test.cjs","check":"node --check assets/soren/app.js && node --check assets/soren/auth.js && node --check assets/soren/data.js"},"devDependencies":{"jsdom":"26.1.0"}}

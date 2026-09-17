@@ -18,7 +18,7 @@ const redirect=()=> 'https://hjh19970220.github.io/';
 async function signUp(email,password){const d=await request('/signup?redirect_to='+encodeURIComponent(redirect()),{email,password});if(d.access_token){setSession(d);return user();}return null;}
 async function recover(email){await request('/recover?redirect_to='+encodeURIComponent(redirect()),{email});}
 async function updatePassword(password){const t=await token();if(!t)throw Error('链接已失效，请重新获取找回密码邮件。');await request('/user',{password},t,'PUT');}
-async function signOut(){const t=await token();try{if(t)await request('/logout?scope=local',null,t);}finally{save(null);}}
+async function signOut(){try{const t=await token();if(t)await request('/logout?scope=local',null,t);}finally{save(null);}}
 async function callback(){const p=new URLSearchParams(location.hash.slice(1));if(p.has('error')){history.replaceState(null,'',location.pathname+location.search+'#/login');throw Error('确认链接已失效，请重新登录或获取邮件。');}if(!p.has('access_token'))return false;const recovery=p.get('type')==='recovery';const access=p.get('access_token'),refresh=p.get('refresh_token');history.replaceState(null,'',location.pathname+location.search+(recovery?'#/reset':'#/user'));if(!refresh)throw Error('确认链接不完整，请重新登录。');await request('/user',null,access,'GET');setSession({access_token:access,refresh_token:refresh,expires_in:Number(p.get('expires_in'))||3600});return true;}
 // Checkout is intentionally unavailable until an authenticated server endpoint is approved.
 async function checkout(){throw Error('PRO 尚未开放购买，目前不会产生费用。');}

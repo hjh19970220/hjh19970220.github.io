@@ -1,34 +1,38 @@
 name: Site smoke check
-
 on:
   push:
     paths:
       - 'index.html'
+      - 'client-v1.html'
+      - 'assets/soren/**'
+      - 'tests/soren-*'
+      - 'package*.json'
       - 'version.json'
       - '.github/workflows/site-smoke-check.yml'
-
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check inline JavaScript syntax
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          s = Path('index.html').read_text(encoding='utf-8')
-          if '<script>' not in s or '</script>' not in s:
-              raise SystemExit('script block missing')
-          js = s.split('<script>',1)[1].rsplit('</script>',1)[0]
-          Path('/tmp/site.js').write_text(js, encoding='utf-8')
-          PY
-          node --check /tmp/site.js
-      - name: Check version metadata
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+      - name: Check version and client assets
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          j=json.loads(Path('version.json').read_text(encoding='utf-8'))
+          j=json.loads(Path('version.json').read_text())
           assert j.get('build'), 'missing build'
-          print(j['build'])
+          page=Path('client-v1.html').read_text()
+          for path in ['assets/soren/style.css','assets/soren/data.js','assets/soren/auth.js','assets/soren/app.js']:
+              assert path in page and Path(path).is_file()
+          print('Customer assets verified')
           PY
