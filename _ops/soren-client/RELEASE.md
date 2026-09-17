@@ -31,10 +31,28 @@ soren-public-api-v1 v2 保持旧调用（不带 client=1）的成功响应字段
 - 生产接口 today/history 与 CORS OPTIONS 实测成功。旧接口与 client=1 分别验证。
 - 浏览器使用已部署预览页的 375×667、390×844、430×932 iframe 视口检查；这是响应式尺寸验证，不是实体 iPhone Safari 测试。
 - 登录/注册端点配置已核验：email=true, disable_signup=false, mailer_autoconfirm=false。未创建真实测试用户、发送测试邮件或扣费。SMTP 可达性、注册确认邮件送达与正式域名回调仍需实际账户闭环验证。
-- 首屏静态资源约 55 KB，gzip 约 20 KB，无外部字体、图片/CDN依赖；按页读取，60 秒内请求复用，14 秒超时，不自动整页刷新。
+- 首屏静态资源约 55 KB，gzip 约 20 KB，无外部字体、图片/CDN依赖；按页读取，60 秒内请求复用，14 秒超时，不自动整页刷新。当前工具网络端到端测量：今日请求约 6.9 秒、历史请求约 7.7 秒（包含网络链路，非数据库执行时间）。
 
 ## 回滚
 
-网站切换提交只替换 index.html；回滚该提交即可恢复原首页，保留其他无关仓库历史。也可从 backup-pre-soren-client-20260917 取回 index.html，创建新提交推送 main；不要 force-push，不需回滚数据库。原 version.json 保持不变，旧页面恢复后不会因为此次发布造成版本循环刷新。
+网站切换提交为 5b95444760908c1c3aea37835abd40329feccf71；另有静态资源版本缓存更新。建议从 backup-pre-soren-client-20260917 取回 index.html，创建新提交推送 main；不要 force-push，不需回滚数据库。原 version.json 保持不变，旧页面恢复后不会因为此次发布造成版本循环刷新。
 
 客户 API 若需单独回滚，用 public-api-before.ts 重新部署同名函数，verify_jwt=false 与原设置一致。前端在缺少赛前资格字段时不会展示历史命中率。
+
+## 已发布验证
+
+首页切换：5b95444760908c1c3aea37835abd40329feccf71。缓存修订：cf6f23dc715c743c78b02e96a9902e4df5a56e35。备份分支不移动。原 version.json 未改动。
+
+恢复旧首页的具体操作（在干净 main 上）：
+
+```sh
+git fetch origin
+git switch main
+git pull --ff-only origin main
+git restore --source=origin/backup-pre-soren-client-20260917 -- index.html
+git add index.html
+git commit -m "Restore pre-Soren homepage"
+git push origin main
+```
+
+正式网址已由浏览器打开核验。cf6f23d 的 Site smoke check 与 Pages build and deployment 均成功。线上根路径加载 v=20260917-2 资源；首页正确显示 9 月 17 日未发布，历史可切换 3.3 并显示无符合条件记录。
