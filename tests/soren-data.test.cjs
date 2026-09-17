@@ -1,0 +1,14 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const D=require('../assets/soren/data.js');
+const base={date:'2026-09-13',no:'020',home:'布雷斯特',away:'巴黎圣曼',kickoff:'2026-09-13T18:45:00Z',mode:'SINGLE',direction:'客胜',verified:true,result:'A',coverageHit:true,top1Hit:true,handicap:'让胜',handicapHit:false,frozenAt:'2026-09-13T15:42:01Z',pregameVerified:true};
+test('PASS is never a recommendation hit',()=>assert.equal(D.stats([{...base,mode:'PASS'}]).total,0));
+test('missing freeze proof is excluded',()=>assert.equal(D.stats([{...base,pregameVerified:false}]).total,0));
+test('post-kickoff freeze is excluded',()=>assert.equal(D.stats([{...base,frozenAt:'2026-09-13T19:00:00Z'}]).total,0));
+test('unverified result is excluded',()=>assert.equal(D.stats([{...base,verified:false}]).total,0));
+test('duplicates are all quarantined, not cherry-picked',()=>assert.equal(D.stats([base,{...base,no:'021',coverageHit:false}]).total,0));
+test('null settlements never become losses or zero-percent claims',()=>assert.deepEqual(D.stats([{...base,coverageHit:null}]),{total:0,hits:0,rate:null}));
+test('double coverage remains separate from Top1',()=>{const x={...base,mode:'DOUBLE',direction:'客队不败',top1Hit:false};assert.equal(D.stats([x]).hits,1);assert.equal(D.stats([x],'top1').hits,0);});
+test('handicap is not folded into coverage',()=>{assert.equal(D.stats([base]).hits,1);assert.equal(D.stats([base],'handicap').hits,0);});
+test('Shanghai day handles UTC rollover',()=>assert.equal(D.day(new Date('2026-09-16T16:30:00Z')),'2026-09-17'));
+test('strings are escaped and internal fields are discarded',()=>{assert.equal(D.escape('<img onerror="x">'),'&lt;img onerror=&quot;x&quot;&gt;');const r=D.normalize([{...base,trigger_tags:['secret'],primary_reason:'internal'}])[0];assert.equal(r.trigger_tags,undefined);assert.equal(r.primary_reason,undefined);});
+test('malformed response throws instead of masquerading as empty',()=>assert.throws(()=>D.normalize({rows:[]})));
+test('invalid confidence is not fabricated',()=>assert.equal(D.normalize([{...base,confidence:150}])[0].confidence,null));
