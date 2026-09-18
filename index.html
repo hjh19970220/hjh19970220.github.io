@@ -85,7 +85,7 @@ nav::-webkit-scrollbar{display:none}
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
 const HB_CUM_API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-basketball-7m-probe-v01';
-const APP_BUILD='2026-09-15 索伦引擎3.3前端v38-result-semantics';
+const APP_BUILD='2026-09-18 索伦引擎3.6前端v42-hj36-live';
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 let HB_CUM=null;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
@@ -414,9 +414,9 @@ function hjFinalPlan(r){
    const picks=(Array.isArray(bp.selected_picks)?bp.selected_picks:[]).filter(Boolean).map(hjPickZh);
    const market=marketCode==='OFFICIAL_HHAD'?'官方让球':marketCode==='FT_HAD'?'胜平负':marketCode==='ASIAN_HANDICAP'?'亚洲盘':marketCode||'—';
    if((action==='RECOMMEND_SINGLE'||action==='RECOMMEND_DOUBLE')&&picks.length){
-     return {kind:'reco',formal:true,market,picks,label:picks.join(' + '),line:marketCode==='OFFICIAL_HHAD'?(r?.official_handicap??null):null,single:action==='RECOMMEND_SINGLE',double:action==='RECOMMEND_DOUBLE',source:'豪竞3.3 Best Play'};
+     return {kind:'reco',formal:true,market,picks,label:picks.join(' + '),line:marketCode==='OFFICIAL_HHAD'?(r?.official_handicap??null):null,single:action==='RECOMMEND_SINGLE',double:action==='RECOMMEND_DOUBLE',source:'豪竞3.6 Best Play'};
    }
-   if(action==='PASS'||action==='NO_RECOMMENDATION')return {kind:'pass',formal:false,market:'—',picks:[],label:'PASS',line:null,single:false,double:false,source:'豪竞3.3 Best Play'};
+   if(action==='PASS'||action==='NO_RECOMMENDATION')return {kind:'pass',formal:false,market:'—',picks:[],label:'PASS',line:null,single:false,double:false,source:'豪竞3.6 Best Play'};
  }
  const route=r?.optimal_market_route||{},fh=String(r?.final_handling||''),up=fh.toUpperCase(),sd=hjSingleDoubleData(r),sc=String(sd?.class_code||'').toUpperCase(),sp=Array.isArray(sd?.picks)?sd.picks.filter(Boolean).map(hjPickZh):[];
  const rr=String(route?.route_status||'').toUpperCase(),rm=String(route?.selected_market||'').toUpperCase(),rp=hjPickZh(route?.selected_pick||'');
@@ -424,10 +424,10 @@ function hjFinalPlan(r){
    const market=rm==='OFFICIAL_HHAD'?'官方让球':rm==='ASIAN_HANDICAP'?'亚洲盘':rm;
    return {kind:'reco',formal:true,market,picks:[rp],label:rp,line:route?.selected_line??r?.official_handicap??null,single:true,double:false,source:'最优玩法路由'};
  }
- if(/DOUBLE/.test(up)&&r?.top1&&r?.second_pick){const ps=[hjPickZh(r.top1),hjPickZh(r.second_pick)];return {kind:'reco',formal:true,market:'胜平负',picks:ps,label:ps.join(' + '),line:null,single:false,double:true,source:'3.3双选'};}
- if(sc==='STRONG_DOUBLE'||sc==='CANDIDATE_DOUBLE'){const ps=sp.length>=2?sp:[hjPickZh(r?.top1),hjPickZh(r?.second_pick)].filter(Boolean);if(ps.length>=2)return {kind:'reco',formal:true,market:'胜平负',picks:ps,label:ps.join(' + '),line:null,single:false,double:true,source:'3.3双选'};}
- if(/SINGLE/.test(up)){const pk=hjPickZh(r?.ticket_pick||r?.top1);if(pk)return {kind:'reco',formal:true,market:'胜平负',picks:[pk],label:pk,line:null,single:true,double:false,source:'3.3单选'};}
- if(sc==='SINGLE'&&sp.length){return {kind:'reco',formal:true,market:'胜平负',picks:[sp[0]],label:sp[0],line:null,single:true,double:false,source:'3.3单选'};}
+ if(/DOUBLE/.test(up)&&r?.top1&&r?.second_pick){const ps=[hjPickZh(r.top1),hjPickZh(r.second_pick)];return {kind:'reco',formal:true,market:'胜平负',picks:ps,label:ps.join(' + '),line:null,single:false,double:true,source:'3.6双选'};}
+ if(sc==='STRONG_DOUBLE'||sc==='CANDIDATE_DOUBLE'){const ps=sp.length>=2?sp:[hjPickZh(r?.top1),hjPickZh(r?.second_pick)].filter(Boolean);if(ps.length>=2)return {kind:'reco',formal:true,market:'胜平负',picks:ps,label:ps.join(' + '),line:null,single:false,double:true,source:'3.6双选'};}
+ if(/SINGLE/.test(up)){const pk=hjPickZh(r?.ticket_pick||r?.top1);if(pk)return {kind:'reco',formal:true,market:'胜平负',picks:[pk],label:pk,line:null,single:true,double:false,source:'3.6单选'};}
+ if(sc==='SINGLE'&&sp.length){return {kind:'reco',formal:true,market:'胜平负',picks:[sp[0]],label:sp[0],line:null,single:true,double:false,source:'3.6单选'};}
  if(rr==='RECOMMEND'&&rp){return {kind:'reco',formal:true,market:'胜平负',picks:[rp],label:rp,line:null,single:true,double:false,source:'最优玩法路由'};}
  if(r?.ticket_pick){const pk=hjPickZh(r.ticket_pick);return {kind:'reco',formal:true,market:'胜平负',picks:[pk],label:pk,line:null,single:true,double:false,source:'正式票面'};}
  if(/PASS/.test(up)||sc==='PASS')return {kind:'pass',formal:false,market:'—',picks:[],label:'PASS',line:null,single:false,double:false,source:'PASS'};
@@ -468,7 +468,7 @@ function hjQuickConclusion(r){
  if(pl.double)return '双选按组合结算：任一方向命中即计成功。';
  if(pl.market==='官方让球')return '本场最终玩法为竞彩让球，按让胜 / 让平 / 让负结算。';
  if(pl.kind==='analysis')return '当前仅保留分析，不冒充正式推荐。';
- return '按索伦引擎3.3最终玩法结算，不再使用方向灯或价值灯作为前台结果口径。';
+ return '按索伦引擎3.6最终玩法结算，不再使用方向灯或价值灯作为前台结果口径。';
 }
 function hjQuickScoreHtml(r){
  const d=hjPoissonScoreData(r);if(!d)return '';
