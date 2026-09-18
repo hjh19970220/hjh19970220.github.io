@@ -408,6 +408,16 @@ function hjPickZh(v){
  return m[x]||x;
 }
 function hjFinalPlan(r){
+ const s=r?.source_status||{},bp=s?.hj32_best_play_selector_v02||null;
+ if(bp&&String(bp.status||'')==='ACTIVE_FORMAL_RECOMMENDATION_LAYER'){
+   const action=String(bp.action||'').toUpperCase(),marketCode=String(bp.selected_market||'').toUpperCase();
+   const picks=(Array.isArray(bp.selected_picks)?bp.selected_picks:[]).filter(Boolean).map(hjPickZh);
+   const market=marketCode==='OFFICIAL_HHAD'?'官方让球':marketCode==='FT_HAD'?'胜平负':marketCode==='ASIAN_HANDICAP'?'亚洲盘':marketCode||'—';
+   if((action==='RECOMMEND_SINGLE'||action==='RECOMMEND_DOUBLE')&&picks.length){
+     return {kind:'reco',formal:true,market,picks,label:picks.join(' + '),line:marketCode==='OFFICIAL_HHAD'?(r?.official_handicap??null):null,single:action==='RECOMMEND_SINGLE',double:action==='RECOMMEND_DOUBLE',source:'豪竞3.3 Best Play'};
+   }
+   if(action==='PASS'||action==='NO_RECOMMENDATION')return {kind:'pass',formal:false,market:'—',picks:[],label:'PASS',line:null,single:false,double:false,source:'豪竞3.3 Best Play'};
+ }
  const route=r?.optimal_market_route||{},fh=String(r?.final_handling||''),up=fh.toUpperCase(),sd=hjSingleDoubleData(r),sc=String(sd?.class_code||'').toUpperCase(),sp=Array.isArray(sd?.picks)?sd.picks.filter(Boolean).map(hjPickZh):[];
  const rr=String(route?.route_status||'').toUpperCase(),rm=String(route?.selected_market||'').toUpperCase(),rp=hjPickZh(route?.selected_pick||'');
  if(rr==='RECOMMEND'&&rp&&rm&&rm!=='FT_HAD'){
