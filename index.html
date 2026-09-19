@@ -85,7 +85,7 @@ nav::-webkit-scrollbar{display:none}
 <script>
 const API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-console-v1';
 const HB_CUM_API='https://tqlibowvnwfkaseqqvvp.supabase.co/functions/v1/hao-basketball-7m-probe-v01';
-const APP_BUILD="2026-09-19 索伦引擎前端v44-refresh-fix";
+const APP_BUILD="2026-09-20 索伦引擎前端v45-ft-wdl";
 let DATA=null,TAB='dashboard',AUTO_TIMER=null,DETAIL=null,RESET_HJ_SCROLL=false;
 let HB_CUM=null;
 async function checkBuildVersion(){try{const r=await fetch('/version.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)return false;const j=await r.json();if(j&&j.build&&j.build!==APP_BUILD){const target=String(j.build),u=new URL(location.href);if(u.searchParams.get('v')===target){console.warn('Build mismatch persists after one cache-busting reload; suppressing refresh loop.',{app:APP_BUILD,target});return false}u.searchParams.set('v',target);u.searchParams.set('t',Date.now().toString());location.replace(u.toString());return true}return false}catch(_){return false}}
@@ -487,9 +487,7 @@ function hjQuickCard(r){
  const ftHit=r.result_verified?(code(ft1)===String(r.result_1x2)?' ✅ 首选命中':code(ft2)===String(r.result_1x2)?' ✅ 次选命中':' ❌ 双选未中'):'';
  return '<div class="hjqcard" onclick="showMatch(\'hj\',\''+esc(r.match_no)+'\')">'+
    '<div class="hjqhead"><div><span class="hjqno">'+esc(r.match_no)+'</span> <span class="hjqleague">'+esc(r.league||'')+'</span></div><span class="hjqtime">'+esc(time)+'</span></div>'+
-   '<div class="hjqteams">'+esc(r.home_team)+' <span style="color:#5f7892;font-weight:600">vs</span> '+esc(r.away_team)+'</div>'++
-   '<div class="hjqchips"><span class="hjqchip">⚽ FT首选 '+esc(ft1)+'</span><span class="hjqchip">次选 '+esc(ft2)+'</span><span class="hjqchip">'+esc(ftHit||'胜平负全池分析')+'</span></div>'
-   '<div class="hjqline"><div class="hjqpick">'+esc(pl.label)+'</div><div class="hjqprob">'+esc(pl.market)+' · FT参考 '+esc(r.top1||'—')+' '+esc(p)+'</div></div>'+
+   '<div class="hjqteams">'+esc(r.home_team)+' <span style="color:#5f7892;font-weight:600">vs</span> '+esc(r.away_team)+'</div>'+\n   '<div class="hjqchips"><span class="hjqchip">⚽ FT首选 '+esc(ft1)+'</span><span class="hjqchip">次选 '+esc(ft2)+'</span><span class="hjqchip">'+esc(ftHit||'胜平负全池分析')+'</span></div>'+\n   '<div class="hjqline"><div class="hjqpick">'+esc(pl.label)+'</div><div class="hjqprob">'+esc(pl.market)+' · FT参考 '+esc(r.top1||'—')+' '+esc(p)+'</div></div>'+
    '<div class="hjqchips"><span class="hjqchip">🔀 '+esc(type)+'</span><span class="hjqchip">⚽ 比分 '+esc(hjScorePicksText(r))+'</span></div>'+
    hjQuickScoreHtml(r)+hjIndependentQuickHtml(r)+
    '<div class="hjqresult '+resClass+'">'+esc(resText)+'</div>'+
