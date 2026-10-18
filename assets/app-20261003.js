@@ -4196,6 +4196,23 @@
         ['赛事总数','已核验赛事','待核验赛事'].forEach((label,i)=>{if(labels[i])labels[i].textContent=label});
         $('poolCount').textContent=state.selectedDate+' · 0场';return;
       }
+      const sk=state.model==='score'?'shadowScoreTop3':state.model==='htft'?'shadowHTFTTop3':state.model==='goals'?'shadowGoalsTop3':null;
+      if(sk){
+        const rows=state.today?.rows||[],valid=rows.filter(row=>row[sk]?.sourceKind==='SG_PREMATCH_SHADOW_TOP3');
+        if(valid.length&&!rows.some(row=>row.scoreTop4||row.htftTop4||row.goalPrediction)){
+          const graded=valid.filter(row=>['SUCCESS','FAILURE'].includes(row[sk].settlementStatus));
+          const wins=graded.filter(row=>row[sk].settlementStatus==='SUCCESS').length;
+          const labels=document.querySelectorAll('.metric span');
+          $('totalCount').textContent=htftRate(wins,graded.length);
+          $('pickCount').textContent=wins+'/'+graded.length;
+          $('passCount').textContent=(valid.length-graded.length)+' / '+(rows.length-valid.length);
+          labels[0].textContent=(state.model==='score'?'比分':state.model==='htft'?'半全场':'总进球')+'Top3 · 影子评测成功率';
+          labels[1].textContent='成功 / 已评测';
+          labels[2].textContent='待核验 / 无赛前预测';
+          $('poolCount').textContent=state.selectedDate+' · 赛前影子 '+valid.length+'场 · 不计正式战绩';
+          return;
+        }
+      }
       if(state.today?.analysisPending===true){
         const rows=state.today.rows||[],labels=document.querySelectorAll('.metric span');
         $('totalCount').textContent=String(rows.length);
