@@ -525,7 +525,7 @@
       line(holder,'市场盈亏 主 / 平 / 客',[a.betfair.profitIndex.home,a.betfair.profitIndex.draw,a.betfair.profitIndex.away].map(v=>num(v)).join(' / '));
       line(holder,'凯利最低方向',(a.kelly.lowestDirection||'待确认')+(a.kelly.lowestValue!==null?' · '+num(a.kelly.lowestValue,3):''));
       line(holder,'凯利完整机构',a.kelly.completeCount+' 家');
-      if(a.flags.length){holder.append(el('b','','系统识别要点'));const ul=el('ul','member-zone-intel-list');a.flags.forEach(x=>ul.append(el('li','',x)));holder.append(ul)}
+      if(a.flags.length){holder.append(el('b','','数据核验说明'));const ul=el('ul','member-zone-intel-list');a.flags.filter(x=>!/^新加坡测试数据/.test(String(x))).forEach(x=>ul.append(el('li','',x)));if(ul.childElementCount)holder.append(ul)}
       line(holder,'情报影响',(a.intelligence.impactSide||'中性')+' · '+(a.intelligence.impactLevel||'低'));
       line(holder,'有效伤停/阵容',a.intelligence.injuryCount+' 条');
       if(a.intelligence.highlights.length){const ul=el('ul','member-zone-intel-list');a.intelligence.highlights.forEach(x=>ul.append(el('li','',x)));holder.append(ul)}
