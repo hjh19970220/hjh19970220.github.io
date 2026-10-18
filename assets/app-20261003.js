@@ -4125,7 +4125,7 @@
         if(supplement){
           const meta=row.dailySelectionMeta??row.daily_selection_meta??{};
           const odds=Number(meta.williamTop1Odds??meta.william_top1_odds);
-          selection.append(el('span','',Number.isFinite(odds)?'赛前筛选通过 · 风险过滤通过 · 参考赔率 +odds.toFixed(2):'赛前筛选通过 · 风险过滤通过'));
+          selection.append(el('span','',Number.isFinite(odds)?'赛前筛选通过 · 风险过滤通过 · 参考赔率 '+odds.toFixed(2):'赛前筛选通过 · 风险过滤通过'));
         }else selection.append(el('span','','通过核心筛选'));
         summary.append(selection);
       }
