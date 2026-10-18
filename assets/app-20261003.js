@@ -1653,7 +1653,11 @@
     }
     function statusText(row,history){
       if(interruptedMatch(row))return '比赛中断｜待官方处理';
-      const shadow=state.model==='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
+      if(state.model==='daily'&&shadowDailyEligible(row)){
+        const grade=row.shadowDailySelection.ftStatus;
+        return grade==='SUCCESS'?'评测成功 · 胜平负':grade==='FAILURE'?'评测失败 · 胜平负':'等待评测';
+      }
+      const shadow=state.model='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
       if(shadow){
         if(shadow.settlementStatus==='SUCCESS')return '评测成功 · Top3';
         if(shadow.settlementStatus==='FAILURE')return '评测失败 · Top3';
@@ -1679,6 +1683,10 @@
       return '赛前冻结'
     }
     function statusClass(row,history){
+      if(state.model==='daily'&&shadowDailyEligible(row)){
+        const grade=row.shadowDailySelection.ftStatus;
+        return 'status '+(grade==='SUCCESS'?'verified':grade==='FAILURE'?'fail':'');
+      }
       const shadow=state.model==='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
       if(shadow)return 'status '+(shadow.settlementStatus==='SUCCESS'?'verified':shadow.settlementStatus==='FAILURE'?'fail':'');
       if(interruptedMatch(row))return 'status pass';if(postponedMatch(row))return 'status pass';if(state.model==='htft'){const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;return 'status '+(htftSettled(h)?(htftTop3Hit(h)?'verified':'fail'):'');}if(state.model==='score'){const x=scoreInfo(row);if(!x&&scoreSimulationInfo(row)&&verified(row))return 'status verified';return 'status '+(!x||x.settlementStatus==='PENDING'?'':x.settlementStatus==='SUCCESS'?'verified':'fail')}if(verified(row))return 'status '+(state.model==='goals'?'verified':(state.model==='handicap'||handicapOnlyView(row))&&!handicapEvaluable(row)?'':evaluationHit(row)?'verified':'fail');return 'status'}
@@ -2255,8 +2263,15 @@
       const tier=String(warning?.displayTier??warning?.display_tier??'');
       return warning?.publish===true||tier==='重点风险'||tier==='强风险信号';
     }
+    function shadowDailyEligible(row){
+      const d=row?.shadowDailySelection;
+      if(!d||d.selected!==true||d.sourceKind!=='SG_PREMATCH_SHADOW_DAILY'||d.formalEligible!==false||dailySelectionHardBlocked(row))return false;
+      const t=Date.parse(String(d.publishedAt||'')),ko=Date.parse(String(row.kickoff||''));
+      return Number.isFinite(t)&&Number.isFinite(ko)&&t<ko&&['主胜','平局','客胜'].includes(String(d.direction||''));
+    }
     function isFocus(row){
       if(dailySelectionHardBlocked(row))return false;
+      if(shadowDailyEligible(row))return String(row.dailySelectionTier||'').toUpperCase()==='CORE';
       const archived=ARCHIVED_FOCUS[row.date],no=String(row.no??'').padStart(3,'0');
       if(Array.isArray(archived))return row.pregameVerified===true&&archived.includes(no);
       const dailyTier=String(row.dailySelectionTier??row.daily_selection_tier??'').trim().toUpperCase();
@@ -2272,7 +2287,7 @@
       return row.pregameVerified===true&&(explicit||marked||frozenFormal);
     }
     function isSupplement(row){
-      return !dailySelectionHardBlocked(row)&&row.pregameVerified===true&&String(row.dailySelectionTier??row.daily_selection_tier??'').toUpperCase()==='SUPPLEMENT';
+      return !dailySelectionHardBlocked(row)&&(shadowDailyEligible(row)||row.pregameVerified===true)&&String(row.dailySelectionTier??row.daily_selection_tier??'').toUpperCase()==='SUPPLEMENT';
     }
     // Historical replay uses only evidence available at the original pre-kickoff freeze; HUR never determines direction and result fields are excluded.
     function upsetInfo(row){
@@ -2707,7 +2722,7 @@
         const updateTip=updateNotice();if(updateTip)box.append(updateTip);
         box.append(empty('赛事数据待更新','正在等待该日期比赛与预测同步。'));return
       }
-      if(state.today?.analysisPending===true){
+      if(state.today?.analysisPending===true&&state.model!=='daily'){
         const pendingRows=state.today.rows||[];
         renderCards('今日赛事',pendingRows.length+'场 · 赛前分析待发布',pendingRows);return
       }
@@ -2715,7 +2730,7 @@
       const pending=state.model==='daily'?(state.today?.rows||[]).filter(r=>r.analysisPending===true):[];
       const focus=state.model==='daily'?all.filter(isFocus):[];
       const supplement=state.model==='daily'?all.filter(r=>isSupplement(r)&&!isFocus(r)):[];
-      if(state.model==='daily'&&pending.length){
+      if(state.model==='daily'&&pending.length&&!all.length){
         const box=$('content');box.replaceChildren();
         const updateTip=updateNotice();if(updateTip)box.append(updateTip);
         const summary=el('div','daily-summary');
