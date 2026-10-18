@@ -139,14 +139,21 @@ Deno.serve(async(req:Request)=>{
       if(result.error)throw result.error;
       diagnostics.push({status:"BATCH_WRITTEN",run_id:result.data?.run_id,fields_changed:result.data?.fields_changed});
     }
-    if(conflicts.length||diagnostics.some((x:any)=>x.error)){
-      await sb.schema("ninety_core").from("ingest_runs").insert({source_name:"ninety_result_verification_audit_v1",status:conflicts.length?"conflict":"completed",
+    if(conflicts.length||diagnostics.some((x:any)=>x.status!=="BATCH_WRITTEN")){
+      await sb.schema("ninety_core").from("ingest_runs").insert({source_name:"ninety_result_verification_audit_v1",status:conflicts.length?"conflict":"partial",
         finished_at:new Date().toISOString(),summary:{checked:candidates.length+noElo.length,verified:verified.length,conflicts,diagnostics}});
     }
     return Response.json({ok:true,date_range:[yesterday,today],checked:candidates.length+noElo.length,verified:verified.length,
       conflicts:conflicts.length,rows:verified,conflict_rows:conflicts,diagnostics,at:started.toISOString()});
   }catch(error){
     console.error("RESULT_VERIFICATION_FAILED",error);
+    try {
+      await sb.schema("ninety_core").from("ingest_runs").insert({
+        source_name:"ninety_result_verification_audit_v1",status:"failed",
+        started_at:started.toISOString(),finished_at:new Date().toISOString(),
+        summary:{error:String(error).slice(0,1000)}
+      });
+    }catch(logError){console.error("RESULT_VERIFICATION_LOG_FAILED",logError)}
     return Response.json({ok:false,error:String(error),at:started.toISOString()},{status:500});
   }
 });
