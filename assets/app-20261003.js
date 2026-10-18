@@ -179,7 +179,7 @@
       if(response.status===401&&authSession?.refresh_token){
         await refreshAuthSession(true);response=await request();
       }
-      if(response.status===401){clearAuthSession();showLoginGate('登录已过期，请重新登录');throw Error('LOGIN_REQUIRED')}
+      if(response.status===401){if(url.includes('/functions/v1/ninety-member-intel-v1'))throw Error('MEMBER_INTEL_UNAUTHORIZED');clearAuthSession();showLoginGate('登录已过期，请重新登录');throw Error('LOGIN_REQUIRED')}
       return response;
     }
     async function logoutAuth(){
