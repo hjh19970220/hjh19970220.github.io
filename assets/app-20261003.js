@@ -1653,6 +1653,12 @@
     }
     function statusText(row,history){
       if(interruptedMatch(row))return '比赛中断｜待官方处理';
+      const shadow=state.model==='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
+      if(shadow){
+        if(shadow.settlementStatus==='SUCCESS')return '评测成功 · Top3';
+        if(shadow.settlementStatus==='FAILURE')return '评测失败 · Top3';
+        return shadow.pendingReason==='HALFTIME_NOT_VERIFIED'?'等待半场赛果核验':'等待评测';
+      }
       if(row?.settlement?.verified===true){const g=state.model==='handicap'?row.settlement.handicapTop1Status:row.settlement.ftTop1Status;if(g==='SUCCESS')return '评测成功';if(g==='FAILURE')return '评测失败';}
       if(row?.analysisPending===true)return '赛前分析待发布';
       if(state.model==='htft'){
@@ -1672,7 +1678,10 @@
       if(row.predictionState==='LIVE'&&Date.now()<Date.parse(String(row.kickoff||'')))return '赛前更新中';
       return '赛前冻结'
     }
-    function statusClass(row,history){if(interruptedMatch(row))return 'status pass';if(postponedMatch(row))return 'status pass';if(state.model==='htft'){const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;return 'status '+(htftSettled(h)?(htftTop3Hit(h)?'verified':'fail'):'');}if(state.model==='score'){const x=scoreInfo(row);if(!x&&scoreSimulationInfo(row)&&verified(row))return 'status verified';return 'status '+(!x||x.settlementStatus==='PENDING'?'':x.settlementStatus==='SUCCESS'?'verified':'fail')}if(verified(row))return 'status '+(state.model==='goals'?'verified':(state.model==='handicap'||handicapOnlyView(row))&&!handicapEvaluable(row)?'':evaluationHit(row)?'verified':'fail');return 'status'}
+    function statusClass(row,history){
+      const shadow=state.model==='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
+      if(shadow)return 'status '+(shadow.settlementStatus==='SUCCESS'?'verified':shadow.settlementStatus==='FAILURE'?'fail':'');
+      if(interruptedMatch(row))return 'status pass';if(postponedMatch(row))return 'status pass';if(state.model==='htft'){const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;return 'status '+(htftSettled(h)?(htftTop3Hit(h)?'verified':'fail'):'');}if(state.model==='score'){const x=scoreInfo(row);if(!x&&scoreSimulationInfo(row)&&verified(row))return 'status verified';return 'status '+(!x||x.settlementStatus==='PENDING'?'':x.settlementStatus==='SUCCESS'?'verified':'fail')}if(verified(row))return 'status '+(state.model==='goals'?'verified':(state.model==='handicap'||handicapOnlyView(row))&&!handicapEvaluable(row)?'':evaluationHit(row)?'verified':'fail');return 'status'}
     function moduleData(row){
       if(handicapOnlyView(row))return [['官方让球',row.officialHandicap],['让球首选',handicapDisplayChoice(row,row.handicapTop1??row.handicap,row.handicapProbability)],['让球次选',handicapDisplayChoice(row,row.handicapSecond,row.handicapSecondProbability)]];
       if(state.model==='handicap')return [['官方让球',row.officialHandicap],['让球首选',handicapChoice(row.handicapTop1??row.handicap,row.handicapProbability)],['让球次选',handicapChoice(row.handicapSecond,row.handicapSecondProbability)]];
@@ -1752,7 +1761,19 @@
           el('small','',Number.isFinite(probability)?(probability*100).toFixed(1)+'%':'—'));
         grid.append(cell);
       });
-      box.append(grid,el('p','report-sub','新加坡赛前影子预测 · '+fmtStamp(data.publishedAt)+' 留存；所示为模型概率，不是命中率，暂不计入正式战绩。'));
+      box.append(grid);
+      const status=data.settlementStatus;
+      if(status==='SUCCESS'||status==='FAILURE'){
+        const actual=kind==='score'?String(data.actual).replace('-',':'):kind==='goals'?String(data.actual)+'球':String(data.actual);
+        const label=status==='SUCCESS'?'评测成功':'评测失败';
+        box.append(el('div','score-top4-verdict '+(status==='SUCCESS'?'success':'fail'),
+          title+'Top3 · '+label+' · 实际结果：'+actual));
+        box.append(el('p','report-sub','Top1 '+(data.top1Status==='SUCCESS'?'命中':'未命中')+'；Top3按照三个赛前候选是否覆盖实际结果评测。'));
+      }else{
+        box.append(el('div','score-top4-verdict pending',data.pendingReason==='HALFTIME_NOT_VERIFIED'?
+          '等待半场赛果核验 · 暂不判定成功或失败':'等待评测 · 90分钟赛果尚未核验'));
+      }
+      box.append(el('p','report-sub','新加坡赛前影子预测 · '+fmtStamp(data.publishedAt)+' 留存；所示为模型概率，不是命中率，暂不计入正式战绩。'));
       return box;
     }
     function htftTop4Panel(row,selectedInfo){
@@ -1940,8 +1961,12 @@
       if(historical)id.append(el('span','focus-label','历史复算'));
       const done=valid&&htftSettled(info),hit=done&&htftTop3Hit(info);
       const prefix=marketShadow?'动态Top3':historical?'历史复算Top3':'原始Top3';
-      const label=!valid?(row.shadowHTFTTop3?'赛前影子Top3':'Top3数据待更新'):done?(prefix+' · '+(hit?'命中':'未命中')):(prefix+' · 等待核验');
-      head.append(id,el('span','status'+(done?(hit?' verified':' fail'):'') ,label));
+      const shadowGrade=row.shadowHTFTTop3?.settlementStatus;
+      const label=!valid?(shadowGrade==='SUCCESS'?'评测成功 · Top3':shadowGrade==='FAILURE'?'评测失败 · Top3':
+        row.shadowHTFTTop3?.pendingReason==='HALFTIME_NOT_VERIFIED'?'等待半场赛果核验':
+        row.shadowHTFTTop3?'等待评测':'Top3数据待更新')
+        :done?(prefix+' · '+(hit?'命中':'未命中')):(prefix+' · 等待核验');
+      head.append(id,el('span','status'+(!valid?(shadowGrade==='SUCCESS'?' verified':shadowGrade==='FAILURE'?' fail':''):(done?(hit?' verified':' fail'):'')),label));
       const fixture=el('div','fixture'),teams=el('div','team-list');
       [[row.home,row.homeLogo],[row.away,row.awayLogo]].forEach(([name,logo])=>teams.append(teamNode(name,logo)));
       const settled=verified(row),score=el('div','score',settled&&hasScore(row)?scoreline(row):'VS');
@@ -1993,7 +2018,7 @@
       id.append(el('span','league',safe(row.league)),document.createTextNode(fmtTime(row.kickoff)+' · '+safe(row.no)));
       if(dynamic)id.append(el('span','focus-label','赛前动态预测'));
       else if(original)id.append(el('span','focus-label','原始赛前预测'));
-      head.append(id,el('span',row.shadowScoreTop3&&!selected?'status':statusClass(row,history),row.shadowScoreTop3&&!selected?'赛前影子Top3':statusText(row,history)));
+      head.append(id,el('span',statusClass(row,history),statusText(row,history)));
       const fixture=el('div','fixture'),teams=el('div','team-list');
       [[row.home,row.homeLogo],[row.away,row.awayLogo]].forEach(([name,logo])=>teams.append(teamNode(name,logo)));
       const settled=verified(row),score=el('div','score',settled&&hasScore(row)?scoreline(row):'VS');
