@@ -1,0 +1,322 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>九十刻度 · 管理员统计</title><style>body{margin:0;background:#f5f5f5;font:15px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#242424}.wrap{max-width:650px;margin:35px auto;padding:20px}h1{font-size:23px}.panel{background:white;border-radius:14px;padding:20px;margin:14px 0;box-shadow:0 2px 12px #00000009}input{box-sizing:border-box;width:100%;padding:13px;margin:7px 0;border:1px solid #ddd;border-radius:8px;font-size:16px}button{background:#cf2930;color:#fff;border:0;border-radius:8px;padding:12px 18px;margin:8px 8px 0 0;cursor:pointer}.muted{color:#777;font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stat{background:#f7f7f7;border-radius:9px;padding:15px}.stat b{font-size:26px;display:block;margin-top:8px}.stat.primary{grid-column:1/-1;background:#172031;color:#fff;padding:20px}.stat.primary b{font-size:44px;color:#fff}.stat.primary small{font-size:12px;color:#c5d1e1;display:block;margin-top:4px}.section-title{font-size:16px;margin:18px 0 10px}.daily-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}.daily-item{text-align:center;background:#f5f7f9;border-radius:8px;padding:8px 2px;font-size:12px}.daily-item strong{display:block;font-size:17px;margin-top:5px}.daily-item small{font-size:10px;color:#687386}.stat-caption{font-size:11px;line-height:1.6;color:#666;margin:10px 0 0}.statusline{font-size:12px;color:#687386;margin:10px 0}@media(max-width:390px){.daily-list{gap:3px}.daily-item{font-size:10px;padding:7px 1px}.daily-item strong{font-size:15px}}.admin-tool{margin-top:22px;padding-top:18px;border-top:1px solid #ececec}.secondary{background:#687386}.reset-note{margin:4px 0 10px;line-height:1.6}.final-intel-results{margin-top:16px}.final-intel-row{background:#f8fafc;border:1px solid #e7ebf0;border-radius:12px;padding:14px;margin:12px 0}.final-intel-row h4{font-size:15px;margin:0 0 8px}.final-intel-row p{line-height:1.55;margin:8px 0}.final-intel-row details{border-top:1px solid #e0e5eb;padding-top:9px;margin-top:9px}.final-intel-row summary{font-size:13px;cursor:pointer;color:#394d68}.final-intel-pick{display:inline-block;font-weight:800;padding:8px 12px;border-radius:9px;background:#e6f4ea;color:#1d6338}.final-intel-pick.pass{background:#fff0e0;color:#8c5713}.final-intel-pick.single{background:#e6f4ea;color:#1d6338}a{color:#b72129}.gpt-one-row{background:#f8fafc;border:1px solid #e7ebf0;border-radius:11px;margin:10px 0;padding:13px}.gpt-one-head{font-weight:700;font-size:14px;margin-bottom:9px}.gpt-one-main{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}.gpt-one-pred{font-size:16px}.gpt-one-verdict{font-size:14px}.gpt-one-verdict.hit{color:#18834d}.gpt-one-verdict.miss{color:#bd3030}.gpt-one-verdict.neutral{color:#7b8493}.gpt-one-foot{font-size:12px;margin:6px 0 0;line-height:1.5}.dual-wrap{margin-top:14px}.dual-overview{display:grid;grid-template-columns:1fr;gap:10px;margin:13px 0}.dual-stat{background:#f6f8fb;border-radius:10px;border:1px solid #e8edf3;padding:12px;line-height:1.6;font-size:13px}.dual-stat strong{display:block;font-size:16px;color:#182638}.dual-stat small{color:#64748b}.dual-row{background:#f8fafc;border:1px solid #e8edf3;border-radius:12px;padding:13px;margin:10px 0}.dual-row h4{margin:0 0 9px;font-size:14px}.dual-columns{display:grid;grid-template-columns:1fr 1fr;gap:9px}.dual-cell{border-radius:9px;background:#edf6f0;padding:9px;min-width:0;font-size:13px}.dual-cell.aggressive{background:#ebf2ff}.dual-cell b{display:block;color:#1c3650;line-height:1.6;overflow-wrap:anywhere}.dual-cell small{font-size:11px;color:#627286;display:block;line-height:1.6;margin-top:3px}.dual-stamp{font-size:11px;color:#7b8795;margin-top:6px}.dual-warning{font-size:12px;background:#fff8e8;padding:10px;border-radius:8px;color:#795a19;line-height:1.6}@media(max-width:430px){.dual-overview{gap:6px}.dual-stat{padding:9px}.dual-columns{gap:5px}.dual-cell{padding:8px}.dual-cell b{font-size:12px}}</style></head><body><div class="wrap"><h1>九十刻度 · 管理员统计</h1><p class="muted">仅限已授权管理员。普通会员无法读取会员统计。</p><section id="login" class="panel"><h2>管理员登录</h2><input id="email" type="email" autocomplete="email" placeholder="管理员邮箱"><input id="password" type="password" autocomplete="current-password" placeholder="密码"><button id="signIn">登录并查看统计</button><p id="msg" class="muted"></p></section><section id="dashboard" class="panel" hidden>
+<h2>注册人数概览</h2>
+<div class="grid">
+<div class="stat primary">累计注册账号<b id="total">—</b><small>Supabase 真实账号数 · 非访问次数</small></div>
+<div class="stat">今日新注册<b id="today">—</b></div>
+<div class="stat">昨日新注册<b id="yesterday">—</b></div>
+<div class="stat">近7天注册<b id="week">—</b></div>
+<div class="stat">近30天注册<b id="month">—</b></div>
+</div>
+<p class="stat-caption">统计的是已创建的账号，包含管理员及未独立验证邮箱的账号；不代表去重后的真实用户人数。今日、昨日按北京时间计算；近7天、近30天为滚动时间范围。</p>
+<h3 class="section-title">最近7天 · 每日注册</h3>
+<div id="daily" class="daily-list" aria-label="最近7天每日注册账号数"></div>
+<h3 class="section-title">其他统计</h3>
+<div class="grid"><div class="stat">系统标记邮箱已确认<b id="verified">—</b></div><div class="stat">实际记录访次<b id="visits">—</b></div></div>
+<p class="muted">展示访问计数：<span id="display">—</span>。邮箱确认可能由系统自动标记，不能证明用户确实收到了验证邮件。</p>
+<div class="admin-tool">
+<h3 class="section-title">账号密码重置</h3>
+<p class="muted reset-note">仅修改用户登录密码，不会修改会员状态、到期时间、邀请记录或其他账号资料。重置操作会记录管理员、目标账号和时间，但不会记录密码。</p>
+<input id="resetEmail" type="email" autocomplete="off" placeholder="用户邮箱">
+<input id="resetPassword" type="password" autocomplete="new-password" placeholder="新密码（至少8位）">
+<input id="resetPassword2" type="password" autocomplete="new-password" placeholder="再次输入新密码">
+<button id="toggleResetPassword" class="secondary" type="button">显示密码</button>
+<button id="resetUserPassword" type="button">确认重置密码</button>
+<p id="resetMsg" class="muted"></p>
+</div>
+<div class="admin-tool" id="gptUnifiedArea">
+<h3 class="section-title">GPT预测 · 命中结果</h3>
+<label class="muted" for="gptUnifiedDate">竞彩日期（北京时间）</label>
+<input type="date" id="gptUnifiedDate" aria-label="选择竞彩日期">
+<button type="button" id="gptUnifiedLoad">查看预测与赛果</button>
+<div id="gptUnifiedList" class="final-intel-results" hidden aria-live="polite"></div>
+</div>
+
+<div class="admin-tool" id="dualShadowArea">
+<h3 class="section-title">🧪 综合智能分流 · 研究版</h3>
+<p class="muted">管理员专用的单一分流模块。原稳健版、激进版已从此页面撤下。仅复用已有赛前快照，未修改模型、今日优选、客户推荐或自动采集。</p>
+<div><button id="dualShadowHistory" type="button">📊 历史重建</button><button id="dualShadowLive" class="secondary" type="button">📈 赛前影子归档</button></div>
+<p class="dual-warning" id="dualShadowNote">当前是可核验条件下的部分重建版，不是旧ABCDE完整规则。历史研究记录“193场／让球30场23中／综合162中”尚未逐场独立复现，禁止直接当作本站新方案历史成绩。</p>
+<label class="muted" for="dualShadowDate">竞彩日期（北京时间）</label>
+<input type="date" id="dualShadowDate" min="2026-09-23" max="2026-10-12" aria-label="选择综合分流日期">
+<button id="dualShadowLoad" type="button">查看综合分流结果</button>
+<p id="dualShadowStatus" class="statusline" aria-live="polite">选择日期，手动加载影子研究结果。</p>
+<div id="dualShadowStats" class="dual-overview" hidden></div>
+<div id="dualShadowList" class="dual-wrap" hidden aria-live="polite"></div>
+</div>
+<p class="statusline" id="updated">等待更新…</p>
+<button id="refresh">刷新统计</button><button id="logout">退出</button>
+</section><p><a href="./review.html">前往邀请审核后台</a>　·　<a href="./">返回九十刻度客户端</a></p></div><script>"use strict";
+const base="https://zssourkgabcxibggwhqm.supabase.co";
+const key="sb_publishable_94kSLoSqua2oF4T0C-qBmA_t3jlZ4h7";
+const siteKey="0x4AAAAAAFBKndRZlD2qH4Km";
+const $=id=>document.getElementById(id);
+let token=null;
+const showError=e=>{
+  if(e==="Email not confirmed")return "当前账号尚未完成邮箱确认。如已关闭确认要求，请在 Supabase Auth 中检查该历史账号状态。";
+  return e||"请求失败，请稍后重试";
+};
+function getSharedSession(){
+ for(const store of [localStorage,sessionStorage]){
+  try{
+   const session=JSON.parse(store.getItem("soren_auth_v2")||"null");
+   if(session?.access_token&&session?.user&&(!session.expires_at||Number(session.expires_at)>Date.now()+10000))
+     return session;
+  }catch{}
+ }
+ return null;
+}
+async function refresh(){
+ if(!token)throw Error("请先登录管理员账号");
+ const r=await fetch(base+"/rest/v1/rpc/soren_admin_stats_v1",{
+  method:"POST",headers:{apikey:key,Authorization:"Bearer "+token,"Content-Type":"application/json"},
+  body:"{}",cache:"no-store",signal:AbortSignal.timeout(10000)});
+ if(!r.ok)throw Error(r.status===403?"该账号尚未获得管理员授权":r.status===401?"登录状态已过期，请返回九十刻度客户端重新登录":"统计读取失败：HTTP "+r.status);
+ const d=await r.json();
+ $("total").textContent=Number(d.members_total).toLocaleString();
+ $("today").textContent=Number(d.members_today).toLocaleString();
+ $("yesterday").textContent=Number(d.members_yesterday??0).toLocaleString();
+ $("week").textContent=Number(d.members_7d??0).toLocaleString();
+ $("month").textContent=Number(d.members_30d??0).toLocaleString();
+ const daily=$("daily");daily.replaceChildren();
+ if(Array.isArray(d.registration_daily_7d)){
+   d.registration_daily_7d.forEach(row=>{
+     const item=document.createElement("div");item.className="daily-item";
+     const name=document.createElement("small");name.textContent=String(row.date||"").slice(5).replace("-","/");
+     const value=document.createElement("strong");value.textContent=Number(row.count||0).toLocaleString();
+     item.append(name,value);daily.append(item);
+   });
+ }
+ $("updated").textContent="数据更新于："+(d.stats_updated_at?
+   new Date(d.stats_updated_at).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false})+"（北京时间）":"当前");
+ $("verified").textContent=Number(d.email_verified).toLocaleString();
+ $("visits").textContent=Number(d.visits_recorded).toLocaleString();
+ $("display").textContent=Number(d.visits_display).toLocaleString();
+}
+async function resetUserPassword(){
+ if(!token){$("resetMsg").textContent="请先登录管理员账号";return}
+ const email=$("resetEmail").value.trim().toLowerCase();
+ const password=$("resetPassword").value;
+ const password2=$("resetPassword2").value;
+ const bytes=new TextEncoder().encode(password).length;
+ if(!email||!email.includes("@")){$("resetMsg").textContent="请输入正确的用户邮箱";return}
+ if(password.length<8||bytes>72){$("resetMsg").textContent="新密码至少8位，且不能超过72字节";return}
+ if(password!==password2){$("resetMsg").textContent="两次输入的新密码不一致";return}
+ if(!confirm("确认重置 "+email+" 的登录密码？\n\n该操作不会修改会员状态，但用户下次登录需使用新密码。"))return;
+ const btn=$("resetUserPassword");
+ btn.disabled=true;$("resetMsg").textContent="正在重置密码…";
+ try{
+  const r=await fetch(base+"/functions/v1/soren-admin-user-password-v1",{
+   method:"POST",
+   headers:{apikey:key,Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify({email,password}),
+   cache:"no-store",
+   signal:AbortSignal.timeout(15000)
+  });
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){
+   const errors={
+    LOGIN_REQUIRED:"登录状态已过期，请重新登录管理员账号",
+    ADMIN_ONLY:"该账号没有管理员权限",
+    INVALID_EMAIL:"用户邮箱格式不正确",
+    INVALID_PASSWORD:"新密码不符合安全要求",
+    USER_NOT_FOUND:"没有找到这个用户账号",
+    PASSWORD_UPDATE_FAILED:"密码修改失败，请检查密码是否符合系统安全规则"
+   };
+   throw Error(errors[d.error]||d.detail||("重置失败：HTTP "+r.status));
+  }
+  $("resetPassword").value="";
+  $("resetPassword2").value="";
+  $("resetMsg").textContent="密码已重置成功："+email+(d.audit_recorded===false?"（审计记录写入失败，请稍后检查）":"");
+ }catch(e){$("resetMsg").textContent=e.message||"密码重置失败"}
+ finally{btn.disabled=false}
+}
+$("toggleResetPassword").onclick=()=>{
+ const show=$("resetPassword").type==="password";
+ $("resetPassword").type=show?"text":"password";
+ $("resetPassword2").type=show?"text":"password";
+ $("toggleResetPassword").textContent=show?"隐藏密码":"显示密码";
+};
+$("resetUserPassword").onclick=resetUserPassword;
+async function showDashboard(accessToken){
+ token=accessToken;await refresh();
+ $("password").value="";$("login").hidden=true;$("dashboard").hidden=false;$("msg").textContent="";
+}
+$("signIn").onclick=async()=>{
+ const btn=$("signIn");
+ if(!$("email").value.trim()||!$("password").value){$("msg").textContent="请填写邮箱和密码";return}
+ btn.disabled=true;$("msg").textContent="正在验证…";
+ try{
+  const r=await fetch(base+"/auth/v1/token?grant_type=password",{
+   method:"POST",headers:{apikey:key,"Content-Type":"application/json"},
+   body:JSON.stringify({email:$("email").value.trim(),password:$("password").value}),
+   cache:"no-store",signal:AbortSignal.timeout(12000)});
+  const d=await r.json();
+  if(!r.ok||!d.access_token)throw Error(d.msg||d.error_description||d.message||"登录未完成");
+  await showDashboard(d.access_token);
+ }catch(e){token=null;$("msg").textContent=showError(e.message)}
+ finally{btn.disabled=false}
+};
+const beijingDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()).split("/").join("-");
+$("gptUnifiedDate").value=beijingDate();
+// One read-only admin RPC: never generates or changes a prediction or settlement.
+async function loadGptResults(){
+ if(!token||$("dashboard").hidden)return;
+ const button=$("gptUnifiedLoad"),holder=$("gptUnifiedList"),stamp=token,date=$("gptUnifiedDate").value;
+ button.disabled=true;holder.hidden=false;holder.replaceChildren();
+ const notice=document.createElement("p");notice.className="muted";notice.textContent="正在查询赛前预测及已核验赛果…";holder.append(notice);
+ try{
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error("请选择正确日期");
+  const response=await fetch(base+"/rest/v1/rpc/soren_admin_gpt_scorecard_v1",{
+   method:"POST",headers:{apikey:key,Authorization:"Bearer "+stamp,"Content-Type":"application/json"},
+   body:JSON.stringify({p_date:date}),cache:"no-store",signal:AbortSignal.timeout(11000)
+  });
+  if(!response.ok)throw Error(response.status===401||response.status===403?"管理员权限或会话已失效":"查询失败：HTTP "+response.status);
+  const data=await response.json();
+  if(!data||data.ok!==true)throw Error("后台数据暂不可用");
+  if(stamp!==token||$("dashboard").hidden)return;
+  holder.replaceChildren();
+  const all=Array.isArray(data.rows)?data.rows:[];
+  // If one match has both old experimental and eligible independent predictions,
+  // show eligible v2 only. Never mix old trials into independent performance.
+  const chosen=new Map();
+  for(const row of all){
+   const no=String(row.no||"");
+   if(!no)continue;
+   const prior=chosen.get(no);
+   if(!prior || (row.eligible===true && prior.eligible!==true) ||
+       (row.eligible===prior.eligible && String(row.generatedAt||"")>String(prior.generatedAt||"")))chosen.set(no,row);
+  }
+  const rows=[...chosen.values()].sort((a,b)=>String(a.no||"").localeCompare(String(b.no||""),"zh",{numeric:true}));
+  if(!rows.length){
+   const empty=document.createElement("p");empty.className="muted";
+   empty.textContent="该日期暂无已保存的GPT预测。";holder.append(empty);return;
+  }
+  for(const row of rows){
+   const card=document.createElement("article");card.className="gpt-one-row";
+   const header=document.createElement("div");header.className="gpt-one-head";
+   header.textContent=String(row.no||"")+"  "+String(row.home||"")+" VS "+String(row.away||"");
+   const picks=Array.isArray(row.picks)?row.picks.filter(s=>typeof s==="string").slice(0,2):[];
+   const main=document.createElement("div");main.className="gpt-one-main";
+   const pred=document.createElement("strong");pred.className="gpt-one-pred";
+   pred.textContent="预测："+(row.mode==="PASS"?"PASS":picks.join(" / ")||"待确认");
+   const verdict=document.createElement("strong");verdict.className="gpt-one-verdict";
+   if(row.mode==="PASS"){verdict.textContent="— 未参与";verdict.classList.add("neutral")}
+   else if(row.settlement==="CONFLICT"){verdict.textContent="⚠️ 赛果冲突";verdict.classList.add("neutral")}
+   else if(row.settlement!=="SETTLED"){verdict.textContent="⏳ 待结算";verdict.classList.add("neutral")}
+   else if(row.anyHit===true){
+     verdict.textContent=row.firstHit===false&&picks.length>1?"✅ 次选命中":"✅ 命中";
+     verdict.classList.add("hit");
+   }else{verdict.textContent="❌ 未命中";verdict.classList.add("miss")}
+   main.append(pred,verdict);card.append(header,main);
+   if(row.settlement==="SETTLED"){
+     const score=document.createElement("p");score.className="muted gpt-one-foot";
+     score.textContent="90分钟比分："+String(row.score||"—");card.append(score);
+   }
+   if(row.eligible!==true){
+     const label=document.createElement("p");label.className="muted gpt-one-foot";
+     label.textContent="旧版辅助试跑｜不计入独立GPT正式成绩";card.append(label);
+   }
+   holder.append(card);
+  }
+ }catch(e){
+  if(stamp===token&&!$("dashboard").hidden){
+   holder.replaceChildren();
+   const line=document.createElement("p");line.className="muted";
+   line.textContent="读取失败："+(e?.name==="TimeoutError"?"查询超时，请稍后再试":String(e?.message||e));
+   holder.append(line);
+  }
+ }finally{button.disabled=false}
+}
+$("gptUnifiedLoad").onclick=loadGptResults;
+
+let dualViewMode="history";
+$("dualShadowDate").value="2026-10-12";
+function dualSetMode(mode){
+ dualViewMode=mode;
+ $("dualShadowHistory").className=mode==="history"?"":"secondary";
+ $("dualShadowLive").className=mode==="live"?"":"secondary";
+ $("dualShadowDate").min=mode==="history"?"2026-09-23":"2026-10-13";
+ $("dualShadowDate").max=mode==="history"?"2026-10-12":beijingDate();
+ $("dualShadowDate").value=mode==="history"?"2026-10-12":beijingDate();
+ $("dualShadowNote").textContent=mode==="history"
+  ?"历史重建：2026-09-23—2026-10-12，仅使用赛前冻结数据按当前可证规则回放。旧综合方案30场23中、162场覆盖尚未复现；本页成绩仅属于部分规则验证版。"
+  :"赛前影子归档：复用2026-10-13后已存的赛前影子原始快照进行当前部分规则重算。非本方案当时发布的前瞻推荐，也不改写旧记录。";
+ $("dualShadowStatus").textContent="请选择日期并手动查看。";
+ $("dualShadowStats").replaceChildren();$("dualShadowStats").hidden=true;
+ $("dualShadowList").replaceChildren();$("dualShadowList").hidden=true;
+}
+$("dualShadowHistory").onclick=()=>dualSetMode("history");
+$("dualShadowLive").onclick=()=>dualSetMode("live");
+const dualFmt=(n,d)=>Number(d)>0?Number(n)+"/"+Number(d)+"（"+(100*Number(n)/Number(d)).toFixed(1)+"%）":"暂无已核验样本";
+function dualMake(tag,clazz,content){const el=document.createElement(tag);if(clazz)el.className=clazz;if(content!=null)el.textContent=String(content);return el}
+async function loadDualShadow(){
+ const btn=$("dualShadowLoad"),status=$("dualShadowStatus"),sum=$("dualShadowStats"),list=$("dualShadowList");
+ const date=$("dualShadowDate").value,stamp=token,mode=dualViewMode;
+ if(!stamp||$("dashboard").hidden){status.textContent="请先验证管理员身份";return}
+ const min=mode==="history"?"2026-09-23":"2026-10-13",max=mode==="history"?"2026-10-12":beijingDate();
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date<min||date>max){status.textContent="请选择允许的日期";return}
+ btn.disabled=true;status.textContent="读取严格赛前资料重建结果…";sum.hidden=true;list.hidden=true;sum.replaceChildren();list.replaceChildren();
+ try{
+  const res=await fetch(base+"/rest/v1/rpc/soren_admin_unified_research_v01",{
+    method:"POST",headers:{apikey:key,Authorization:"Bearer "+stamp,"Content-Type":"application/json"},
+    body:JSON.stringify({p_date:date,p_mode:mode}),cache:"no-store",signal:AbortSignal.timeout(9000)
+  });
+  if(!res.ok)throw Error(res.status===401||res.status===403?"管理员权限或登录会话失效":"历史重建读取失败 HTTP "+res.status);
+  const d=await res.json();
+  if(!d||d.ok!==true||d.reconstructionVerified!==false)throw Error("没有取得可信的研究版结果");
+  if(stamp!==token||$("dashboard").hidden)return;
+  const rows=Array.isArray(d.rows)?d.rows:[];
+  const statSet=mode==="history"?d.overall:d.stats;
+  const stat=(Array.isArray(statSet)?statSet:[])[0]||{};
+  const count=rows.length;
+  status.textContent=date+"｜"+(mode==="history"?"历史研究回放":"赛前归档重算")+"｜"+count+"场｜部分规则，非旧ABCDE完整方案";
+  const box=dualMake("div","dual-stat");
+  box.append(dualMake("strong","","综合智能分流 · 部分规则"));
+  box.append(dualMake("div","","统计总计："+Number(stat.total||0)+"场｜核验："+Number(stat.settled||0)+"｜待结算："+Number(stat.pending||0)+"｜冲突："+Number(stat.conflict||0)));
+  box.append(dualMake("small","","胜平负单选："+Number(stat.ft_single||0)+"场｜"+dualFmt(stat.ft_single_hit,stat.ft_single_settled)));
+  box.append(dualMake("small","","让球单选："+Number(stat.handicap_single||0)+"场｜"+dualFmt(stat.handicap_single_hit,stat.handicap_single_settled)));
+  box.append(dualMake("small","","胜平负双选覆盖："+Number(stat.ft_double||0)+"场｜"+dualFmt(stat.ft_double_hit,stat.ft_double_settled)));
+  const overallHit=Number(stat.ft_single_hit||0)+Number(stat.handicap_single_hit||0)+Number(stat.ft_double_hit||0);
+  box.append(dualMake("small","","当前可核验综合覆盖："+dualFmt(overallHit,stat.settled)));
+  box.append(dualMake("small","","特别说明：ABCDE A—D及E1/E2尚无可独立复核的完整源链，本版禁止将宽泛冷门预警直接切换成让球。"));
+  sum.append(box);sum.hidden=false;
+  if(!rows.length){list.append(dualMake("p","muted","该日期尚无符合防倒灌检查的赛前快照。"));list.hidden=false;return}
+  const sorted=rows.slice().sort((a,b)=>String(a.no||"").localeCompare(String(b.no||""),"zh",{numeric:true}));
+  for(const row of sorted){
+   const card=dualMake("article","dual-row"),no=String(row.no||"");
+   card.append(dualMake("h4","",no+"　"+String(row.home||"")+" VS "+String(row.away||"")));
+   const market=row.market==="HANDICAP_1X2"?"让球胜平负"+(Number(row.handicap)>0?"+":"")+String(row.handicap??""):"胜平负";
+   const picks=Array.isArray(row.picks)?row.picks.join("＋"):"—";
+   card.append(dualMake("strong","",row.type==="REVIEW"?"待审核":market+"："+picks));
+   const verdict=row.settlement==="CONFLICT"?"赛果冲突｜暂不计入":row.settlement!=="SETTLED"?"待结算":row.hit===true?"✅ 命中":"❌ 未中";
+   card.append(dualMake("p","muted",(row.type==="DOUBLE"?"双选":row.type==="SINGLE"?"单选":"数据待确认")+"｜"+verdict+(row.score?"｜90分钟 "+row.score:"")));
+   const rk=row.risk&&typeof row.risk==="object"?row.risk:{};
+   card.append(dualMake("p","muted",[
+       rk.dq||"DQ未确认",rk.hur?"HUR-"+rk.hur:"",rk.dtr?"DTR-"+rk.dtr:"",
+       rk.decision==="HANDICAP_SINGLE"?"低置信度特例":""
+     ].filter(Boolean).join(" · ")));
+   if(row.frozenAt){
+    const tm=new Date(row.frozenAt);
+    card.append(dualMake("div","dual-stamp","原始赛前快照："+(Number.isNaN(tm.getTime())?String(row.frozenAt):tm.toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false}))+"（北京时间）"));
+   }
+   list.append(card);
+  }
+  list.hidden=false;
+ }catch(e){if(stamp===token&&!$("dashboard").hidden)status.textContent="读取失败："+String(e?.message||e)}
+ finally{btn.disabled=false}
+}
+$("dualShadowLoad").onclick=loadDualShadow;
+$("refresh").onclick=async()=>{try{await refresh()}catch(e){alert(e.message)}};
+$("logout").onclick=()=>{
+ token=null;$("dashboard").hidden=true;$("login").hidden=false;$("resetPassword").value="";$("resetPassword2").value="";$("resetMsg").textContent="";$("gptUnifiedList").hidden=true;$("gptUnifiedList").replaceChildren();$("msg").textContent="已退出当前管理员统计页面";
+};
+(async()=>{
+ const current=getSharedSession();
+ if(current){
+  $("email").value=current.user.email||"";
+  try{await showDashboard(current.access_token);return}
+  catch(e){token=null;$("msg").textContent="已检测到客户端登录，但统计页无法读取："+e.message}
+ }
+ $("signIn").disabled=false;
+})();
+</script></body></html>
