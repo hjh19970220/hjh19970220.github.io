@@ -3612,7 +3612,7 @@
     // Show only the warning tied to this match's verified pre-kickoff record.
     // Never infer a directional warning from the original Top1 or from final results.
     function detailUpsetWarningPanel(row){
-      const panel=reportSection('风险观察 · 赛前数据迹象');panel.classList.add('vip-exclusive-card','vip-risk-exclusive');panel.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','VIP专享'));
+      const panel=reportSection('风险观察 · 赛前数据迹象');panel.classList.add('vip-exclusive-card','vip-risk-exclusive');panel.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','测试开放'));
       if(row?.vipRiskAccessRestricted===true&&!vipDeepAccess()){
         panel.classList.add('report-detail-upset-empty');
         panel.append(el('p','vip-inline-lock',row?.vipRiskLocked===true?'VIP风险信号已触发 🔒 · 风险类型与保护方向仅向尊贵月卡VIP开放。':'深层风险审计仅向尊贵月卡VIP开放。'));
@@ -3820,7 +3820,7 @@
       holder.append(panel);
     }
     async function loadDeepMarketAnalysis(row,holder){
-      if((!SHADOW_MODE&&memberInfo?.vipActive!==true)||!authSession?.access_token)return;
+      // Public Singapore test preview: deep market statistics are available without VIP or login.
       const key=String(row.date||state.selectedDate)+'|'+String(row.no).padStart(3,'0');
       const cached=okoooShadowCache.get(key);
       const usableCached=cached&&cached.token===authSession.access_token&&cached.data?.ok===true;
@@ -3840,7 +3840,7 @@
         // Retry once, but never replace a verified cached panel with an error state.
         for(let attempt=0;attempt<2;attempt++){
           try{
-            response=await authorizedApiFetch(url,{cache:'no-store',signal:timeoutSignal(12000)});
+            response=authSession?.access_token?await authorizedApiFetch(url,{cache:'no-store',signal:timeoutSignal(12000)}):await fetch(url,{cache:'no-store',signal:timeoutSignal(12000)});
             data=await response.json().catch(()=>null);
             if(response.ok&&data?.ok===true)break;
             if(response.status===401||response.status===403)break;
