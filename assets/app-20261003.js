@@ -1694,7 +1694,19 @@
       if(handicapOnlyView(row))return [['官方让球',row.officialHandicap],['让球首选',handicapDisplayChoice(row,row.handicapTop1??row.handicap,row.handicapProbability)],['让球次选',handicapDisplayChoice(row,row.handicapSecond,row.handicapSecondProbability)]];
       if(state.model==='handicap')return [['官方让球',row.officialHandicap],['让球首选',handicapChoice(row.handicapTop1??row.handicap,row.handicapProbability)],['让球次选',handicapChoice(row.handicapSecond,row.handicapSecondProbability)]];
       if(state.model==='wdl')return [['主胜',ftProbability(row,'H')],['平局',ftProbability(row,'D')],['客胜',ftProbability(row,'A')]];
-      if(state.model==='daily'){const pct=pick=>{const code=normalizeResult(pick);return code?ftProbability(row,code):'—'};return [['胜平负首选',safe(row.ftTop1)+' · '+pct(row.ftTop1)],['胜平负次选',safe(row.second)+' · '+pct(row.second)]];}
+      if(state.model==='daily'){
+        if(shadowDailyEligible(row)){
+          const d=row.shadowDailySelection;
+          const prob=v=>Number.isFinite(Number(v))?(Number(v)*100).toFixed(1)+'%':'—';
+          const allow=paidHandicapAccess()||publicSettledAccess(row);
+          const handicap=d.handicapDirection
+            ?(allow?d.handicapDirection+' ('+(Number(d.handicapLine)>=0?'+':'')+d.handicapLine+') · '+prob(d.handicapProbability):'尊贵月卡VIP可见')
+            :'暂无有效赛前让球预测';
+          return [['胜平负首选',String(d.direction)+' · '+prob(d.probability)],['让球首选',handicap]];
+        }
+        const pct=pick=>{const code=normalizeResult(pick);return code?ftProbability(row,code):'—'};
+        return [['胜平负首选',safe(row.ftTop1)+' · '+pct(row.ftTop1)],['胜平负次选',safe(row.second)+' · '+pct(row.second)]];
+      }
       return [['胜平负首选',safe(row.ftTop1)+' · '+(normalizeResult(row.ftTop1)?ftProbability(row,normalizeResult(row.ftTop1)):'—')],['胜平负次选',safe(row.second)+' · '+(normalizeResult(row.second)?ftProbability(row,normalizeResult(row.second)):'—')]];
     }
     function adviceText(row){
@@ -2186,7 +2198,7 @@
       const c=el('article','card');
       const head=el('div','card-head');
       const id=el('div','match-id');id.append(el('span','league',safe(row.league)),document.createTextNode(fmtTime(row.kickoff)+' · '+safe(row.no)));
-      if(state.model==='daily'&&row?.analysisPending!==true){const supplementary=isSupplement(row)&&!isFocus(row);id.append(el('span','focus-label '+(supplementary?'supplement':'core'),supplementary?'精选补充':'核心优选'));}if(handicapOnlyView(row))id.append(el('span','focus-label','仅开让球 · 自动切换'));
+      if(state.model==='daily'&&row?.analysisPending!==true){if(shadowDailyEligible(row))id.append(el('span','focus-label','赛前影子'));const supplementary=isSupplement(row)&&!isFocus(row);id.append(el('span','focus-label '+(supplementary?'supplement':'core'),supplementary?'精选补充':'核心优选'));}if(handicapOnlyView(row))id.append(el('span','focus-label','仅开让球 · 自动切换'));
       if(state.model==='handicap'&&row.handicapSourceLabel)id.append(el('span','focus-label',String(row.handicapSourceLabel).includes('Top5新方案赛前冻结')?'赛前预测':row.handicapSourceLabel));if(state.model==='handicap'&&(paidHandicapAccess()||publicSettledAccess(row))&&handicapDrawProtection(row)){const tag=el('span','focus-label','🟠 让平保护');tag.style.cssText='background:#fff3dd;color:#9e5e10;border:1px solid #edd0a2';id.append(tag)}head.append(id,el('span',statusClass(row,history),statusText(row,history)));
       const fixture=el('div','fixture'),teams=el('div','team-list');
       [[row.home,row.homeLogo],[row.away,row.awayLogo]].forEach(([name,logo])=>teams.append(teamNode(name,logo)));
@@ -2195,6 +2207,19 @@
       const analysis=el('div','analysis'),values=state.model==='goals'?[]:moduleData(row),triplet=el('div','triplet'+(values.length===2?' pair':values.length===6?' six-grid':''));
       values.forEach(([k,v],i)=>{if(state.model==='wdl'&&!handicapOnlyView(row)){const code=['H','D','A'][i],top=normalizeResult(row.ftTop1)===code,second=normalizeResult(row.second)===code,hit=verified(row)&&normalizeResult(row.result)===code&&(top||second),actual=verified(row)&&normalizeResult(row.result)===code;const d=el('div','datum wdl-prob'+(top||second?' wdl-pick':'')+(actual?' wdl-actual':'')+(hit?' hit':''));d.append(el('span','',k),el('b','',safe(v)),el('span','',top?'首选':second?'次选':actual?'实际赛果':'　'));if(hit)d.append(el('span','hit-check','✓'));triplet.append(d);return}const hit=directionHit(row,k,v),isHandicap=state.model==='handicap'||handicapOnlyView(row),d=el('div','datum'+(verified(row)&&!isHandicap?(hit?' hit':' miss'):(i===0?' primary':'')));d.append(el('span','',k),el('b','',safe(v)));if(hit&&!isHandicap)d.append(el('span','hit-check','✓'));triplet.append(d)});
       analysis.append(triplet);
+      if(state.model==='daily'&&shadowDailyEligible(row)){
+        const d=row.shadowDailySelection;
+        const grades=el('div','daily-shadow-grades');
+        const grade=(name,value)=>{
+          const st=value==='SUCCESS'?'评测成功':value==='FAILURE'?'评测失败':'等待评测';
+          grades.append(el('div','score-top4-verdict '+(value==='SUCCESS'?'success':value==='FAILURE'?'fail':'pending'),name+' · '+st));
+        };
+        grade('胜平负Top1',d.ftStatus);
+        if(d.handicapDirection&&(paidHandicapAccess()||publicSettledAccess(row)))grade('让球Top1',d.handicapStatus);
+        else if(!d.handicapDirection)grades.append(el('div','score-top4-verdict pending','让球Top1 · 赛前方向未确认'));
+        analysis.append(grades);
+        analysis.append(el('p','report-sub','新加坡赛前影子优选 · 发布于 '+fmtStamp(d.publishedAt)+'；胜平负与让球分别评测，不计入正式赛前战绩。'));
+      }
       if(state.model==='handicap'){const drawPanel=handicapDrawProtectionPanel(row,true);if(drawPanel)analysis.append(drawPanel);}
       if(state.model==='goals')c.append(head,fixture);else c.append(head,fixture,analysis);
       // Show Poisson goals on the match list itself, immediately after the FT 1X2 block.
@@ -2760,14 +2785,15 @@
         el('span','','今日共 '+all.length+'场')
       );
       box.append(summary);
+      if(all.some(shadowDailyEligible))box.append(el('p','report-sub','今日优选包含新加坡赛前影子筛选；每场独立核验胜平负和让球Top1，影子成绩不计入正式发布战绩。'));
       box.append(sectionHead('核心优选',focus.length+'场 · 通过核心筛选'));
       if(focus.length){
         box.append(getModuleGrid(focus,false,'daily-focus'))
       }else box.append(empty('今日暂无核心优选','当前没有通过核心筛选条件的场次。'));
-      box.append(sectionHead('精选补充',supplement.length+'场 · 高性价比筛选 · 风险过滤通过'));
+      box.append(sectionHead('精选补充',supplement.length+'场 · 市场方向一致 · 风险过滤通过'));
       if(supplement.length){
         box.append(getModuleGrid(supplement,false,'daily-supplement'))
-      }else box.append(empty('今日暂无精选补充','仅补充未进入核心优选、且通过高性价比筛选与风险过滤的场次。'));
+      }else box.append(empty('今日暂无精选补充','仅补充未进入核心优选、且通过赛前市场一致性与风险过滤的场次。'));
       box.append(notice())
     }
     function renderMatches(){const rows=visibleRows();renderCards(currentTitle()+'赛事',rows.length+'场 · 九十刻度',rows)}
@@ -4099,7 +4125,7 @@
         if(supplement){
           const meta=row.dailySelectionMeta??row.daily_selection_meta??{};
           const odds=Number(meta.williamTop1Odds??meta.william_top1_odds);
-          selection.append(el('span','',Number.isFinite(odds)?'高性价比筛选通过 · 风险过滤通过 · 参考赔率 '+odds.toFixed(2):'高性价比筛选通过 · 风险过滤通过'));
+          selection.append(el('span','',Number.isFinite(odds)?'赛前筛选通过 · 风险过滤通过 · 参考赔率 +odds.toFixed(2):'赛前筛选通过 · 风险过滤通过'));
         }else selection.append(el('span','','通过核心筛选'));
         summary.append(selection);
       }
