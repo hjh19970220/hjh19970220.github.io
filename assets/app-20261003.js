@@ -559,7 +559,7 @@
     let coldV2History=null,coldV2HistoryUser=null,coldV2HistoryAt=0;
     let coldV2HistoryPromise=null,coldV2HistoryError=null;
     async function loadColdV2History(){
-      if(memberInfo?.vipActive!==true)return;
+      if((!SHADOW_MODE&&memberInfo?.vipActive!==true))return;
       const uid=String(authSession?.user?.id??'');
       if(!uid)return;
       if(coldV2History&&coldV2HistoryUser===uid&&Date.now()-coldV2HistoryAt<5*60*1000)return;
@@ -666,7 +666,7 @@
     function renderMemberZone(){
       const historicalCold=memberZoneDate()<"2026-10-12";
       const box=$('content');box.replaceChildren(sectionHead(historicalCold?'冷门预警 · 历史记录':'冷门预警 2.0',historicalCold?'历史预警记录及赛果':'重点避开 · 主队不胜 / 主队不败'));
-      if(memberInfo?.vipActive!==true){renderPaidMemberRequired();return}
+      if((!SHADOW_MODE&&memberInfo?.vipActive!==true)){renderPaidMemberRequired();return}
       if(isColdV2HistoryDate(memberZoneDate())){renderColdV2History();return}
       if(!state.memberZoneLoading&&!state.memberZoneError&&state.memberZone){
         const cached=memberZonePageCache.get(state.memberZone);
@@ -1365,7 +1365,7 @@
       return pending?60*1000:30*60*1000;
     }
     async function loadMemberZone(silent=false){
-      if(memberInfo?.vipActive!==true)return;
+      if((!SHADOW_MODE&&memberInfo?.vipActive!==true))return;
       const zoneDate=memberZoneDate();
       let cachedZone=memberZoneDataCache.get(zoneDate);
       if(!cachedZone&&restoreMemberZoneSnapshot(zoneDate))cachedZone=memberZoneDataCache.get(zoneDate);
@@ -1514,8 +1514,8 @@
     const state={today:null,history:null,tab:'home',filter:'jczq',model:'daily',selected:null,selectedDate:null,baseDate:null,unopenedDate:null,futureDate:null,memberZone:null,memberZoneLoading:false,memberZoneError:null};
     const publicSettledAccess=row=>verified(row)&&hasScore(row);
     const fullMemberAnalysis=row=>memberInfo?.active===true||(row?publicSettledAccess(row):false);
-    const vipDeepAccess=()=>memberInfo?.vipActive===true;
-    const paidHandicapAccess=()=>memberInfo?.vipActive===true;
+    const vipDeepAccess=()=>(SHADOW_MODE||memberInfo?.vipActive===true);
+    const paidHandicapAccess=()=>(SHADOW_MODE||memberInfo?.vipActive===true);
     const ARCHIVED_FOCUS={
       '2026-09-13':['002','006','008','009','020','022','023'],
       '2026-09-14':['003','008'],
@@ -2639,7 +2639,7 @@
         return;
       }
       if(state.model==='cold'){
-        if(memberInfo?.vipActive!==true){renderPaidMemberRequired();return}
+        if((!SHADOW_MODE&&memberInfo?.vipActive!==true)){renderPaidMemberRequired();return}
         const d=memberZoneDate();
         if(isColdV2HistoryDate(d)){renderMemberZone();return}
         if(!state.memberZone||state.memberZone.date!==d){
@@ -3820,7 +3820,7 @@
       holder.append(panel);
     }
     async function loadDeepMarketAnalysis(row,holder){
-      if(memberInfo?.vipActive!==true||!authSession?.access_token)return;
+      if((!SHADOW_MODE&&memberInfo?.vipActive!==true)||!authSession?.access_token)return;
       const key=String(row.date||state.selectedDate)+'|'+String(row.no).padStart(3,'0');
       const cached=okoooShadowCache.get(key);
       const usableCached=cached&&cached.token===authSession.access_token&&cached.data?.ok===true;
@@ -3850,7 +3850,7 @@
           if(attempt===0)await new Promise(resolve=>setTimeout(resolve,350));
         }
         if(!response?.ok||data?.ok!==true)throw Error(String(data?.error||'HTTP '+(response?.status||0)));
-        if(state.selected!==row||memberInfo?.vipActive!==true)return;
+        if(state.selected!==row||(!SHADOW_MODE&&memberInfo?.vipActive!==true))return;
         okoooShadowCache.set(key,{token:authSession.access_token,at:Date.now(),data});
         while(okoooShadowCache.size>20)okoooShadowCache.delete(okoooShadowCache.keys().next().value);
         renderDeepMarketAnalysis(holder,data,row);
@@ -4045,7 +4045,7 @@
       c.append(summary);
       if(state.model==='handicap'){const drawPanel=handicapDrawProtectionPanel(row);if(drawPanel)c.append(drawPanel);}
       let deepMarketSlot=null;
-      if(memberInfo?.vipActive===true){deepMarketSlot=el('div','report-professional');c.append(deepMarketSlot);}
+      if((SHADOW_MODE||memberInfo?.vipActive===true)){deepMarketSlot=el('div','report-professional');c.append(deepMarketSlot);}
       else{
         const deepMarketLock=reportSection('九十刻度 · 深度市场分析');
         deepMarketLock.classList.add('vip-exclusive-card','vip-exclusive-locked');deepMarketLock.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','VIP专享'));
@@ -4230,7 +4230,7 @@
       const coverage=state.model==='goals'?' · 独立正式预测 '+rows.filter(isFormalGoalPrediction).length+'场 · 泊松参考 '+rows.filter(row=>row.goalPrediction?.formalEligible===false&&publishedGoalLambda({...row,dynamicGoalPrediction:null})!==null).length+'场 · 正式已评测 '+formalGoals.length+'场 · 参考已评测 '+referenceGoals.length+'场':state.model==='handicap'?' · 让球有效评测 '+evaluable.length+'/'+settled.length+'场 · 缺失 '+Math.max(0,rows.length-evaluable.length)+'场':'';
       $('poolCount').textContent=state.selectedDate+' · '+rows.length+'场'+coverage;
     }
-    function render(){closeDetail();const coldView=state.tab==='home'&&state.model==='cold';const publicHandicapView=['home','history'].includes(state.tab)&&state.model==='handicap'&&!paidHandicapAccess();const currentNonMember=memberInfo?.active===false&&state.tab!=='profile'&&!publicHandicapView&&(!state.selectedDate||state.selectedDate>=beijingToday());document.querySelector('.toolbar').hidden=state.tab==='profile'||state.tab==='memberzone'||coldView||currentNonMember;if(state.tab==='memberzone'){if(memberInfo?.vipActive!==true){renderPaidMemberRequired();return}renderMemberZone();return}if(currentNonMember){renderMemberRequired();return}if(state.tab!=='profile'&&!coldView)updateMetrics();if(state.tab==='home')renderHome();else if(state.tab==='history')renderHistory();else renderProfile()}
+    function render(){closeDetail();const coldView=state.tab==='home'&&state.model==='cold';const publicHandicapView=['home','history'].includes(state.tab)&&state.model==='handicap'&&!paidHandicapAccess();const currentNonMember=memberInfo?.active===false&&state.tab!=='profile'&&!publicHandicapView&&(!state.selectedDate||state.selectedDate>=beijingToday());document.querySelector('.toolbar').hidden=state.tab==='profile'||state.tab==='memberzone'||coldView||currentNonMember;if(state.tab==='memberzone'){if((!SHADOW_MODE&&memberInfo?.vipActive!==true)){renderPaidMemberRequired();return}renderMemberZone();return}if(currentNonMember){renderMemberRequired();return}if(state.tab!=='profile'&&!coldView)updateMetrics();if(state.tab==='home')renderHome();else if(state.tab==='history')renderHistory();else renderProfile()}
     async function load(view,date){const qs=new URLSearchParams({view,client:'1'});if(date)qs.set('date',date);qs.set('_',String(Date.now()));let r;for(let attempt=0;attempt<2;attempt++){const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),20000);try{r=await authorizedApiFetch(customerApiUrl(qs),{cache:'no-store',signal:ctrl.signal});break}catch(e){if(!(e?.name==='AbortError'||/aborted/i.test(String(e?.message||e)))||attempt===1)throw e}finally{clearTimeout(timer)}}try{if(r.status===403){const denied=await r.json();if(denied.error==='MEMBERSHIP_REQUIRED'){memberInfo=denied.membership||{active:false};state.today=null;state.history=null;dayCache.clear();professionalReportCache.clear();render();throw Error('MEMBERSHIP_REQUIRED')}throw Error('接口返回 HTTP 403')}if(!r.ok)throw Error('接口返回 HTTP '+r.status);const j=await r.json();if(!j.ok||!Array.isArray(j.rows))throw Error(j.error||'接口数据异常');if(j.rows.length>0&&j.analysisPending!==true&&!['3.2','3.3','3.6','3.8'].includes(j.modelVersion))throw Error('赛事数据暂未通过完整性检查');return j}finally{}}
     function isoDate(d){return d.toISOString().slice(0,10)}
     function addDays(iso,delta){const d=new Date(iso+'T12:00:00+08:00');d.setUTCDate(d.getUTCDate()+delta);return isoDate(d)}
@@ -4284,7 +4284,7 @@
     const dayCache=new Map(),dayRequests=new Map(),dayContentVersions=new Map();let dateRequestId=0,historyPrefetchStarted=false;
     const ARCHIVE_SESSION_PREFIX='soren-archive-v4:';
     const SETTLED_CACHE_TTL=15*24*60*60*1000,ACTIVE_CACHE_TTL=30*1000,ACTIVE_BOOT_CACHE_TTL=15*60*1000;
-    function dayCacheScope(){return [authSession?.user?.id||'',memberInfo?.active===true?'1':'0',memberInfo?.vipActive===true?'1':'0'].join('|')}
+    function dayCacheScope(){return [authSession?.user?.id||'',memberInfo?.active===true?'1':'0',(SHADOW_MODE||memberInfo?.vipActive===true)?'1':'0'].join('|')}
     function fullySettledDay(d){
       return !!(d&&d.date&&d.date<beijingToday()&&Array.isArray(d.rows)&&d.rows.length&&
         d.rows.every(r=>verified(r)||r.matchStatus==='POSTPONED'));
@@ -4429,7 +4429,7 @@
       }
     });
     document.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.filter=b.dataset.filter;render()});
-    document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.tab=b.dataset.tab;if(state.tab==='profile')feedbackMode=null;if(state.tab==='home'){const target=state.baseDate||beijingToday();if(state.selectedDate!==target){selectDate(target);return}}if(state.tab==='memberzone'&&memberInfo?.vipActive===true&&!state.memberZoneLoading){const d=memberZoneDate();if(!state.memberZone||state.memberZone.date!==d){loadMemberZone();return}}render()});
+    document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.tab=b.dataset.tab;if(state.tab==='profile')feedbackMode=null;if(state.tab==='home'){const target=state.baseDate||beijingToday();if(state.selectedDate!==target){selectDate(target);return}}if(state.tab==='memberzone'&&(SHADOW_MODE||memberInfo?.vipActive===true)&&!state.memberZoneLoading){const d=memberZoneDate();if(!state.memberZone||state.memberZone.date!==d){loadMemberZone();return}}render()});
     $('back').onclick=closeDetail;
     // Bounded recovery for Wi-Fi routes which transiently fail to reach Auth.
     // Do not poll while the page is in the background or without a saved session.
@@ -4576,7 +4576,7 @@
     });
     schedulePublishedRefresh();
     async function refreshPublishedData(){
-      if((state.tab==='memberzone'||(state.tab==='home'&&state.model==='cold'))&&memberInfo?.vipActive===true){
+      if((state.tab==='memberzone'||(state.tab==='home'&&state.model==='cold'))&&(SHADOW_MODE||memberInfo?.vipActive===true)){
         if(!state.memberZoneLoading)await loadMemberZone(true);
         return;
       }
