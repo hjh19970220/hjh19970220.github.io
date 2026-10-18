@@ -1,4 +1,4 @@
-    const SHADOW_MODE=true; // Singapore shadow: preserve production DOM, CSS and business flows.
+    const SHADOW_MODE=false;
     const AUTH_BASE='https://zssourkgabcxibggwhqm.supabase.co';const AUTH_KEY='sb_publishable_94kSLoSqua2oF4T0C-qBmA_t3jlZ4h7';
     const AUTH_STORE='soren_auth_v2',LEGACY_AUTH_STORE='soren_auth';
     const MEMBER_CACHE_KEY='soren_member_cache_v1';
@@ -3703,7 +3703,7 @@
     // Show only the warning tied to this match's verified pre-kickoff record.
     // Never infer a directional warning from the original Top1 or from final results.
     function detailUpsetWarningPanel(row){
-      const panel=reportSection('风险观察 · 赛前数据迹象');panel.classList.add('vip-exclusive-card','vip-risk-exclusive');panel.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','测试开放'));
+      const panel=reportSection('风险观察 · 赛前数据迹象');panel.classList.add('vip-exclusive-card','vip-risk-exclusive');panel.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','VIP专享'));
       if(row?.vipRiskAccessRestricted===true&&!vipDeepAccess()){
         panel.classList.add('report-detail-upset-empty');
         panel.append(el('p','vip-inline-lock',row?.vipRiskLocked===true?'VIP风险信号已触发 🔒 · 风险类型与保护方向仅向尊贵月卡VIP开放。':'深层风险审计仅向尊贵月卡VIP开放。'));
@@ -3825,7 +3825,7 @@
     function renderDeepMarketAnalysis(holder,data,row=state.selected){
       if(state.selected===null||!holder.isConnected)return;
       holder.replaceChildren();
-      const panel=reportSection('九十刻度 · 深度市场分析');panel.classList.add('shadow-admin-preview');panel.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','测试开放'));
+      const panel=reportSection('九十刻度 · 深度市场分析');panel.classList.add('shadow-admin-preview','vip-exclusive-card');panel.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','VIP专享'));
       const match=data?.match||{},market=data?.market;
       const rawAnalysis=data?.analysis||data?.proof||data?.marketAnalysis||data?.intelligence?.analysis||data||null;
       const analysis=rawAnalysis&&typeof rawAnalysis==='object'?rawAnalysis:null;
@@ -4144,7 +4144,7 @@
         c.append(deepMarketLock);
       }
       let adminIntelSlot=null;
-      // Singapore preview: overseas intelligence module removed.
+      if(memberInfo?.isAdmin===true){adminIntelSlot=el('div','report-professional admin-intel-slot');c.append(adminIntelSlot);}
       const teamOverview=teamOverviewPanel(row);
       const attackDefense=renderAttackDefensePanel(row);
       if(teamOverview&&attackDefense){teamOverview.append(attackDefense);c.append(teamOverview);}
@@ -4198,7 +4198,7 @@
         c.append(review);
       }
       const audit=reportDisclosure('预测来源与数据说明');
-      
+      if(adminIntelSlot)loadAdminOverseasIntel(row,adminIntelSlot);
       if(reportHas(row.frozenAt))reportLine(audit,'模型版本时间',fmtStamp(row.frozenAt));
       if(reportHas(row.dq))reportLine(audit,'数据质量',row.dq);
       if(reportHas(row.handicapSourceLabel))reportLine(audit,'让球数据来源',row.handicapSourceLabel);

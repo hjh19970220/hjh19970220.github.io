@@ -91,12 +91,39 @@ function adaptRow(m:any,date:string){
     shadowAnalysis:null
   };
 }
+function adaptFormalPrediction(p:any,date:string){
+  const scored=p.result_verified===true&&Number.isInteger(p.result_home)&&Number.isInteger(p.result_away);
+  const actual=scored?(p.result_home>p.result_away?"主胜":p.result_home===p.result_away?"平":"客胜"):null;
+  const eligible=p?.source_status?.final_selection_eligible===true;
+  const warning=p?.source_status?.upset_warning;
+  const warningPublished=warning?.publish===true;
+  return {
+    date,no:String(p.match_no||"").padStart(3,"0"),league:p.league??"",home:p.home_team??"",away:p.away_team??"",
+    kickoff:p.kickoff_bjt??null,matchStatus:"SCHEDULED",resultVerified:scored,result:actual,
+    resultHome:scored?p.result_home:null,resultAway:scored?p.result_away:null,
+    resultScore:scored?`${p.result_home}:${p.result_away}`:null,
+    pregameVerified:Boolean(p.frozen_at&&Date.parse(p.frozen_at)<Date.parse(p.kickoff_bjt)),
+    saleFreezeStatus:p.freeze_status??"PREMATCH_VERIFIED",predictionState:"PREMATCH_VERIFIED",
+    frozenAt:p.frozen_at??null,analysisPending:false,ftTop1:label(p.top1),second:label(p.second_pick),
+    homeProbability:null,drawProbability:null,awayProbability:null,confidence:null,
+    officialHandicap:p.official_handicap??null,handicapTop1:p.handicap_pick&&p.handicap_pick!=="PASS"?p.handicap_pick:null,
+    handicapSecond:null,handicapProbability:null,handicapSecondProbability:null,
+    handicapSourceLabel:p.handicap_pick&&p.handicap_pick!=="PASS"?"豪竞3.8赛前冻结":null,
+    dailySelectionTier:eligible&&!warningPublished?"CORE":null,dailySelectionRiskLocked:warningPublished,
+    upsetWarning:warningPublished?{publish:true,publicationEligible:true,riskDisplayEligible:true,
+      riskLevel:warning.risk_level??null,direction:warning.warning_direction??null,originalTop1:label(p.top1),
+      riskBasis:Array.isArray(warning.risk_basis)?warning.risk_basis:[],prematchAt:p.frozen_at}:null,
+    scoreTop4:null,htftTop4:null,goalPrediction:null,dynamicScoreTop4:null,dynamicHTFT:null,
+    dynamicGoalPrediction:null,shadowAnalysis:null
+  };
+}
 Deno.serve(async(req:Request)=>{
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers});
   if(req.method!=="GET")return reply({ok:false,error:"METHOD_NOT_ALLOWED"},405);
   const url=new URL(req.url),view=url.searchParams.get("view")||"today";
   if(url.pathname.endsWith("/health")||url.searchParams.get("health")==="compat"){
-    return reply({ok:true,service:"soren-public-api-v1",shadow:true,revision:"singapore_adapter_0.2",legacy_runtime_dependency:false,now:new Date().toISOString()});
+    return reply({ok:true,service:"soren-public-api-v1",formalPipeline:true,shadowFallback:true,
+      revision:"singapore_formal_preferred_1.0",legacyRuntimeDependency:false,now:new Date().toISOString()});
   }
   const jwt=(req.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];
   if(!jwt)return reply({ok:false,error:"LOGIN_REQUIRED"},401);
@@ -118,6 +145,29 @@ Deno.serve(async(req:Request)=>{
   const date=url.searchParams.get("date")||currentBjt();
   if(!validDate(date))return reply({ok:false,error:"INVALID_DATE"},400);
   try{
+    const predQ=await sb.schema("ninety_core").from("hao_console_predictions")
+      .select("run_id,pool_date,match_no,league,home_team,away_team,kickoff_bjt,top1,second_pick,official_handicap,handicap_pick,source_status,source_provenance,frozen_at,freeze_status,result_home,result_away,result_verified,model_version,model_revision_tag")
+      .eq("pool_date",date).order("run_id",{ascending:false}).order("match_no");
+    if(predQ.error)throw predQ.error;
+    const seen=new Set<string>();
+    const formalRows=(predQ.data||[]).filter((p:any)=>{const k=String(p.match_no).padStart(3,"0");if(seen.has(k))return false;seen.add(k);return p.frozen_at&&Date.parse(p.frozen_at)<Date.parse(p.kickoff_bjt)&&p.top1;});
+    if(formalRows.length){
+      const allowed=vip?formalRows:formalRows.slice(0,2);
+      const rows=allowed.map((p:any)=>adaptFormalPrediction(p,date));
+      if(view==="cold-feed"||view==="member-zone"){
+        if(!vip)return reply({ok:false,error:"VIP_REQUIRED"},403);
+        const published=rows.filter((r:any)=>r.upsetWarning?.publish===true);
+        return reply({ok:true,date,shadow:false,routeRuleVersion:"HJ38-UPSET-v1.1.0",count:published.length,rows:published,partial:false,publishedOnly:true});
+      }
+      if(view==="history")return reply({ok:true,date,view,count:rows.filter((r:any)=>r.resultVerified).length,rows:rows.filter((r:any)=>r.resultVerified),modelVersion:formalRows[0]?.model_version??"3.8",analysisPending:false,shadow:false});
+      if(["market-trend","report","member-intel","admin-overseas-intel"].includes(view))return reply({ok:false,error:"FEATURE_NOT_MIGRATED",view,shadow:false},501);
+      if(!["today","archive"].includes(view))return reply({ok:false,error:"UNKNOWN_VIEW",view},400);
+      return reply({ok:true,view,date,count:rows.length,rows,model:"豪竞3.8",modelVersion:formalRows[0]?.model_version??"3.8",
+        revision:formalRows[0]?.model_revision_tag??null,shadow:false,analysisPending:false,publicationStatus:"PREMATCH_VERIFIED",
+        batchTime:formalRows[0]?.frozen_at??null,pregameVerifiedCount:rows.filter((r:any)=>r.pregameVerified).length,
+        upsetStats:{published:rows.filter((r:any)=>r.upsetWarning?.publish===true).length},
+        dailySelectionStats:{core:rows.filter((r:any)=>r.dailySelectionTier==="CORE").length,supplement:0}});
+    }
     const x=await sb.rpc("ninety_customer_payload",{p_date:date});
     if(x.error)throw x.error;
     const all=Array.isArray(x.data?.matches)?x.data.matches:[];
