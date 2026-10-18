@@ -4053,7 +4053,7 @@
         c.append(deepMarketLock);
       }
       let adminIntelSlot=null;
-      if(memberInfo?.isAdmin===true){adminIntelSlot=el('div','report-professional admin-intel-slot');c.append(adminIntelSlot);}
+      // Singapore preview: overseas intelligence module removed.
       const teamOverview=teamOverviewPanel(row);
       const attackDefense=renderAttackDefensePanel(row);
       if(teamOverview&&attackDefense){teamOverview.append(attackDefense);c.append(teamOverview);}
@@ -4116,7 +4116,7 @@
       renderHeroWeather(row.environment??null);
       loadProfessionalDetail(row,professionalSlot,{summary,audit,advancedSlot,row,dataStatus,fallbackEnvironment:row.environment??null});
       if(deepMarketSlot)loadDeepMarketAnalysis(row,deepMarketSlot);
-      if(adminIntelSlot)loadAdminOverseasIntel(row,adminIntelSlot);
+      
       window.scrollTo({top:0,behavior:'instant'});
     }
     function closeDetail(){$('detail').classList.remove('show');$('main').classList.remove('hide');state.selected=null}
