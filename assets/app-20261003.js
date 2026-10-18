@@ -1653,6 +1653,7 @@
     }
     function statusText(row,history){
       if(interruptedMatch(row))return '比赛中断｜待官方处理';
+      if(row?.settlement?.verified===true){const g=state.model==='handicap'?row.settlement.handicapTop1Status:row.settlement.ftTop1Status;if(g==='SUCCESS')return '评测成功';if(g==='FAILURE')return '评测失败';}
       if(row?.analysisPending===true)return '赛前分析待发布';
       if(state.model==='htft'){
         const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;
