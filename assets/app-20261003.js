@@ -3734,7 +3734,7 @@
     function renderDeepMarketAnalysis(holder,data,row=state.selected){
       if(state.selected===null||!holder.isConnected)return;
       holder.replaceChildren();
-      const panel=reportSection('九十刻度 · 深度市场分析');panel.classList.add('shadow-admin-preview','vip-exclusive-card');panel.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','VIP专享'));
+      const panel=reportSection('九十刻度 · 深度市场分析');panel.classList.add('shadow-admin-preview');panel.querySelector('h2,h3')?.append(el('span','vip-exclusive-badge','测试开放'));
       const match=data?.match||{},market=data?.market;
       const rawAnalysis=data?.analysis||data?.proof||data?.marketAnalysis||data?.intelligence?.analysis||data||null;
       const analysis=rawAnalysis&&typeof rawAnalysis==='object'?rawAnalysis:null;
