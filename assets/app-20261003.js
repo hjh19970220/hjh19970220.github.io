@@ -526,7 +526,7 @@
       line(holder,'凯利最低方向',(a.kelly.lowestDirection||'待确认')+(a.kelly.lowestValue!==null?' · '+num(a.kelly.lowestValue,3):''));
       line(holder,'凯利完整机构',a.kelly.completeCount+' 家');
       if(a.flags.length){holder.append(el('b','','数据核验说明'));const ul=el('ul','member-zone-intel-list');a.flags.filter(x=>!/^新加坡测试数据/.test(String(x))).forEach(x=>ul.append(el('li','',x)));if(ul.childElementCount)holder.append(ul)}
-      line(holder,'情报影响',(a.intelligence.impactSide||'中性')+' · '+(a.intelligence.impactLevel||'低'));
+      line(holder,'情报影响',a.intelligence.impactSide&&a.intelligence.impactLevel?a.intelligence.impactSide+' · '+a.intelligence.impactLevel:'未确认');
       line(holder,'有效伤停/阵容',a.intelligence.injuryCount+' 条');
       if(a.intelligence.highlights.length){const ul=el('ul','member-zone-intel-list');a.intelligence.highlights.forEach(x=>ul.append(el('li','',x)));holder.append(ul)}
       line(holder,'深度分析更新',a.capturedAt?fmtStamp(a.capturedAt):'时间待确认');
