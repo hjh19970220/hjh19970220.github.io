@@ -1735,9 +1735,30 @@
       tabs.append(dynamicButton,originalButton);box.append(tabs,sub,body);
       renderVersion(dynamic?'dynamic':'original');return box;
     }
+    function sgShadowTop3Panel(row,kind){
+      const data=kind==='score'?row.shadowScoreTop3:kind==='htft'?row.shadowHTFTTop3:row.shadowGoalsTop3;
+      const title=kind==='score'?'全场比分':kind==='htft'?'半全场':'总进球';
+      const box=reportSection(title+' · 赛前参考Top3');
+      const ko=Date.parse(String(row.kickoff||'')),at=Date.parse(String(data?.publishedAt||''));
+      if(!data||!Array.isArray(data.picks)||data.picks.length!==3||!Number.isFinite(ko)||!Number.isFinite(at)||at>=ko){
+        box.append(el('p','report-empty','暂无可核验的赛前Top3数据'));return box;
+      }
+      const grid=el('div',kind==='htft'?'htft-top4-grid':'score-top4-grid');
+      data.picks.forEach((pick,i)=>{
+        const name=kind==='score'?String(pick.score||'').replace('-',':'):kind==='htft'?String(pick.combination||''):String(pick.goals??'')+'球';
+        const probability=Number(pick.probability);
+        const cell=el('div','score-pick');
+        cell.append(el('small','','Top'+(i+1)),el('b','',name),
+          el('small','',Number.isFinite(probability)?(probability*100).toFixed(1)+'%':'—'));
+        grid.append(cell);
+      });
+      box.append(grid,el('p','report-sub','新加坡赛前影子预测 · '+fmtStamp(data.publishedAt)+' 留存；所示为模型概率，不是命中率，暂不计入正式战绩。'));
+      return box;
+    }
     function htftTop4Panel(row,selectedInfo){
       const info=selectedInfo===undefined?(row.dynamicHTFTPending?null:(row.dynamicHTFT??row.htftTop4)):selectedInfo;
       const full=fullMemberAnalysis(row);
+      if(!info&&row.shadowHTFTTop3)return sgShadowTop3Panel(row,'htft');
       const marketShadow=info?.sourceKind==='MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01';
       const historical=info?.sourceKind==='HISTORICAL_POSTMATCH_RECONSTRUCTION';
       const panel=reportSection(marketShadow?'赛前动态半全场 · Top3':historical?'半全场 Top3 · 历史补算':'半全场 Top3');
@@ -1869,6 +1890,7 @@
     function scoreTop4Panel(row,selectedInfo){
       const simulation=selectedInfo===undefined?scoreSimulationInfo(row):null,panel=el('section','score-top4'),info=selectedInfo===undefined?(scoreInfo(row)||simulation):selectedInfo;
       const full=fullMemberAnalysis(row);
+      if(!info&&row.shadowScoreTop3)return sgShadowTop3Panel(row,'score');
       const title=el('div','score-top4-title');
       const historical=info?.sourceKind==='HISTORICAL_BLIND_REPLAY';
       const marketShadow=info?.sourceKind==='MARKET_ANCHORED_POISSON_SHADOW_V01';
@@ -2152,7 +2174,8 @@
         const full=fullMemberAnalysis(row);
         goals.append(el('div','goals-inline-title',full?'泊松进球 · Top3':'泊松进球 · 概率最高'));
         if(lambda===null){
-          goals.append(el('p','goals-note','赛前进球参数未确认'));
+          if(row.shadowGoalsTop3)goals.append(sgShadowTop3Panel(row,'goals'));
+          else goals.append(el('p','goals-note','赛前进球参数未确认'));
         }else{
           let p=Math.exp(-lambda);const ranked=[];
           for(let k=0;k<=15;k++){if(k>0)p*=lambda/k;ranked.push({goals:k,p})}
@@ -4066,16 +4089,18 @@
       // the dedicated cold-warning and formal protection surfaces.
       if(state.model==='score'){
         c.append(scoreTop4Panel(row,scoreVersionInfo(row,'dynamic')??scoreVersionInfo(row,'original')??undefined));
-        if(publishedGoalLambda(row)!==null){const goals=reportDisclosure('展开泊松总进球');goals.append(goalPredictionPanel(row));c.append(goals);}
+        if(publishedGoalLambda(row)!==null||row.shadowGoalsTop3){const goals=reportDisclosure('展开泊松总进球');goals.append(publishedGoalLambda(row)!==null?goalPredictionPanel(row):sgShadowTop3Panel(row,'goals'));c.append(goals);}
       }else if(state.model==='goals'){
         const selected=goalVersionInfo(row,'dynamic')??goalVersionInfo(row,'original');
         if(selected)c.append(goalPredictionPanel(row,selected));
+        else if(row.shadowGoalsTop3)c.append(sgShadowTop3Panel(row,'goals'));
         else c.append(el('p','goals-note','本场赛前进球参数待确认'));
         if(scoreInfo(row)){const score=reportDisclosure('展开比分 · Top4');score.append(scoreTop4Panel(row));c.append(score);}
-      }else if(scoreInfo(row)||publishedGoalLambda(row)!==null){
-        const score=reportDisclosure('展开比分与进球 · Top4 / 总进球');
-        if(scoreInfo(row))score.append(scoreTop4Panel(row));
+      }else if(scoreInfo(row)||row.shadowScoreTop3||publishedGoalLambda(row)!==null||row.shadowGoalsTop3){
+        const score=reportDisclosure('展开比分与进球 · 赛前Top3');
+        if(scoreInfo(row)||row.shadowScoreTop3)score.append(scoreTop4Panel(row));
         if(publishedGoalLambda(row)!==null)score.append(goalPredictionPanel(row));
+        else if(row.shadowGoalsTop3)score.append(sgShadowTop3Panel(row,'goals'));
         c.append(score);
       }
       if(scoreSimulationInfo(row)&&state.model!=='score'){
