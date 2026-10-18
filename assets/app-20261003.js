@@ -1940,7 +1940,7 @@
       if(historical)id.append(el('span','focus-label','历史复算'));
       const done=valid&&htftSettled(info),hit=done&&htftTop3Hit(info);
       const prefix=marketShadow?'动态Top3':historical?'历史复算Top3':'原始Top3';
-      const label=!valid?'Top3数据待更新':done?(prefix+' · '+(hit?'命中':'未命中')):(prefix+' · 等待核验');
+      const label=!valid?(row.shadowHTFTTop3?'赛前影子Top3':'Top3数据待更新'):done?(prefix+' · '+(hit?'命中':'未命中')):(prefix+' · 等待核验');
       head.append(id,el('span','status'+(done?(hit?' verified':' fail'):'') ,label));
       const fixture=el('div','fixture'),teams=el('div','team-list');
       [[row.home,row.homeLogo],[row.away,row.awayLogo]].forEach(([name,logo])=>teams.append(teamNode(name,logo)));
@@ -1979,7 +1979,8 @@
           panel.append(el('p','htft-list-compare',
             '原始与动态Top3方向'+(o3===d3?'一致':'有调整')+' · 点击查看两版依据'));
         }
-      }else panel.append(el('p','htft-top4-note','本场半全场最新数据尚未更新完成；不会使用赛果补写预测。'));
+      }else if(row.shadowHTFTTop3)panel.append(sgShadowTop3Panel(row,'htft'));
+      else panel.append(el('p','htft-top4-note','本场半全场最新数据尚未更新完成；不会使用赛果补写预测。'));
       c.append(panel);c.setAttribute('role','button');c.tabIndex=0;
       c.onclick=()=>openDetail(row,history);
       c.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDetail(row,history)}};
@@ -1992,7 +1993,7 @@
       id.append(el('span','league',safe(row.league)),document.createTextNode(fmtTime(row.kickoff)+' · '+safe(row.no)));
       if(dynamic)id.append(el('span','focus-label','赛前动态预测'));
       else if(original)id.append(el('span','focus-label','原始赛前预测'));
-      head.append(id,el('span',statusClass(row,history),statusText(row,history)));
+      head.append(id,el('span',row.shadowScoreTop3&&!selected?'status':statusClass(row,history),row.shadowScoreTop3&&!selected?'赛前影子Top3':statusText(row,history)));
       const fixture=el('div','fixture'),teams=el('div','team-list');
       [[row.home,row.homeLogo],[row.away,row.awayLogo]].forEach(([name,logo])=>teams.append(teamNode(name,logo)));
       const settled=verified(row),score=el('div','score',settled&&hasScore(row)?scoreline(row):'VS');
