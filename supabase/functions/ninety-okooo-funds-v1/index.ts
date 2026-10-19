@@ -12,7 +12,7 @@ function nval(x:any){const m=String(x??"").replace(/,/g,"").replace(/%/g,"").mat
 function decodeBest(buf:Uint8Array){const c:any[]=[];for(const enc of ["gb18030","utf-8"]){try{const text=new TextDecoder(enc as any).decode(buf);c.push({text,enc,score:(text.match(/庄家盈亏|交易量比例|必发/g)||[]).length})}catch{}}c.sort((a,b)=>b.score-a.score);if(!c[0])throw new Error("decode_failed");return c[0]}
 async function fetchHtml(url:string){let last:any;for(let i=1;i<=2;i++){try{const r=await fetch(url,{headers:{"user-agent":UA,"accept-language":"zh-CN,zh;q=0.9","referer":url.replace("/exchanges/","/")},signal:AbortSignal.timeout(12000)});const b=new Uint8Array(await r.arrayBuffer());if(!r.ok)throw new Error("HTTP_"+r.status);const d=decodeBest(b);return {html:d.text,bytes:b.length,encoding:d.enc}}catch(e){last=e}}throw last}
 function parseExchange(html:string,home:string,away:string){
-  const trs=[...html.matchAll(/<tr\\b[^>]*>[\\s\\S]*?<\\/tr>/gi)].map(m=>({cells:rowCells(m[0]),text:strip(m[0])})).filter(x=>x.cells.length);
+  const trs=[...html.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi)].map(m=>({cells:rowCells(m[0]),text:strip(m[0])})).filter(x=>x.cells.length);
   const roles=[{key:"home",label:home},{key:"draw",label:"平局"},{key:"away",label:away}];
   const selections:Record<string,any>={};
   for(const role of roles){
