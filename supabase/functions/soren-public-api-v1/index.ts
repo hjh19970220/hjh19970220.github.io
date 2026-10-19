@@ -130,6 +130,14 @@ function adaptFormalPrediction(p:any,date:string){
   const marketDirectionAnomaly=source?.market_direction_conflict===true;
   const formalEligible=source?.final_selection_eligible===true;
   const productionRisk=warningPublished||highDrawRisk||marketDirectionAnomaly;
+  const homeProbability=pct(source?.p_final?.home??source?.p_raw?.home);
+  const drawProbability=pct(source?.p_final?.draw??source?.p_raw?.draw);
+  const awayProbability=pct(source?.p_final?.away??source?.p_raw?.away);
+  const confidence=pct(source?.top1_prob??Math.max(
+    Number(source?.p_final?.home??source?.p_raw?.home??0),
+    Number(source?.p_final?.draw??source?.p_raw?.draw??0),
+    Number(source?.p_final?.away??source?.p_raw?.away??0),
+  ));
   return {
     date,no:String(p.match_no||"").padStart(3,"0"),league:p.league??"",home:p.home_team??"",away:p.away_team??"",
     kickoff:p.kickoff_bjt??null,matchStatus:"SCHEDULED",resultVerified:scored,result:actual,
@@ -138,7 +146,10 @@ function adaptFormalPrediction(p:any,date:string){
     pregameVerified:Boolean(p.frozen_at&&Date.parse(p.frozen_at)<Date.parse(p.kickoff_bjt)),
     saleFreezeStatus:p.freeze_status??"PREMATCH_VERIFIED",predictionState:"PREMATCH_VERIFIED",
     frozenAt:p.frozen_at??null,analysisPending:false,ftTop1:label(p.top1),second:label(p.second_pick),
-    homeProbability:null,drawProbability:null,awayProbability:null,confidence:null,
+    homeProbability,drawProbability,awayProbability,confidence,
+    mode:p.ticket_pick?(String(p.ticket_pick).includes("/")?"DOUBLE":"SINGLE"):
+      (p.keep_discard==="KEEP"?"SINGLE":"PASS"),
+    tier:formalEligible?"A":"PASS",pass:!formalEligible,
     officialHandicap:p.official_handicap??null,handicapTop1:p.handicap_pick&&p.handicap_pick!=="PASS"?p.handicap_pick:null,
     handicapSecond:null,handicapProbability:null,handicapSecondProbability:null,
     handicapSourceLabel:p.handicap_pick&&p.handicap_pick!=="PASS"?"豪竞3.8赛前冻结":null,
@@ -211,8 +222,8 @@ Deno.serve(async(req:Request)=>{
   if(!validDate(date))return reply({ok:false,error:"INVALID_DATE"},400);
   try{
     const predQ=await sb.schema("ninety_core").from("hao_console_predictions")
-      .select("run_id,pool_date,match_no,league,home_team,away_team,kickoff_bjt,top1,second_pick,official_handicap,handicap_pick,source_status,source_provenance,frozen_at,freeze_status,result_home,result_away,result_verified,model_version,model_revision_tag")
-      .eq("pool_date",date).order("run_id",{ascending:false}).order("match_no");
+      .select("run_id,pool_date,match_no,league,home_team,away_team,kickoff_bjt,top1,second_pick,confidence_label,official_handicap,handicap_pick,ticket_pick,keep_discard,source_status,source_provenance,frozen_at,freeze_status,result_home,result_away,result_verified,model_version,model_revision_tag,updated_at")
+      .eq("pool_date",date).order("updated_at",{ascending:false}).order("match_no");
     if(predQ.error)throw predQ.error;
     const seen=new Set<string>();
     const formalRows=(predQ.data||[]).filter((p:any)=>{const k=String(p.match_no).padStart(3,"0");if(seen.has(k))return false;seen.add(k);return p.frozen_at&&Date.parse(p.frozen_at)<Date.parse(p.kickoff_bjt)&&p.top1;});
@@ -226,8 +237,13 @@ Deno.serve(async(req:Request)=>{
         if(!match)return base;
         const support=shadowSupport(match),h=support.shadowHandicap;
         return {...base,
-          homeProbability:support.homeProbability,drawProbability:support.drawProbability,
-          awayProbability:support.awayProbability,confidence:support.confidence,
+          // A formal Hao 3.8 forecast owns FT probabilities. Shadow module odds
+          // are support-only and may fill a genuinely absent legacy field, but
+          // must never overwrite p_final from the v87 production executor.
+          homeProbability:base.homeProbability??support.homeProbability,
+          drawProbability:base.drawProbability??support.drawProbability,
+          awayProbability:base.awayProbability??support.awayProbability,
+          confidence:base.confidence??support.confidence,
           officialHandicap:base.officialHandicap??h?.line??null,
           handicapTop1:base.handicapTop1??h?.top1??null,handicapSecond:base.handicapSecond??h?.second??null,
           handicapProbability:base.handicapProbability??h?.top1Probability??null,
