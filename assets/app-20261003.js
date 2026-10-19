@@ -1657,7 +1657,7 @@
         const grade=row.shadowDailySelection.ftStatus;
         return grade==='SUCCESS'?'评测成功 · 胜平负':grade==='FAILURE'?'评测失败 · 胜平负':'等待评测';
       }
-      const shadow=state.model='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
+      const shadow=state.model==='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
       if(shadow){
         if(shadow.settlementStatus==='SUCCESS')return '评测成功 · Top3';
         if(shadow.settlementStatus==='FAILURE')return '评测失败 · Top3';
