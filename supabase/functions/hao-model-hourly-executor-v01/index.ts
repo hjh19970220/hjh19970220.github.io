@@ -226,7 +226,7 @@ Deno.serve(async (req: Request) => {
       const hhadProb = hhad ? devig(hhad.home_sp, hhad.draw_sp, hhad.away_sp) : null;
       const intel = (intelQ.data || []).filter((x: AnyRow) => Number(x.offering_id) === Number(o.id));
       const teacher = chooseLatest(teacherQ.data || [], (x) => Number(x.offering_id) === Number(o.id));
-      const elo = chooseLatest(eloQ.data || [], (x) => Number(x.offering_id) === Number(o.id));
+      // Migrated Elo rows can retain the legacy Hao offering_id. Prefer the\n      // Singapore id, then safely fall back to the same sale date + match no.\n      const elo = chooseLatest(eloQ.data || [], (x) => Number(x.offering_id) === Number(o.id))\n        || chooseLatest(eloQ.data || [], (x) => pad(x.match_no) === pad(o.match_no));
       const professional = (proQ.data || []).filter((x: AnyRow) => Number(x.offering_id) === Number(o.id));
       const poissonBase = chooseLatest(poissonBaseQ.data || [], (x) => Number(x.offering_id) === Number(o.id));
       const handicap = n(o.handicap_line);
