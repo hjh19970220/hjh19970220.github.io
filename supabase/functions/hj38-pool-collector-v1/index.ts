@@ -9,6 +9,7 @@ const addDay=(d:string)=>{const x=new Date(d+"T12:00:00+08:00");x.setUTCDate(x.g
 const day=(v:any)=>{const m=String(v||"").match(/(20\d{2})\D*(\d{1,2})\D*(\d{1,2})/);return m?`${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`:null};
 const odds=(v:any)=>{const a=String(v||"").match(/\d+\.\d+/g)?.map(Number)||[];return a.length>=3?a.slice(-3):null};
 const handicap=(v:any)=>{const m=String(v||"").match(/主\(([+-]?\d+)\)/);return m?Number(m[1]):null};
+const canon=(v:any)=>String(v||"").trim();
 async function hash(v:any){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(v)));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 async function fetchPool(){let last:any=null;for(let i=0;i<2;i++){try{const r=await fetch(API,{headers:{"user-agent":"Mozilla/5.0","accept":"application/json","cache-control":"no-cache"},signal:AbortSignal.timeout(12000)});const t=await r.text();if(r.ok)return JSON.parse(t);last=Error(`HTTP ${r.status}: ${t.slice(0,120)}`)}catch(e){last=e}if(i<1)await new Promise(x=>setTimeout(x,500))}throw last||Error("pool fetch failed")}
 const clean=(v:string)=>v.replace(/<[^>]+>/g," ").replace(/&nbsp;|&#160;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();
@@ -19,14 +20,18 @@ Deno.serve(async(req)=>{const now=new Date().toISOString();try{
   const u=new URL(req.url),sale=u.searchParams.get("date")||dateBjt(),wd=weekday(sale);
   const payload:any=await Promise.any([fetchPool(),fetchOkoooFallback(sale)]),all=Array.isArray(payload?.matches)?payload.matches:[];
   const pool=all.filter((m:any)=>Number(m.matchTypeValue??0)===0&&String(m.displayNo||"").startsWith(wd+" ")&&String(m.state||"").toLowerCase()==="upcoming"&&day(m.dayLabel)>=sale&&day(m.dayLabel)<=addDay(sale)&&(odds(m.spfSp)||odds(m.rqspfSp)));
-  let written=0,spRows=0;
+  let written=0,spRows=0;const ingestMatches:any[]=[];
   for(const m of pool){const no=Number(String(m.displayNo).match(/(\d{3})$/)?.[1]);const koDay=day(m.dayLabel);if(!no||!koDay)continue;
-    const matchCode=sale.replaceAll("-","")+"-"+String(no).padStart(3,"0"),line=handicap(m.rqspfSp)??handicap(m.handicap);
-    const row={offer_date:sale,match_code:matchCode,weekday_text:wd,match_no:no,league:String(m.league||"未确认"),home_team:String(m.home||"").trim(),away_team:String(m.away||"").trim(),kickoff_local:`${koDay} ${String(m.kickoff||"00:00")}:00`,handicap_line:line,source_url:API,source_quality:"B-live-pool-identity",is_world_cup:/世界杯/.test(String(m.league||"")),excluded_reason:/世界杯/.test(String(m.league||""))?"世界杯按豪模型规则排除":null,imported_at:now};
+    const matchCode=sale.replaceAll("-","")+"-"+String(no).padStart(3,"0"),line=handicap(m.rqspfSp)??handicap(m.handicap),had=odds(m.spfSp),hhad=odds(m.rqspfSp);
+    const row={offer_date:sale,match_code:matchCode,weekday_text:wd,match_no:no,league:String(m.league||"未确认"),home_team:canon(m.home),away_team:canon(m.away),kickoff_local:`${koDay} ${String(m.kickoff||"00:00")}:00`,handicap_line:line,source_url:API,source_quality:"B-live-pool-identity",is_world_cup:/世界杯/.test(String(m.league||"")),excluded_reason:/世界杯/.test(String(m.league||""))?"世界杯按豪模型规则排除":null,imported_at:now};
     const q=await sb.from("jc_offerings_2026").upsert(row,{onConflict:"offer_date,match_code"}).select("id").single();if(q.error)throw q.error;written++;
-    for(const x of [{market:"HAD",vals:odds(m.spfSp),line:null},{market:"HHAD",vals:odds(m.rqspfSp),line}]){if(!x.vals)continue;const raw={source_match_id:String(m.id),displayNo:m.displayNo,home:m.home,away:m.away,kickoff:m.kickoff,dayLabel:m.dayLabel,market:x.market};const source_hash=await hash(raw);
+    for(const x of [{market:"HAD",vals:had,line:null},{market:"HHAD",vals:hhad,line}]){if(!x.vals)continue;const raw={source_match_id:String(m.id),displayNo:m.displayNo,home:m.home,away:m.away,kickoff:m.kickoff,dayLabel:m.dayLabel,market:x.market};const source_hash=await hash(raw);
       const z=await sb.from("hao_jc_sp_mirror_raw_v01").upsert({offering_id:q.data.id,pool_date:sale,match_no:String(no).padStart(3,"0"),source_code:"qiulaile_sp_mirror",source_match_id:String(m.id),source_match_url:API,market_type:x.market,handicap_line:x.line,home_sp:x.vals[0],draw_sp:x.vals[1],away_sp:x.vals[2],snapshot_type:"current",captured_at:now,fetched_at:now,source_kind:"qiulaile_structured_jc_mirror_strict_sale_identity",source_hash,parse_status:"verified_mirror",raw_payload:raw},{onConflict:"offering_id,market_type,source_hash",ignoreDuplicates:true});if(z.error)throw z.error;spRows++}
+    const localTime=String(m.kickoff||"00:00").match(/^\d{1,2}:\d{2}/)?.[0]||"00:00";
+    const kickoffAt=new Date(`${koDay}T${localTime}:00+08:00`).toISOString();
+    ingestMatches.push({match_key:matchCode,match_date:sale,match_no:String(no).padStart(3,"0"),league:String(m.league||"未确认"),home_team:canon(m.home),away_team:canon(m.away),kickoff_at:kickoffAt,status:"scheduled",fields:[{field_key:"official_sp",source_name:"okooo_mirror",quality:"verified",observed_at:now,payload:{source_match_id:String(m.id),source_url:API,identity:"sale_date+match_no+teams+kickoff",had:had?{home:had[0],draw:had[1],away:had[2]}:null,hhad:hhad?{line,home:hhad[0],draw:hhad[1],away:hhad[2]}:null}}]});
   }
+  if(ingestMatches.length){const ingest=await sb.schema("public").rpc("ninety_ingest_batch",{p_payload:{source_name:"hj38_pool_collector_v1",observed_at:now,matches:ingestMatches}});if(ingest.error)throw ingest.error}
   await sb.from("hao_source_health_v01").upsert({source_code:"jc_pool_discovery",source_role:"football_pool_identity",status:written?"ok":"partial",last_attempt_at:now,last_success_at:written?now:null,latest_pool_date:sale,expected_matches:pool.length,mapped_matches:written,captured_matches:written,verified_matches:written,consecutive_failures:written?0:1,last_error:written?null:"no current sale pool",notes:"Independent Singapore sale-day pool; no old project dependency",updated_at:now},{onConflict:"source_code"});
   return Response.json({ok:true,sale_date:sale,expected:pool.length,written,sp_rows:spRows});
 }catch(e:any){return Response.json({ok:false,error:String(e?.message||e)},{status:500})}});
