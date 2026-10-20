@@ -1336,7 +1336,7 @@
         :(state.baseDate||state.today?.date||state.selectedDate||beijingToday());
     }
 
-    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v5_coldroute_verified:'+String(date)}
+    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v6_coldzone_contract:'+String(date)}
     function restoreMemberZoneSnapshot(date){
       try{
         const raw=localStorage.getItem(memberZoneStorageKey(date));
@@ -1409,16 +1409,20 @@
         finally{clearTimeout(timer)}
         const j=await r.json();
         if(r.status===403&&j.error==='VIP_MEMBERSHIP_REQUIRED'){memberInfo=j.membership||memberInfo;throw Error('冷门预警暂未全面开放')}
-        if(!r.ok||j.ok!==true||!j.zone)throw Error(j.error||'会员专区暂不可用');
+        const zone=j?.zone&&typeof j.zone==='object'?j.zone:
+          (Array.isArray(j?.rows)&&j?.ok===true?{date:j.date||zoneDate,rows:j.rows,
+            routeRuleVersion:j.routeRuleVersion||'UNVERIFIED',certifiedDirectional:j.certifiedDirectional||0,
+            riskObservations:j.riskObservations||0}:null);
+        if(!r.ok||j.ok!==true||!zone||!Array.isArray(zone.rows))throw Error(j.error||'会员专区暂不可用');
         memberInfo=j.membership||memberInfo;
-        const fingerprint=JSON.stringify(j.zone);
-        if(!state.memberZone||state.memberZone.date!==j.zone.date||fingerprint!==memberZoneFingerprint){
-          state.memberZone=j.zone;
+        const fingerprint=JSON.stringify(zone);
+        if(!state.memberZone||state.memberZone.date!==zone.date||fingerprint!==memberZoneFingerprint){
+          state.memberZone=zone;
           memberZoneFingerprint=fingerprint;
           changed=true;
         }
-        memberZoneDataCache.set(zoneDate,{at:Date.now(),zone:j.zone,membership:j.membership||memberInfo,fingerprint});
-        persistMemberZoneSnapshot(zoneDate,j.zone,fingerprint);
+        memberZoneDataCache.set(zoneDate,{at:Date.now(),zone,membership:j.membership||memberInfo,fingerprint});
+        persistMemberZoneSnapshot(zoneDate,zone,fingerprint);
         while(memberZoneDataCache.size>10)memberZoneDataCache.delete(memberZoneDataCache.keys().next().value);
         state.memberZoneError=null;
       })();
