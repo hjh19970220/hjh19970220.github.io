@@ -492,7 +492,7 @@
         capturedAt:source.capturedAt||source.captured_at||null
       };
       out.available=[...Object.values(out.market99.probabilities),...Object.values(out.betfair.share)].some(v=>v!==null)||
-        out.kelly.completeCount>0||out.intelligence.highlights.length>0||out.flags.length>0;
+        out.kelly.completeCount>0||out.intelligence.highlights.length>0;
       return out;
     }
     function shadowTop1Relation(analysis,top1){
@@ -515,21 +515,28 @@
         line(holder,'与原Top1',shadowTop1Relation(a,options.top1));
         if(options.conclusion)line(holder,'九十刻度结论',options.conclusion);
       }
-      const pg=el('div','member-zone-proof-probs');
-      [['机构主胜',a.market99.probabilities.home],['机构平局',a.market99.probabilities.draw],['机构客胜',a.market99.probabilities.away]].forEach(([label,value])=>{const x=el('div','member-zone-proof-prob');x.append(el('span','',label),el('b','',pct(value)));pg.append(x)});
-      holder.append(pg);
-      line(holder,'机构主方向',a.market99.top||'待确认');
-      line(holder,'市场资金 主 / 平 / 客',[a.betfair.share.home,a.betfair.share.draw,a.betfair.share.away].map(pct).join(' / '));
-      line(holder,'市场资金主方向',a.betfair.top||'待确认');
-      line(holder,'市场冷热 主 / 平 / 客',[a.betfair.coldHeat.home,a.betfair.coldHeat.draw,a.betfair.coldHeat.away].map(v=>num(v)).join(' / '));
-      line(holder,'市场盈亏 主 / 平 / 客',[a.betfair.profitIndex.home,a.betfair.profitIndex.draw,a.betfair.profitIndex.away].map(v=>num(v)).join(' / '));
-      line(holder,'凯利最低方向',(a.kelly.lowestDirection||'待确认')+(a.kelly.lowestValue!==null?' · '+num(a.kelly.lowestValue,3):''));
-      line(holder,'凯利完整机构',a.kelly.completeCount+' 家');
-      if(a.flags.length){holder.append(el('b','','数据核验说明'));const ul=el('ul','member-zone-intel-list');a.flags.filter(x=>!/^新加坡测试数据/.test(String(x))).forEach(x=>ul.append(el('li','',x)));if(ul.childElementCount)holder.append(ul)}
-      line(holder,'情报影响',a.intelligence.impactSide&&a.intelligence.impactLevel?a.intelligence.impactSide+' · '+a.intelligence.impactLevel:'未确认');
-      line(holder,'有效伤停/阵容',a.intelligence.injuryCount+' 条');
+      const complete3=o=>Object.values(o||{}).length===3&&Object.values(o).every(v=>v!==null);
+      if(complete3(a.market99.probabilities)){
+        const pg=el('div','member-zone-proof-probs');
+        [['机构主胜',a.market99.probabilities.home],['机构平局',a.market99.probabilities.draw],['机构客胜',a.market99.probabilities.away]].forEach(([label,value])=>{const x=el('div','member-zone-proof-prob');x.append(el('span','',label),el('b','',pct(value)));pg.append(x)});
+        holder.append(pg);
+        if(a.market99.top)line(holder,'机构主方向',a.market99.top);
+      }
+      if(complete3(a.betfair.share)){
+        line(holder,'必发资金 主 / 平 / 客',[a.betfair.share.home,a.betfair.share.draw,a.betfair.share.away].map(pct).join(' / '));
+        if(a.betfair.top)line(holder,'必发资金主方向',a.betfair.top);
+        if(complete3(a.betfair.coldHeat))line(holder,'市场冷热 主 / 平 / 客',[a.betfair.coldHeat.home,a.betfair.coldHeat.draw,a.betfair.coldHeat.away].map(v=>num(v)).join(' / '));
+        if(complete3(a.betfair.profitIndex))line(holder,'市场盈亏 主 / 平 / 客',[a.betfair.profitIndex.home,a.betfair.profitIndex.draw,a.betfair.profitIndex.away].map(v=>num(v)).join(' / '));
+      }
+      if(a.kelly.completeCount>0){
+        if(a.kelly.lowestDirection)line(holder,'凯利最低方向',a.kelly.lowestDirection+(a.kelly.lowestValue!==null?' · '+num(a.kelly.lowestValue,3):''));
+        line(holder,'凯利完整机构',a.kelly.completeCount+' 家');
+      }
+      if(a.flags.length){const ul=el('ul','member-zone-intel-list');a.flags.filter(x=>!/^新加坡测试数据/.test(String(x))).forEach(x=>ul.append(el('li','',x)));if(ul.childElementCount){holder.append(el('b','','数据核验说明'));holder.append(ul)}}
+      if(a.intelligence.impactSide&&a.intelligence.impactLevel)line(holder,'情报影响',a.intelligence.impactSide+' · '+a.intelligence.impactLevel);
+      if(a.intelligence.injuryCount>0)line(holder,'有效伤停/阵容',a.intelligence.injuryCount+' 条');
       if(a.intelligence.highlights.length){const ul=el('ul','member-zone-intel-list');a.intelligence.highlights.forEach(x=>ul.append(el('li','',x)));holder.append(ul)}
-      line(holder,'深度分析更新',a.capturedAt?fmtStamp(a.capturedAt):'时间待确认');
+      if(a.capturedAt)line(holder,'深度分析更新',fmtStamp(a.capturedAt));
       return a;
     }
     // Cold-warning cards are DOM-heavy. Reuse the exact page while its source
@@ -1352,7 +1359,7 @@
         :(state.baseDate||state.today?.date||state.selectedDate||beijingToday());
     }
 
-    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v8_coldproof_verified:'+String(date)}
+    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v9_deep_chain_restored:'+String(date)}
     function restoreMemberZoneSnapshot(date){
       try{
         const raw=localStorage.getItem(memberZoneStorageKey(date));
@@ -3959,21 +3966,27 @@
       if(market?.average&&[market.average.home,market.average.draw,market.average.away].every(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)))){
         reportLine(panel,'机构平均欧赔 主 / 平 / 客',[market.average.home,market.average.draw,market.average.away].map(v=>Number(v).toFixed(3)).join(' / '));
       }
-      // William stays on the already-loaded formal match payload. Do not add a
-      // second API request here: this keeps the VIP panel fast and gives William
-      // one production source of truth.
-      const williamInitial=row?.market?.initialOdds;
-      const williamCurrent=row?.market?.currentOdds;
-      if(Array.isArray(williamInitial)||Array.isArray(williamCurrent)){
+      // Prefer frozen customer payload, then the independent verified market
+      // source used by this deep endpoint. Never swap in an average for William.
+      const validTriple=v=>Array.isArray(v)&&v.length===3&&v.every(x=>x!==null&&x!==undefined&&Number.isFinite(Number(x)));
+      const williamInitial=validTriple(row?.market?.initialOdds)?row.market.initialOdds:market?.william?.initial;
+      const williamCurrent=validTriple(row?.market?.currentOdds)?row.market.currentOdds:market?.william?.current;
+      const williamFair=validTriple(row?.market?.currentFair)?row.market.currentFair:
+        (market?.william?.fair?['home','draw','away'].map(k=>market.william.fair[k]):null);
+      if(validTriple(williamInitial)&&validTriple(williamCurrent))
         reportLine(panel,'威廉 初盘→赛前',memberOdds3(williamInitial)+' → '+memberOdds3(williamCurrent));
-      }
-      if(Array.isArray(row?.market?.currentFair)){
-        reportLine(panel,'威廉概率',memberPct3(row.market.currentFair).join(' / '));
-      }
+      if(validTriple(williamFair))reportLine(panel,'威廉概率',memberPct3(williamFair).join(' / '));
+      if(validTriple(market?.official?.had))reportLine(panel,'体彩胜平负SP',memberOdds3(market.official.had));
+      if(validTriple(market?.official?.hhad))reportLine(panel,'体彩让球SP',
+        (market.official.hhadLine===null?'让球':('主'+(market.official.hhadLine>0?'+':'')+market.official.hhadLine))+
+        ' · '+memberOdds3(market.official.hhad));
+      if(Array.isArray(market?.asian)&&market.asian.length)
+        reportLine(panel,'亚洲盘口',market.asian.map(x=>String(x.institution)+
+          ' '+String(x.initialLine??'—')+'→'+String(x.currentLine??'—')).join('；'));
       holder.append(panel);
     }
     async function loadDeepMarketAnalysis(row,holder){
-      // Public Singapore test preview: deep market statistics are available without VIP or login.
+      // The deep market endpoint requires authenticated monthly VIP or admin access.
       const key=String(row.date||state.selectedDate)+'|'+String(row.no).padStart(3,'0');
       const cached=okoooShadowCache.get(key);
       const usableCached=cached&&cached.token===authSession.access_token&&cached.data?.ok===true;
