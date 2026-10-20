@@ -523,8 +523,8 @@
         if(a.market99.top)line(holder,'机构主方向',a.market99.top);
       }
       if(complete3(a.betfair.share)){
-        line(holder,'必发资金 主 / 平 / 客',[a.betfair.share.home,a.betfair.share.draw,a.betfair.share.away].map(pct).join(' / '));
-        if(a.betfair.top)line(holder,'必发资金主方向',a.betfair.top);
+        line(holder,'市场资金 主 / 平 / 客',[a.betfair.share.home,a.betfair.share.draw,a.betfair.share.away].map(pct).join(' / '));
+        if(a.betfair.top)line(holder,'市场资金主方向',a.betfair.top);
         if(complete3(a.betfair.coldHeat))line(holder,'市场冷热 主 / 平 / 客',[a.betfair.coldHeat.home,a.betfair.coldHeat.draw,a.betfair.coldHeat.away].map(v=>num(v)).join(' / '));
         if(complete3(a.betfair.profitIndex))line(holder,'市场盈亏 主 / 平 / 客',[a.betfair.profitIndex.home,a.betfair.profitIndex.draw,a.betfair.profitIndex.away].map(v=>num(v)).join(' / '));
       }
@@ -532,7 +532,7 @@
         if(a.kelly.lowestDirection)line(holder,'凯利最低方向',a.kelly.lowestDirection+(a.kelly.lowestValue!==null?' · '+num(a.kelly.lowestValue,3):''));
         line(holder,'凯利完整机构',a.kelly.completeCount+' 家');
       }
-      if(a.flags.length){const ul=el('ul','member-zone-intel-list');a.flags.filter(x=>!/^新加坡测试数据/.test(String(x))).forEach(x=>ul.append(el('li','',x)));if(ul.childElementCount){holder.append(el('b','','数据核验说明'));holder.append(ul)}}
+      if(a.flags.length){const ul=el('ul','member-zone-intel-list');a.flags.filter(x=>!/^新加坡测试数据/.test(String(x))).forEach(x=>ul.append(el('li','',x)));if(ul.childElementCount){holder.append(el('b','deep-market-points-title','系统识别要点'));holder.append(ul)}}
       if(a.intelligence.impactSide&&a.intelligence.impactLevel)line(holder,'情报影响',a.intelligence.impactSide+' · '+a.intelligence.impactLevel);
       if(a.intelligence.injuryCount>0)line(holder,'有效伤停/阵容',a.intelligence.injuryCount+' 条');
       if(a.intelligence.highlights.length){const ul=el('ul','member-zone-intel-list');a.intelligence.highlights.forEach(x=>ul.append(el('li','',x)));holder.append(ul)}
@@ -551,7 +551,7 @@
       const key=String(date)+'|'+String(no).padStart(3,'0');
       const cached=memberIntelCache.get(key);
       if(cached&&Date.now()-cached.at<5*60*1000)return cached.data;
-      const qs=new URLSearchParams({view:'member-intel',date:String(date),no:String(no).padStart(3,'0')});
+      const qs=new URLSearchParams({view:'member-intel',context:'cold',date:String(date),no:String(no).padStart(3,'0')});
       const r=await authorizedApiFetch(OKOOO_SHADOW_API+'?'+qs.toString(),{cache:'no-store',signal:timeoutSignal(10000)});
       const j=await r.json().catch(()=>null);
       if(!r.ok||j?.ok!==true)throw Error(j?.error||'情报暂不可用');
@@ -1359,7 +1359,7 @@
         :(state.baseDate||state.today?.date||state.selectedDate||beijingToday());
     }
 
-    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v9_deep_chain_restored:'+String(date)}
+    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v10_legacy_report:'+String(date)}
     function restoreMemberZoneSnapshot(date){
       try{
         const raw=localStorage.getItem(memberZoneStorageKey(date));
@@ -3999,7 +3999,7 @@
         holder.replaceChildren(el('p','report-loading','正在读取深度市场分析…'));
       }
       try{
-        const params=new URLSearchParams({view:'member-intel',date:String(row.date||state.selectedDate),no:String(row.no).padStart(3,'0')});
+        const params=new URLSearchParams({view:'member-intel',context:'detail',date:String(row.date||state.selectedDate),no:String(row.no).padStart(3,'0')});
         const url=OKOOO_SHADOW_API+'?'+params.toString();
         let response,data;
         // Mobile Safari can occasionally abort the first cross-project request.
