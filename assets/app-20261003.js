@@ -1659,8 +1659,9 @@
       }
       const shadow=state.model==='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
       if(shadow){
-        if(shadow.settlementStatus==='SUCCESS')return '评测成功 · Top3';
-        if(shadow.settlementStatus==='FAILURE')return '评测失败 · Top3';
+        // These are SG prematch reference predictions, not original formal Top4.
+        if(shadow.settlementStatus==='SUCCESS')return '参考评测成功 · Top3';
+        if(shadow.settlementStatus==='FAILURE')return '参考评测失败 · Top3';
         return shadow.pendingReason==='HALFTIME_NOT_VERIFIED'?'等待半场赛果核验':'等待评测';
       }
       if(row?.settlement?.verified===true){
