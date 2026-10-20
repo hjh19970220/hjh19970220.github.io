@@ -709,7 +709,13 @@
       // Backend is the single three-tier publication gate.
       // Yellow/orange are observation-only; only formal red warnings expose a direction.
       const publishable=rows.filter(row=>row?.coldRecognition?.customerVisible===true);
-
+      if(state.memberZone?.routeRuleVersion==='SG_PREMATCH_CERTIFIED_AND_RISK_ONLY_v1'){
+        const confirmed=Number(state.memberZone.certifiedDirectional||0);
+        const observe=Number(state.memberZone.riskObservations||0);
+        page.append(el('p','report-sub',
+          '新加坡冷门审计：真实赛前已确认避冷方向 '+confirmed+' 场；另有 '+observe+
+          ' 场只达到风险观察条件、尚未形成主队不胜/不败方向。仅已留存且有独立证据的赛前方向参与赛后避冷评测；ABC完整规则链仍需验收。'));
+      }
       if(!publishable.length){
         const abcOnly=String(state.memberZone?.routeRuleVersion??'').startsWith('ABC-');
         const empty=el('div','empty','',abcOnly?'当前暂无通过ABC审核的重点避开。必发资金未确认的比赛不会强制发布。':'今日暂无达到展示门槛的冷门风险');
@@ -1330,7 +1336,7 @@
         :(state.baseDate||state.today?.date||state.selectedDate||beijingToday());
     }
 
-    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v4_coldroute:'+String(date)}
+    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v5_coldroute_verified:'+String(date)}
     function restoreMemberZoneSnapshot(date){
       try{
         const raw=localStorage.getItem(memberZoneStorageKey(date));
@@ -2812,6 +2818,15 @@
         el('span','','今日共 '+all.length+'场')
       );
       box.append(summary);
+      const auditRows=all.map(r=>r.sorenSelectorAudit).filter(Boolean);
+      const awaitingVip=auditRows.filter(a=>a.publicationStatus==='PENDING_VIP_COLD_REVIEW').length;
+      const awaitingMarket=auditRows.filter(a=>a.publicationStatus==='PENDING_MARKET_DATA').length;
+      const rejected=auditRows.filter(a=>a.publicationStatus==='BLOCKED').length;
+      if(awaitingVip||awaitingMarket||rejected){
+        box.append(el('p','report-sub',
+          '原索伦今日优选规则审计：'+awaitingVip+'场等待完整冷门ABCDE及情报验证，'+awaitingMarket+
+          '场等待市场数据，'+rejected+'场已被风险或质量门槛排除。待审候选不视为正式优选，也不计入命中率；已触发冷门预警的场次本期不得重新晋级。'));
+      }
       if(all.some(shadowDailyEligible))box.append(el('p','report-sub','今日优选包含新加坡赛前影子筛选；每场独立核验胜平负和让球Top1，影子成绩不计入正式发布战绩。'));
       box.append(sectionHead('核心优选',focus.length+'场 · 通过核心筛选'));
       if(focus.length){
