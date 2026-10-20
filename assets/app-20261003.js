@@ -4208,16 +4208,32 @@
         const review=reportSection('赛后数据对照');
         reportLine(review,'90分钟赛果',resultName[row.result]||row.result);
         if(hasScore(row))reportLine(review,'比分',scoreline(row));
+        const shadowGrade=(record)=>{
+          if(!record)return null;
+          const verdict=status=>status==='SUCCESS'?'命中':status==='FAILURE'?'未命中':'等待核验';
+          reportLine(review,'影子赛前Top1',verdict(record.top1Status));
+          reportLine(review,'影子赛前Top3',verdict(record.settlementStatus));
+          review.append(el('p','report-sub','仅按赛前冻结候选与核验赛果评分；影子参考不计正式战绩。'));
+          return true;
+        };
         if(state.model==='htft'){
           const original=htftVersionInfo(row,'original'),dynamic=htftVersionInfo(row,'dynamic');
-          const verdict=info=>!info?'无有效赛前记录':!htftSettled(info)?'等待半场赛果核验':htftTop3Hit(info)?'Top3 · 命中':'Top3 · 未命中';
-          reportLine(review,'原始赛前Top3',verdict(original));
-          reportLine(review,'动态赛前Top3',verdict(dynamic));
-          review.append(el('p','report-sub','两个版本按各自赛前留存的方向独立核验与统计；历史补算不计入赛前发布成绩。'));
+          if(!original&&!dynamic&&row.shadowHTFTTop3)shadowGrade(row.shadowHTFTTop3);
+          else {
+            const verdict=info=>!info?'无有效赛前记录':!htftSettled(info)?'等待半场赛果核验':htftTop3Hit(info)?'Top3 · 命中':'Top3 · 未命中';
+            reportLine(review,'原始赛前Top3',verdict(original));
+            reportLine(review,'动态赛前Top3',verdict(dynamic));
+            review.append(el('p','report-sub','两个版本按各自赛前留存的方向独立核验与统计；历史补算不计入赛前发布成绩。'));
+          }
         }else if(state.model==='score'){
           const info=scoreVersionInfo(row,'dynamic')??scoreVersionInfo(row,'original'),actual=scoreActual(row);
-          const verdict=!info?'无有效赛前比分':actual===null?'赛果待核验':info.picks.some(p=>String(p.score)===actual)?'Top4 · 评测成功':'Top4 · 评测失败';
-          reportLine(review,'赛前比分Top4',verdict);
+          if(!info&&row.shadowScoreTop3)shadowGrade(row.shadowScoreTop3);
+          else {
+            const verdict=!info?'无有效赛前比分':actual===null?'赛果待核验':info.picks.some(p=>String(p.score)===actual)?'Top4 · 评测成功':'Top4 · 评测失败';
+            reportLine(review,'赛前比分Top4',verdict);
+          }
+        }else if(state.model==='goals'&&row.shadowGoalsTop3){
+          shadowGrade(row.shadowGoalsTop3);
         }else{
           reportLine(review,'模型方向与赛果',evaluationHit(row)?'评测成功':'评测失败');
           review.append(el('p','report-sub','评测仅在赛前预测落库、赛果核验后进行。'));
