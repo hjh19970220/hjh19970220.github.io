@@ -1631,7 +1631,7 @@
       return handicapChoice(pick,prob);
     };
     function evaluationHit(row){
-      if(state.model==='htft'){const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;return htftTop3Hit(h);}
+      if(state.model==='htft'){const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??(row.htftTop4?.referenceOnly===true||row.htftTop4?.formalEligible===false?null:row.htftTop4);return htftTop3Hit(h);}
       if(state.model==='score')return scoreHit(row);
       if(state.model==='handicap'||handicapOnlyView(row))return handicapHit(row)||handicapChoiceHit(row,row.handicapTop1??row.handicap)||handicapChoiceHit(row,row.handicapSecond);
       if(state.model==='overview')return ftHit(row);
@@ -1683,7 +1683,7 @@
       }
       if(row?.analysisPending===true)return '赛前分析待发布';
       if(state.model==='htft'){
-        const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;
+        const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??(row.htftTop4?.referenceOnly===true||row.htftTop4?.formalEligible===false?null:row.htftTop4);
         const historical=h?.sourceKind==='HISTORICAL_POSTMATCH_RECONSTRUCTION';
         const dynamic=h?.sourceKind==='MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01';
         if(!h||!Array.isArray(h.picks)||h.picks.length<3)return '半全场Top3数据待确认';
@@ -1716,7 +1716,7 @@
       if(shadowGrade?.sourceKind==='SG_PREMATCH_SHADOW'&&shadowGrade.formalEligible===false
         &&['SUCCESS','FAILURE'].includes(shadowGrade.top1Status))
         return 'status '+(shadowGrade.top1Status==='SUCCESS'?'verified':'fail');
-      if(interruptedMatch(row))return 'status pass';if(postponedMatch(row))return 'status pass';if(state.model==='htft'){const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;return 'status '+(htftSettled(h)?(htftTop3Hit(h)?'verified':'fail'):'');}if(state.model==='score'){const x=scoreInfo(row);if(!x&&scoreSimulationInfo(row)&&verified(row))return 'status verified';return 'status '+(!x||x.settlementStatus==='PENDING'?'':x.settlementStatus==='SUCCESS'?'verified':'fail')}if(verified(row))return 'status '+(state.model==='goals'?'verified':(state.model==='handicap'||handicapOnlyView(row))&&!handicapEvaluable(row)?'':evaluationHit(row)?'verified':'fail');return 'status'}
+      if(interruptedMatch(row))return 'status pass';if(postponedMatch(row))return 'status pass';if(state.model==='htft'){const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??(row.htftTop4?.referenceOnly===true||row.htftTop4?.formalEligible===false?null:row.htftTop4);return 'status '+(htftSettled(h)?(htftTop3Hit(h)?'verified':'fail'):'');}if(state.model==='score'){const x=scoreInfo(row);if(!x&&scoreSimulationInfo(row)&&verified(row))return 'status verified';return 'status '+(!x||x.settlementStatus==='PENDING'?'':x.settlementStatus==='SUCCESS'?'verified':'fail')}if(verified(row))return 'status '+(state.model==='goals'?'verified':(state.model==='handicap'||handicapOnlyView(row))&&!handicapEvaluable(row)?'':evaluationHit(row)?'verified':'fail');return 'status'}
     function moduleData(row){
       if(handicapOnlyView(row))return [['官方让球',row.officialHandicap],['让球首选',handicapDisplayChoice(row,row.handicapTop1??row.handicap,row.handicapProbability)],['让球次选',handicapDisplayChoice(row,row.handicapSecond,row.handicapSecondProbability)]];
       if(state.model==='handicap')return [['官方让球',row.officialHandicap],['让球首选',handicapChoice(row.handicapTop1??row.handicap,row.handicapProbability)],['让球次选',handicapChoice(row.handicapSecond,row.handicapSecondProbability)]];
@@ -1759,7 +1759,7 @@
     function htftVersionInfo(row,kind){
       const info=kind==='dynamic'?(row.dynamicHTFTPending?null:row.dynamicHTFT):row.htftTop4;
       const expected=kind==='dynamic'?'MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01':'PUBLISHED_PREMATCH';
-      if(!info||info.sourceKind!==expected||!Array.isArray(info.picks)||info.picks.length!==4)return null;
+      if(!info||info.referenceOnly===true||info.formalEligible===false||info.sourceKind!==expected||!Array.isArray(info.picks)||info.picks.length!==4)return null;
       const kickoff=Date.parse(String(row.kickoff??'')),frozen=Date.parse(String(info.sourceFrozenAt??'')),published=Date.parse(String(info.publishedAt??''));
       if(!Number.isFinite(kickoff)||!Number.isFinite(frozen)||!Number.isFinite(published)||frozen>published||published>=kickoff)return null;
       return info;
@@ -1824,9 +1824,9 @@
       return box;
     }
     function htftTop4Panel(row,selectedInfo){
-      const info=selectedInfo===undefined?(row.dynamicHTFTPending?null:(row.dynamicHTFT??row.htftTop4)):selectedInfo;
+      const info=selectedInfo===undefined?(row.dynamicHTFTPending?null:(row.dynamicHTFT??(row.htftTop4?.referenceOnly===true||row.htftTop4?.formalEligible===false?null:row.htftTop4))):selectedInfo;
       const full=fullMemberAnalysis(row);
-      if(row.shadowHTFTTop3&&(!info||!['PUBLISHED_PREMATCH','MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01','HISTORICAL_POSTMATCH_RECONSTRUCTION'].includes(info.sourceKind)))return sgShadowTop3Panel(row,'htft');
+      if(row.shadowHTFTTop3&&(!info||info.referenceOnly===true||info.formalEligible===false||!['PUBLISHED_PREMATCH','MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01','HISTORICAL_POSTMATCH_RECONSTRUCTION'].includes(info.sourceKind)))return sgShadowTop3Panel(row,'htft');
       const marketShadow=info?.sourceKind==='MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01';
       const historical=info?.sourceKind==='HISTORICAL_POSTMATCH_RECONSTRUCTION';
       const panel=reportSection(marketShadow?'赛前动态半全场 · Top3':historical?'半全场 Top3 · 历史补算':'半全场 Top3');
@@ -1999,8 +1999,8 @@
     }
     function htftCard(row,history=false){
       const c=el('article','card'),head=el('div','card-head'),id=el('div','match-id');
-      const info=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4,marketShadow=info?.sourceKind==='MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01',historical=info?.sourceKind==='HISTORICAL_POSTMATCH_RECONSTRUCTION';
-      const valid=info&&Array.isArray(info.picks)&&info.picks.length===4&&
+      const info=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??(row.htftTop4?.referenceOnly===true||row.htftTop4?.formalEligible===false?null:row.htftTop4),marketShadow=info?.sourceKind==='MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01',historical=info?.sourceKind==='HISTORICAL_POSTMATCH_RECONSTRUCTION';
+      const valid=info&&info.referenceOnly!==true&&info.formalEligible!==false&&Array.isArray(info.picks)&&info.picks.length===4&&
         ['PUBLISHED_PREMATCH','HISTORICAL_POSTMATCH_RECONSTRUCTION','MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01'].includes(info.sourceKind);
       const full=fullMemberAnalysis(row);
       id.append(el('span','league',safe(row.league)),document.createTextNode(fmtTime(row.kickoff)+' · '+safe(row.no)));
@@ -4259,7 +4259,7 @@
     function errorBox(e){const x=el('div','error');x.append(el('b','','数据暂时无法加载'),el('div','',safe(e?.message||e)+'。请稍后重试。'));return x}
     function htftSample(rows,kind){
       return rows.map(row=>({row,info:kind==='dynamic'?row.dynamicHTFT:row.htftTop4})).filter(({row,info})=>{
-        if(!info||info.sourceKind!==(kind==='dynamic'?'MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01':kind==='original'?'PUBLISHED_PREMATCH':'HISTORICAL_POSTMATCH_RECONSTRUCTION')||!Array.isArray(info.picks)||info.picks.length!==4)return false;
+        if(!info||info.referenceOnly===true||info.formalEligible===false||info.sourceKind!==(kind==='dynamic'?'MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01':kind==='original'?'PUBLISHED_PREMATCH':'HISTORICAL_POSTMATCH_RECONSTRUCTION')||!Array.isArray(info.picks)||info.picks.length!==4)return false;
         if(kind==='replay')return true;
         const k=Date.parse(String(row.kickoff??'')),f=Date.parse(String(info.sourceFrozenAt??'')),p=Date.parse(String(info.publishedAt??''));
         return Number.isFinite(k)&&Number.isFinite(f)&&Number.isFinite(p)&&f<=p&&p<k;
