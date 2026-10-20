@@ -1663,7 +1663,23 @@
         if(shadow.settlementStatus==='FAILURE')return '评测失败 · Top3';
         return shadow.pendingReason==='HALFTIME_NOT_VERIFIED'?'等待半场赛果核验':'等待评测';
       }
-      if(row?.settlement?.verified===true){const g=state.model==='handicap'?row.settlement.handicapTop1Status:row.settlement.ftTop1Status;if(g==='SUCCESS')return '评测成功';if(g==='FAILURE')return '评测失败';}
+      if(row?.settlement?.verified===true){
+        const g=state.model==='handicap'?row.settlement.handicapTop1Status:row.settlement.ftTop1Status;
+        const name=state.model==='handicap'?'让球Top1':'胜平负Top1';
+        if(g==='SUCCESS')return '评测成功 · '+name;
+        if(g==='FAILURE')return '评测失败 · '+name;
+      }
+      // A finished match may have a verifiable SG reference forecast while
+      // the original formal handicap/FT module was not published.
+      // Keep reference grades separate from the official hit-rate record.
+      const referenceGrade=state.model==='handicap'?row.shadowModuleSettlements?.handicap
+        :(['overview','wdl'].includes(state.model)?row.shadowModuleSettlements?.ft:null);
+      if(referenceGrade?.sourceKind==='SG_PREMATCH_SHADOW'&&referenceGrade.formalEligible===false){
+        const g=referenceGrade.top1Status;
+        const kind=state.model==='handicap'?'让球Top1':'胜平负Top1';
+        if(g==='SUCCESS')return '参考评测成功 · '+kind;
+        if(g==='FAILURE')return '参考评测失败 · '+kind;
+      }
       if(row?.analysisPending===true)return '赛前分析待发布';
       if(state.model==='htft'){
         const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;
@@ -1689,6 +1705,16 @@
       }
       const shadow=state.model==='score'?row.shadowScoreTop3:state.model==='htft'?row.shadowHTFTTop3:state.model==='goals'?row.shadowGoalsTop3:null;
       if(shadow)return 'status '+(shadow.settlementStatus==='SUCCESS'?'verified':shadow.settlementStatus==='FAILURE'?'fail':'');
+      const formalGrade=row?.settlement?.verified===true
+        ?(state.model==='handicap'?row.settlement.handicapTop1Status
+          :(['overview','wdl'].includes(state.model)?row.settlement.ftTop1Status:null)):null;
+      if(formalGrade==='SUCCESS'||formalGrade==='FAILURE')
+        return 'status '+(formalGrade==='SUCCESS'?'verified':'fail');
+      const shadowGrade=state.model==='handicap'?row.shadowModuleSettlements?.handicap
+        :(['overview','wdl'].includes(state.model)?row.shadowModuleSettlements?.ft:null);
+      if(shadowGrade?.sourceKind==='SG_PREMATCH_SHADOW'&&shadowGrade.formalEligible===false
+        &&['SUCCESS','FAILURE'].includes(shadowGrade.top1Status))
+        return 'status '+(shadowGrade.top1Status==='SUCCESS'?'verified':'fail');
       if(interruptedMatch(row))return 'status pass';if(postponedMatch(row))return 'status pass';if(state.model==='htft'){const h=htftVersionInfo(row,'dynamic')??htftVersionInfo(row,'original')??row.htftTop4;return 'status '+(htftSettled(h)?(htftTop3Hit(h)?'verified':'fail'):'');}if(state.model==='score'){const x=scoreInfo(row);if(!x&&scoreSimulationInfo(row)&&verified(row))return 'status verified';return 'status '+(!x||x.settlementStatus==='PENDING'?'':x.settlementStatus==='SUCCESS'?'verified':'fail')}if(verified(row))return 'status '+(state.model==='goals'?'verified':(state.model==='handicap'||handicapOnlyView(row))&&!handicapEvaluable(row)?'':evaluationHit(row)?'verified':'fail');return 'status'}
     function moduleData(row){
       if(handicapOnlyView(row))return [['官方让球',row.officialHandicap],['让球首选',handicapDisplayChoice(row,row.handicapTop1??row.handicap,row.handicapProbability)],['让球次选',handicapDisplayChoice(row,row.handicapSecond,row.handicapSecondProbability)]];
