@@ -1380,7 +1380,7 @@
         :(state.baseDate||state.today?.date||state.selectedDate||beijingToday());
     }
 
-    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v11_verified_environment:'+String(date)}
+    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v12_prematch_modules:'+String(date)}
     function restoreMemberZoneSnapshot(date){
       try{
         const raw=localStorage.getItem(memberZoneStorageKey(date));
@@ -2018,7 +2018,7 @@
       const marketShadow=info?.sourceKind==='MARKET_ANCHORED_POISSON_SHADOW_V01';
       const originalPrematch=!!info&&!simulation&&!historical&&!marketShadow;
       title.append(
-        el('span','',simulation?'比分概率参考':historical?(full?'历史比分回放 · Top4':'历史比分回放 · Top1'):marketShadow?(full?'最新比分预测 · Top4':'最新比分预测 · Top1'):originalPrematch?(full?'原始赛前比分 · Top4':'原始赛前比分 · Top1'):(full?'全场比分 · Top4':'全场比分 · Top1')),
+        el('span','',simulation?'比分概率参考':historical?(full?'历史比分回放 · Top4':'历史比分回放 · Top1'):marketShadow?(full?'赛前比分参考 · Top4':'赛前比分参考 · Top1'):originalPrematch?(full?'原始赛前比分 · Top4':'原始赛前比分 · Top1'):(full?'全场比分 · Top4':'全场比分 · Top1')),
         el('small','',simulation?'补充分析':!info?'等待赛前参数':historical?'历史资料回放':marketShadow?'':'原始冻结 '+fmtStamp(info.frozenAt))
       );
       panel.append(title);
@@ -4518,7 +4518,7 @@
     // Keep settled snapshots across the full 15-day customer history window; active/unsettled days
     // retain their short TTLs so live prematch updates are never frozen by archive caching.
     const dayCache=new Map(),dayRequests=new Map(),dayContentVersions=new Map();let dateRequestId=0,historyPrefetchStarted=false;
-    const ARCHIVE_SESSION_PREFIX='soren-archive-v5-weather:';
+    const ARCHIVE_SESSION_PREFIX='soren-archive-v6-frozen-modules:';
     const SETTLED_CACHE_TTL=15*24*60*60*1000,ACTIVE_CACHE_TTL=30*1000,ACTIVE_BOOT_CACHE_TTL=15*60*1000;
     function dayCacheScope(){return [authSession?.user?.id||'',memberInfo?.active===true?'1':'0',(SHADOW_MODE||memberInfo?.vipActive===true)?'1':'0'].join('|')}
     function fullySettledDay(d){
