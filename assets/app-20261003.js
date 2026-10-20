@@ -806,7 +806,11 @@
           add('市场资金/机构提示平局分歧',95);
         else if(marketReady&&['主胜','客胜'].includes(marketTop)&&original&&marketTop!==original)
           add('市场资金/机构与原首选背离',94);
-        if(marketAdverse&&(!marketTop||marketTop!==original))
+        // Avoid spending both of the two summary slots on synonyms from the
+        // same market domain. Preserve space for an independent Asian/SP/intel
+        // warning when present.
+        const marketAlreadyRanked=marketReady&&marketTop&&original&&marketTop!==original;
+        if(marketAdverse&&!marketAlreadyRanked&&(!marketTop||marketTop!==original))
           add('市场方向与原首选出现分歧',88);
         if(asianAdverse&&!asianSupports)add('亚盘多机构与原首选背离',86);
         if(intelAdverse&&!intelSupports)add('赛前情报不利于原首选',84);
