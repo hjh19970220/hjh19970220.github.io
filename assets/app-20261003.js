@@ -2045,7 +2045,7 @@
           ?'历史复算 · '+(top4?'Top4 · 评测成功':'Top4 · 评测失败')
           :'实际比分 '+actual.replace('-',':')+' · Top1 · '+(top1?'评测成功':'评测失败')+' · Top4 '+(top4?'覆盖':'未覆盖');
       panel.append(el('div','score-top4-verdict '+cls,verdict));
-      if(marketShadow)panel.append(el('p','score-top4-note','赛前记录 · 赛果核验后计算Top1和Top4。'));
+      if(marketShadow)panel.append(el('p','score-top4-note','原索伦真实赛前冻结的泊松研究参考：仅作Top1及Top4对照，不计入正式命中率。'));
       else if(historical)panel.append(el('p','score-top4-note','本场为赛后依据赛前留存参数复算，不属于当时发布的赛前比分预测，不计入赛前版命中率。'));
       else panel.append(el('p','score-top4-note','赛前记录 · 赛果核验后计算Top1和Top4。'));
       panel.append(el('p','score-top4-note','比分概率为模型估算值，不代表历史命中率或结果保证。'));
