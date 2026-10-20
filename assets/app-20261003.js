@@ -1826,7 +1826,7 @@
     function htftTop4Panel(row,selectedInfo){
       const info=selectedInfo===undefined?(row.dynamicHTFTPending?null:(row.dynamicHTFT??row.htftTop4)):selectedInfo;
       const full=fullMemberAnalysis(row);
-      if(!info&&row.shadowHTFTTop3)return sgShadowTop3Panel(row,'htft');
+      if(row.shadowHTFTTop3&&(!info||!['PUBLISHED_PREMATCH','MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01','HISTORICAL_POSTMATCH_RECONSTRUCTION'].includes(info.sourceKind)))return sgShadowTop3Panel(row,'htft');
       const marketShadow=info?.sourceKind==='MARKET_ANCHORED_POISSON_HTFT_SHADOW_V01';
       const historical=info?.sourceKind==='HISTORICAL_POSTMATCH_RECONSTRUCTION';
       const panel=reportSection(marketShadow?'赛前动态半全场 · Top3':historical?'半全场 Top3 · 历史补算':'半全场 Top3');
@@ -4266,18 +4266,32 @@
       }
       const sk=state.model==='score'?'shadowScoreTop3':state.model==='htft'?'shadowHTFTTop3':state.model==='goals'?'shadowGoalsTop3':null;
       if(sk){
-        const rows=state.today?.rows||[],valid=rows.filter(row=>row[sk]?.sourceKind==='SG_PREMATCH_SHADOW_TOP3');
-        if(valid.length&&!rows.some(row=>row.scoreTop4||row.htftTop4||row.goalPrediction)){
+        const rows=state.today?.rows||[];
+        const valid=rows.filter(row=>{
+          const s=row[sk];
+          return s&&['SG_PREMATCH_SHADOW','SG_PREMATCH_SHADOW_TOP3'].includes(s.sourceKind)
+            &&Array.isArray(s.picks)&&s.picks.length===3
+            &&Date.parse(String(s.publishedAt||''))<Date.parse(String(row.kickoff||''));
+        });
+        // Do not combine official published Top4 histories with Singapore's separate Top3 shadow sample.
+        const hasFormal=rows.some(row=>state.model==='score'
+          ?Boolean(scoreVersionInfo(row,'dynamic')||scoreVersionInfo(row,'original'))
+          :state.model==='htft'
+          ?Boolean(htftVersionInfo(row,'dynamic')||htftVersionInfo(row,'original'))
+          :Boolean(goalVersionInfo(row,'dynamic')||goalVersionInfo(row,'original')));
+        if(valid.length&&!hasFormal){
           const graded=valid.filter(row=>['SUCCESS','FAILURE'].includes(row[sk].settlementStatus));
-          const wins=graded.filter(row=>row[sk].settlementStatus==='SUCCESS').length;
+          const top3Hits=graded.filter(row=>row[sk].settlementStatus==='SUCCESS').length;
+          const top1Hits=graded.filter(row=>row[sk].top1Status==='SUCCESS').length;
           const labels=document.querySelectorAll('.metric span');
-          $('totalCount').textContent=htftRate(wins,graded.length);
-          $('pickCount').textContent=wins+'/'+graded.length;
-          $('passCount').textContent=(valid.length-graded.length)+' / '+(rows.length-valid.length);
-          labels[0].textContent=(state.model==='score'?'比分':state.model==='htft'?'半全场':'总进球')+'Top3 · 影子评测成功率';
-          labels[1].textContent='成功 / 已评测';
-          labels[2].textContent='待核验 / 无赛前预测';
-          $('poolCount').textContent=state.selectedDate+' · 赛前影子 '+valid.length+'场 · 不计正式战绩';
+          $('totalCount').textContent=htftRate(top3Hits,graded.length);
+          $('pickCount').textContent=htftRate(top1Hits,graded.length);
+          $('passCount').textContent=graded.length+' / '+(valid.length-graded.length);
+          const label=state.model==='score'?'比分':state.model==='htft'?'半全场':'总进球';
+          labels[0].textContent=label+'Top3覆盖率（影子）';
+          labels[1].textContent='Top1命中率（影子）';
+          labels[2].textContent='已评测 / 待评测';
+          $('poolCount').textContent=state.selectedDate+' · 赛前影子 '+valid.length+'场 · Top1 '+top1Hits+'/'+graded.length+' · Top3 '+top3Hits+'/'+graded.length+' · 不计正式战绩';
           return;
         }
       }
