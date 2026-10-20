@@ -4409,7 +4409,7 @@
         $('totalCount').textContent=htftRate(st.top3,st.n);
         $('pickCount').textContent=st.top3+'/'+st.n;
         $('passCount').textContent=(st.total-st.n)+' / '+(rows.length-st.total);
-        labels[0].textContent='总进球Top3覆盖率';labels[1].textContent='覆盖 / 已核验';labels[2].textContent='待核验 / 无预测';
+        labels[0].textContent=selected.length&&selected.every(x=>x.g.formalEligible===false)?'总进球Top3参考覆盖率（影子）':'总进球Top3覆盖率';labels[1].textContent='覆盖 / 已核验';labels[2].textContent='待核验 / 无预测';
         $('poolCount').textContent=state.selectedDate+' · 全池 '+rows.length+'场 · 赛前总进球 '+st.total+'场';
         return;
       }
