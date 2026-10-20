@@ -1239,14 +1239,16 @@
           const hasFundSnapshot=[pop.marketProbability,pop.betfairShare,pop.sportterySavedShare,pop.gap,pop.heat,pop.profitIndex].some(hasMemberNumber);
           if(hasFundSnapshot){
             popsec.append(el('div','member-zone-proof-title','人气—市场背离'));
-            addLine(popsec,'市场概率',fundPct(pop.marketProbability));
-            addLine(popsec,'必发资金占比',fundPct(pop.betfairShare));
-            addLine(popsec,'竞彩保存资金占比',fundPct(pop.sportterySavedShare));
-            addLine(popsec,'人气溢价',fundPp(pop.gap));
-            addLine(popsec,'冷热指数',fundNum(pop.heat));
-            addLine(popsec,'盈亏指数',fundNum(pop.profitIndex));
-            addLine(popsec,'William概率变化',fundPp(pop.williamProbabilityMove));
-            addLine(popsec,'识别结果',pop.divergence?'人气过热 / 市场支持不足':pop.fundAnomaly?'资金盈亏异常':'暂无强背离');
+            if(hasMemberNumber(pop.marketProbability))addLine(popsec,'市场概率',fundPct(pop.marketProbability));
+            if(hasMemberNumber(pop.betfairShare))addLine(popsec,'必发资金占比',fundPct(pop.betfairShare));
+            if(hasMemberNumber(pop.sportterySavedShare))addLine(popsec,'竞彩保存资金占比',fundPct(pop.sportterySavedShare));
+            if(hasMemberNumber(pop.gap))addLine(popsec,'人气溢价',fundPp(pop.gap));
+            if(hasMemberNumber(pop.heat))addLine(popsec,'冷热指数',fundNum(pop.heat));
+            if(hasMemberNumber(pop.profitIndex))addLine(popsec,'盈亏指数',fundNum(pop.profitIndex));
+            if(hasMemberNumber(pop.williamProbabilityMove))addLine(popsec,'William概率变化',fundPp(pop.williamProbabilityMove));
+            if(pop.divergence===true)addLine(popsec,'识别结果','人气过热 / 市场支持不足');
+            else if(pop.fundAnomaly===true)addLine(popsec,'识别结果','资金盈亏异常');
+            else if(pop.divergence===false&&pop.fundAnomaly===false)addLine(popsec,'识别结果','暂无强背离');
             body.append(popsec);
           }
         }
@@ -1350,7 +1352,7 @@
         :(state.baseDate||state.today?.date||state.selectedDate||beijingToday());
     }
 
-    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v7_coldproof_enriched:'+String(date)}
+    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v8_coldproof_verified:'+String(date)}
     function restoreMemberZoneSnapshot(date){
       try{
         const raw=localStorage.getItem(memberZoneStorageKey(date));
