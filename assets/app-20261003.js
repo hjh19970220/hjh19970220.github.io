@@ -4422,7 +4422,7 @@
         $('totalCount').textContent=htftRate(st.top4,st.n);
         $('pickCount').textContent=st.top4+'/'+st.n;
         $('passCount').textContent=(st.total-st.n)+' / '+(rows.length-st.total);
-        labels[0].textContent=chosen.length?'比分Top4 · 评测成功率':replay.length?'历史回放Top4 · 评测成功率':'比分Top4 · 评测成功率';
+        labels[0].textContent=chosen.length&&chosen.every(x=>x.info.formalEligible===false)?'比分Top4参考覆盖率（影子）':chosen.length?'比分Top4 · 评测成功率':replay.length?'历史回放Top4 · 评测成功率':'比分Top4 · 评测成功率';
         labels[1].textContent='覆盖 / 已核验';labels[2].textContent='待核验 / 无预测';
         $('poolCount').textContent=state.selectedDate+' · 全池 '+rows.length+'场 · 赛前比分 '+chosen.length+'场'+(!chosen.length&&replay.length?' · 历史回放 '+replay.length+'场':'');
         return;
