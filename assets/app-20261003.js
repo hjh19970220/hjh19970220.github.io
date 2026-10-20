@@ -1190,6 +1190,10 @@
           const unifiedRiskDirection=(cold.riskDirection&&typeof cold.riskDirection==='object')?cold.riskDirection:null;
           const unifiedDirectionConfirmed=unifiedRiskDirection?.status==='CONFIRMED'&&!!unifiedRiskDirection?.direction;
           addLine(ssec,'多源一致性',unifiedDirectionConfirmed?('已形成确认 · '+unifiedRiskDirection.direction):(gate.stableDirection===true?'已形成确认':'方向待确认'));
+          if(Array.isArray(cold.directionBasis)&&cold.directionBasis.length)
+            addLine(ssec,'方向确认依据',cold.directionBasis.slice(0,3).map(x=>String(x)).join('；'));
+          if(Array.isArray(cold.riskBasis)&&cold.riskBasis.length)
+            addLine(ssec,'风险触发依据',cold.riskBasis.slice(0,3).map(x=>String(x)).join('；'));
           const shadowFlags=Array.isArray(gate.shadow_flags)?gate.shadow_flags:(Array.isArray(gate.shadowFlags)?gate.shadowFlags:[]);
           const shadowVotes=(gate.shadow_market_votes&&typeof gate.shadow_market_votes==='object')?gate.shadow_market_votes:((gate.shadowMarketVotes&&typeof gate.shadowMarketVotes==='object')?gate.shadowMarketVotes:null);
           if(shadowVotes){
@@ -1249,23 +1253,33 @@
 
         const msec=el('section','member-zone-proof-section');
         msec.append(el('div','member-zone-proof-title','赔率与资金'));
-        addLine(msec,'市场确认',row.conclusion?.marketConfirm||'待确认');
-        addLine(msec,'资金行为',row.conclusion?.fundBehavior||'待确认');
-        addLine(msec,'威廉概率',memberPct3(row.market?.currentFair).join(' / '));
-        addLine(msec,'威廉 初盘→赛前',memberOdds3(row.market?.initialOdds)+' → '+memberOdds3(row.market?.currentOdds));
-        if(row.officialMarket?.had)addLine(msec,'体彩胜平负SP',memberOdds3(row.officialMarket.had.odds));
-        if(row.officialMarket?.hhad){
+        const completeThree=v=>Array.isArray(v)&&v.length===3&&v.every(hasMemberNumber);
+        let verifiedMarketLines=0;
+        const marketLine=(label,value)=>{addLine(msec,label,value);verifiedMarketLines++};
+        if(row.conclusion?.marketConfirm)marketLine('市场确认',row.conclusion.marketConfirm);
+        if(row.conclusion?.fundBehavior)marketLine('资金行为',row.conclusion.fundBehavior);
+        if(completeThree(row.market?.currentFair))marketLine('威廉概率',memberPct3(row.market.currentFair).join(' / '));
+        if(completeThree(row.market?.initialOdds)&&completeThree(row.market?.currentOdds))
+          marketLine('威廉 初盘→赛前',memberOdds3(row.market.initialOdds)+' → '+memberOdds3(row.market.currentOdds));
+        if(completeThree(row.officialMarket?.had?.odds))
+          marketLine('体彩胜平负SP',memberOdds3(row.officialMarket.had.odds));
+        if(completeThree(row.officialMarket?.hhad?.odds)){
           const ln=row.officialMarket.hhad.line;
-          addLine(msec,'体彩让球SP',(Number.isFinite(Number(ln))?('主'+(Number(ln)>0?'+':'')+Number(ln)):'让球')+' · '+memberOdds3(row.officialMarket.hhad.odds));
+          marketLine('体彩让球SP',(hasMemberNumber(ln)?('主'+(Number(ln)>0?'+':'')+Number(ln)):'让球')+' · '+memberOdds3(row.officialMarket.hhad.odds));
         }
         if(Array.isArray(row.asianHandicap)&&row.asianHandicap.length){
           row.asianHandicap.slice(0,4).forEach(x=>{
             const fmtLine=v=>v===null||v===undefined?'—':String(v);
-            const fmtWater=v=>Number.isFinite(Number(v))?Number(v).toFixed(2):'—';
-            addLine(msec,String(x.institution||'亚盘'),
+            const fmtWater=v=>hasMemberNumber(v)?Number(v).toFixed(2):'—';
+            marketLine(String(x.institution||'亚盘'),
               fmtLine(x.initialLine)+' '+fmtWater(x.initialHomeWater)+'/'+fmtWater(x.initialAwayWater)+
               ' → '+fmtLine(x.currentLine)+' '+fmtWater(x.currentHomeWater)+'/'+fmtWater(x.currentAwayWater));
           });
+        }
+        if(!verifiedMarketLines)msec.append(el('div','member-zone-intel-state','缺少经过赛前时间戳及来源核验的赔率、资金资料；不以空白或假设值补齐。'));
+        if(row.proofProvenance?.source==='SOREN_ORIGINAL_PUBLISHED_PREMATCH'){
+          const issued=row.proofProvenance.publishedAt;
+          if(issued)addLine(msec,'预警依据截至',fmtStamp(issued)+'（仅展示当时之前的赛前快照）');
         }
         body.append(msec);
 
@@ -1336,7 +1350,7 @@
         :(state.baseDate||state.today?.date||state.selectedDate||beijingToday());
     }
 
-    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v6_coldzone_contract:'+String(date)}
+    function memberZoneStorageKey(date){return 'soren_member_zone_snapshot_v7_coldproof_enriched:'+String(date)}
     function restoreMemberZoneSnapshot(date){
       try{
         const raw=localStorage.getItem(memberZoneStorageKey(date));
