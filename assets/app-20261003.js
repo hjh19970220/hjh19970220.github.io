@@ -229,7 +229,7 @@
       history.replaceState(null,'',location.pathname+location.search);
       return null;
     }
-    const API='https://ttydbcejxqxdkcfoizkj.supabase.co/functions/v1/soren-public-api-v1'; // hjh1997 old-Soren preview only; auth stays on disaster-recovery Supabase
+    const API='https://zssourkgabcxibggwhqm.supabase.co/functions/v1/soren-public-api-v1';
     function customerApiUrl(params){
       const qs=params instanceof URLSearchParams?new URLSearchParams(params):new URLSearchParams(params||{});
       // The production database is in Mumbai. Running the data-heavy function in
@@ -561,7 +561,7 @@
     }
     // Historic 2.0 model validation is obtained through a separate VIP-only
     // read endpoint. It is never labeled as a contemporaneously published tip.
-    const COLD_V2_HISTORY_API='https://ttydbcejxqxdkcfoizkj.supabase.co/functions/v1/soren-cold-history-v2';
+    const COLD_V2_HISTORY_API=AUTH_BASE+'/functions/v1/soren-cold-history-v2';
     const isColdV2HistoryDate=date=>String(date||'')>='2026-09-28'&&String(date||'')<='2026-10-11';
     let coldV2History=null,coldV2HistoryUser=null,coldV2HistoryAt=0;
     let coldV2HistoryPromise=null,coldV2HistoryError=null;
