@@ -1,5 +1,5 @@
     const SHADOW_MODE=false;
-    const AUTH_BASE='https://zssourkgabcxibggwhqm.supabase.co';const AUTH_KEY='sb_publishable_94kSLoSqua2oF4T0C-qBmA_t3jlZ4h7';
+    const AUTH_BASE='https://ttydbcejxqxdkcfoizkj.supabase.co';const AUTH_KEY='sb_publishable_n5thZ1g6h93ronyzPfqhsg_N_lFaoSa';
     const AUTH_STORE='soren_auth_v2',LEGACY_AUTH_STORE='soren_auth';
     const MEMBER_CACHE_KEY='soren_member_cache_v1';
     let authSession=null,authPersistence='session',authRefreshPending=null,memberInfo=null;
@@ -172,7 +172,7 @@
     async function authorizedApiFetch(url,options={}){
       if(!authSession?.access_token)throw Error('LOGIN_REQUIRED');
       await refreshAuthSession();
-      const welcomeHeader=url.startsWith('https://zssourkgabcxibggwhqm.supabase.co/functions/v1/soren-public-api-v1')
+      const welcomeHeader=url.startsWith(API)
         ?{'X-Soren-Device':welcomeBrowserId()}:{};
       const request=()=>fetch(url,{...options,headers:{...(options.headers||{}),...welcomeHeader,Authorization:'Bearer '+authSession.access_token}});
       let response=await request();
@@ -229,7 +229,7 @@
       history.replaceState(null,'',location.pathname+location.search);
       return null;
     }
-    const API='https://zssourkgabcxibggwhqm.supabase.co/functions/v1/soren-public-api-v1';
+    const API='https://ttydbcejxqxdkcfoizkj.supabase.co/functions/v1/soren-public-api-v1';
     function customerApiUrl(params){
       const qs=params instanceof URLSearchParams?new URLSearchParams(params):new URLSearchParams(params||{});
       // The production database is in Mumbai. Running the data-heavy function in
@@ -248,7 +248,7 @@
           body,cache:'no-store',keepalive:true,signal:timeoutSignal(6000)}).catch(()=>{});
       }catch{}
     }
-    const OKOOO_SHADOW_API='https://zssourkgabcxibggwhqm.supabase.co/functions/v1/ninety-member-intel-v1';
+    const OKOOO_SHADOW_API=AUTH_BASE+'/functions/v1/soren-intel-cache-v1';
     // Feedback uses an isolated client-database Edge Function; existing membership API is unchanged.
     const FEEDBACK_API=AUTH_BASE+'/functions/v1/soren-feedback-api-v1';
     let feedbackMode=null,feedbackFilter='all',feedbackDraft={category:'功能建议',content:''};
