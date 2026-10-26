@@ -4066,6 +4066,33 @@
           if(note)reportLine(panel,'赛前情报',note);
         }
       }
+      const articles=Array.isArray(data?.verifiedIntel?.articles)?data.verifiedIntel.articles:[];
+      const legacyIntel=data?.legacyZone?.intelligence;
+      const intelFacts=new Set();
+      for(const item of articles){
+        const title=brandSafe(item?.title);
+        if(title)intelFacts.add(title);
+        for(const section of Array.isArray(item?.sections)?item.sections:[]){
+          const fact=brandSafe(typeof section==='string'?section:section?.summary||section?.headline);
+          if(fact&&!/^(主队有利|主队不利|客队有利|客队不利)$/.test(fact))
+            intelFacts.add(fact);
+        }
+      }
+      for(const category of Array.isArray(legacyIntel?.categories)?legacyIntel.categories:[]){
+        const fact=brandSafe(category?.summary);
+        if(fact)intelFacts.add(fact);
+      }
+      const intelSection=el('section','prematch-intel-evidence');
+      intelSection.append(el('h3','','赛前情报'));
+      if(intelFacts.size){
+        const list=el('ul','member-zone-intel-list');
+        [...intelFacts].slice(0,8).forEach(fact=>list.append(el('li','',fact)));
+        intelSection.append(list);
+        if(legacyIntel?.impactSide)intelSection.append(el('p','report-sub',
+          '情报影响：'+brandSafe(legacyIntel.impactSide)+
+          (legacyIntel.impactLevel?' · '+brandSafe(legacyIntel.impactLevel):'')));
+      }else intelSection.append(el('p','report-sub','本场暂无已核验的赛前情报，市场数据仍可单独查看。'));
+      panel.append(intelSection);
       holder.append(panel);
     }
     function verifiedReportMarket(payload,row){
@@ -4089,7 +4116,7 @@
         capturedAt:item.current?.capturedAt??item.initial?.capturedAt??null
       }));
       return {ok:true,match:{no,home:report.home,away:report.away,league:row.league},
-        analysis:null,market:{status:'verified_prematch',
+        analysis:null,verifiedIntel:report.intelligence||null,market:{status:'verified_prematch',
           william:{initial:odds(european.initial),current:odds(european.current),
             fair:Array.isArray(european.fairProbability)&&european.fairProbability.length===3
               ?Object.fromEntries(['home','draw','away'].map((k,i)=>[k,european.fairProbability[i]])):null},
@@ -4119,6 +4146,29 @@
         okoooShadowCache.set(key,{token:authSession.access_token,at:Date.now(),data});
         while(okoooShadowCache.size>20)okoooShadowCache.delete(okoooShadowCache.keys().next().value);
         renderDeepMarketAnalysis(holder,data,row);
+        // Restore the original member-zone intelligence and shadow proof when
+        // present. Its empty response must not erase verified report evidence.
+        try{
+          const zoneUrl=customerApiUrl({view:'member-zone',date:String(row.date||state.selectedDate)});
+          const zoneResponse=await authorizedApiFetch(zoneUrl,{cache:'no-store',signal:timeoutSignal(9000)});
+          const zonePayload=await zoneResponse.json().catch(()=>null);
+          const entry=(Array.isArray(zonePayload?.zone?.rows)?zonePayload.zone.rows:[])
+            .find(item=>String(item?.no||'').padStart(3,'0')===String(row.no).padStart(3,'0'));
+          if(zoneResponse.ok&&zonePayload?.ok===true&&entry&&
+            String(entry.home)===String(row.home)&&String(entry.away)===String(row.away)){
+            const original=entry.coldRecognition?.gate?.shadowAnalysis;
+            data.analysis=original&&typeof original==='object'&&!Array.isArray(original)?original:null;
+            data.legacyZone=entry;
+            if(state.selected===row&&holder.isConnected){
+              okoooShadowCache.set(key,{token:authSession.access_token,at:Date.now(),data});
+              renderDeepMarketAnalysis(holder,data,row);
+            }
+          }
+        }catch(zoneError){
+          clientDiag('deep_market_legacy_intel_degraded',{
+            reason:String(zoneError?.message||zoneError).slice(0,80),
+            date:String(row.date||state.selectedDate),no:String(row.no).padStart(3,'0')});
+        }
       }catch(error){
         if(state.selected!==row||!holder.isConnected)return;
         clientDiag('deep_market_read_failed',{reason:String(error?.message||error).slice(0,80),
