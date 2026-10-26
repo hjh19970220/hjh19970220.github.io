@@ -3992,11 +3992,8 @@
           if(normalized.flags.length)return normalized.flags.slice(0,2).join('；');
           return betfairComplete?'市场与情报证据已采集，当前以分项指标为主要参考':'机构赔率与情报可参考，必发资金尚未确认';
         })();
-        const level=!betfairComplete&&normalized.available?'机构数据已采集 · 必发待确认':(explicitLevel?brandSafe(explicitLevel):(normalized.available?'证据已采集':(fairReady?'机构概率已采集 · 其他数据待核验':'数据不足')));
-        const fairFallback=Array.isArray(row?.market?.currentFair)&&row.market.currentFair.length===3?row.market.currentFair:(market?.william?.fair?['home','draw','away'].map(k=>market.william.fair[k]):null);
-        const fairReady=Array.isArray(fairFallback)&&fairFallback.length===3&&fairFallback.every(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))&&Number(v)>=0);
-        const fallbackSummary=fairReady?'威廉希尔机构概率：主胜 '+Number(fairFallback[0]).toFixed(1)+'% / 平局 '+Number(fairFallback[1]).toFixed(1)+'% / 客胜 '+Number(fairFallback[2]).toFixed(1)+'%；其他未核验数据不参与综合判断。':null;
-        const summary=explicitSummary?brandSafe(explicitSummary):brandSafe(derivedSummary||fallbackSummary||'暂无综合结论');
+        const level=!betfairComplete&&normalized.available?'机构数据已采集 · 必发待确认':(explicitLevel?brandSafe(explicitLevel):(normalized.available?'证据已采集':'数据不足'));
+        const summary=explicitSummary?brandSafe(explicitSummary):brandSafe(derivedSummary||'暂无综合结论');
         const status=el('div','shadow-admin-status');
         status.append(el('b','',level),document.createTextNode(' · '+summary));
         panel.append(status);
