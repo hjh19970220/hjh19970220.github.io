@@ -3982,9 +3982,9 @@
         const explicitSummary=analysis.summary||analysis.conclusion||analysis.verdict||analysis.analysisSummary||analysis.analysis_summary;
         const derivedSummary=(()=>{
           if(!normalized.available){
-            const odds=row?.market?.currentOdds||market?.william?.current;
-            const initial=row?.market?.initialOdds||market?.william?.initial;
             const valid=v=>Array.isArray(v)&&v.length===3&&v.every(x=>x!==null&&x!==undefined&&Number.isFinite(Number(x))&&Number(x)>1);
+            const odds=valid(row?.market?.currentOdds)?row.market.currentOdds:market?.william?.current;
+            const initial=valid(row?.market?.initialOdds)?row.market.initialOdds:market?.william?.initial;
             if(valid(odds)&&valid(initial)){
               const names=['主胜','平局','客胜'];
               const implied=odds.map(v=>1/Number(v));
