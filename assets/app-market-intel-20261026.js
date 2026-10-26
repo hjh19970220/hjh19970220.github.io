@@ -3981,7 +3981,21 @@
         const explicitLevel=analysis.level||analysis.riskLevel||analysis.risk_level||analysis.conclusionLevel||analysis.conclusion_level;
         const explicitSummary=analysis.summary||analysis.conclusion||analysis.verdict||analysis.analysisSummary||analysis.analysis_summary;
         const derivedSummary=(()=>{
-          if(!normalized.available)return null;
+          if(!normalized.available){
+            const odds=row?.market?.currentOdds||market?.william?.current;
+            const initial=row?.market?.initialOdds||market?.william?.initial;
+            const valid=v=>Array.isArray(v)&&v.length===3&&v.every(x=>x!==null&&x!==undefined&&Number.isFinite(Number(x))&&Number(x)>1);
+            if(valid(odds)&&valid(initial)){
+              const names=['主胜','平局','客胜'];
+              const implied=odds.map(v=>1/Number(v));
+              const top=implied.indexOf(Math.max(...implied));
+              const moves=odds.map((v,i)=>Number(initial[i])-Number(v));
+              const strongest=moves.indexOf(Math.max(...moves));
+              const shift=Math.max(...moves);
+              return '威廉赛前赔率支持'+names[top]+'；'+(shift>0.05?'其中'+names[strongest]+'赔率下调，市场支持增强':'赔率变化有限')+'。亚洲盘口及情报须独立核验；必发未确认，不作资金方向判断';
+            }
+            return null;
+          }
           const dirs=[normalized.market99.top,normalized.betfair.top].filter(Boolean);
           const kelly=normalized.kelly.lowestDirection;
           const same=dirs.length>=2&&dirs.every(x=>x===dirs[0]);
@@ -3999,6 +4013,7 @@
         panel.append(status);
         const fields=el('section','member-zone-proof-section');
         renderShadowAnalysisFields(fields,analysis);
+        if(!normalized.available&&derivedSummary){fields.replaceChildren(el('div','member-zone-intel-state','已核验机构赔率可供市场分析；必发、凯利等缺失项目不参与判断。'));}
         fields.querySelectorAll('li,b,span').forEach(node=>{if(node.childElementCount===0)node.textContent=brandSafe(node.textContent)});
         panel.append(fields);
         if(!betfairComplete){
@@ -4157,7 +4172,7 @@
           if(zoneResponse.ok&&zonePayload?.ok===true&&entry&&
             String(entry.home)===String(row.home)&&String(entry.away)===String(row.away)){
             const original=entry.coldRecognition?.gate?.shadowAnalysis;
-            data.analysis=original&&typeof original==='object'&&!Array.isArray(original)?original:null;
+            if(original&&typeof original==='object'&&!Array.isArray(original)&&normalizeShadowAnalysis(original).available){data.analysis=original;}
             data.legacyZone=entry;
             if(state.selected===row&&holder.isConnected){
               okoooShadowCache.set(key,{token:authSession.access_token,at:Date.now(),data});
