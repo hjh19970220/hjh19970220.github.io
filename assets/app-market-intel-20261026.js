@@ -4006,14 +4006,27 @@
           if(normalized.flags.length)return normalized.flags.slice(0,2).join('；');
           return betfairComplete?'市场与情报证据已采集，当前以分项指标为主要参考':'机构赔率与情报可参考，必发资金尚未确认';
         })();
-        const level=derivedSummary&&!normalized.available?'机构赔率已采集 · 综合市场参考':(!betfairComplete&&normalized.available?'机构数据已采集 · 必发待确认':(explicitLevel?brandSafe(explicitLevel):(normalized.available?'证据已采集':'数据不足')));
-        const summary=explicitSummary?brandSafe(explicitSummary):brandSafe(derivedSummary||'暂无综合结论');
+        const level=(derivedSummary||marketFallback)&&!normalized.available?'机构赔率已采集 · 综合市场参考':(!betfairComplete&&normalized.available?'机构数据已采集 · 必发待确认':(explicitLevel?brandSafe(explicitLevel):(normalized.available?'证据已采集':'数据不足')));
+        const validMarketOdds=v=>Array.isArray(v)&&v.length===3&&v.every(x=>x!==null&&x!==undefined&&Number.isFinite(Number(x))&&Number(x)>1);
+        const currentMarketOdds=validMarketOdds(market?.william?.current)?market.william.current:(validMarketOdds(row?.market?.currentOdds)?row.market.currentOdds:null);
+        const initialMarketOdds=validMarketOdds(market?.william?.initial)?market.william.initial:(validMarketOdds(row?.market?.initialOdds)?row.market.initialOdds:null);
+        const marketFallback=(()=>{
+          if(!currentMarketOdds||!initialMarketOdds)return null;
+          const dirs=['主胜','平局','客胜'];
+          const implied=currentMarketOdds.map(x=>1/Number(x));
+          const leader=implied.indexOf(Math.max(...implied));
+          const deltas=currentMarketOdds.map((x,i)=>Number(initialMarketOdds[i])-Number(x));
+          const mover=deltas.indexOf(Math.max(...deltas));
+          return '威廉赔率当前倾向'+dirs[leader]+'；'+(deltas[mover]>0.05?dirs[mover]+'赔率下调，机构支持增强':'赔率变化有限')+'。此为机构赔率分析，必发资金未核验，不作资金结论';
+        })();
+        const explicitText=explicitSummary?brandSafe(explicitSummary):'';
+        const summary=explicitText&&!/^(暂无|数据不足|未形成|无综合|未确认)/.test(explicitText)?explicitText:brandSafe(derivedSummary||marketFallback||'暂无综合结论');
         const status=el('div','shadow-admin-status');
         status.append(el('b','',level),document.createTextNode(' · '+summary));
         panel.append(status);
         const fields=el('section','member-zone-proof-section');
         renderShadowAnalysisFields(fields,analysis);
-        if(!normalized.available&&derivedSummary){fields.replaceChildren(el('div','member-zone-intel-state','已核验机构赔率可供市场分析；必发、凯利等缺失项目不参与判断。'));}
+        if(!normalized.available&&(derivedSummary||marketFallback)){fields.replaceChildren(el('div','member-zone-intel-state','已核验机构赔率可供市场分析；必发、凯利等缺失项目不参与判断。'));}
         fields.querySelectorAll('li,b,span').forEach(node=>{if(node.childElementCount===0)node.textContent=brandSafe(node.textContent)});
         panel.append(fields);
         if(!betfairComplete){
