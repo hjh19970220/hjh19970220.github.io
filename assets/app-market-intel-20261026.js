@@ -4436,8 +4436,7 @@
         deepMarketLock.append(el('div','member-preview-lock','尊贵月卡VIP专享 · 解锁99家机构概率、必发资金/冷热/盈亏、凯利风险与赛事情报'));
         c.append(deepMarketLock);
       }
-      let adminIntelSlot=null;
-      if(memberInfo?.isAdmin===true){adminIntelSlot=el('div','report-professional admin-intel-slot');c.append(adminIntelSlot);}
+
       const teamOverview=teamOverviewPanel(row);
       const attackDefense=renderAttackDefensePanel(row);
       if(teamOverview&&attackDefense){teamOverview.append(attackDefense);c.append(teamOverview);}
@@ -4507,7 +4506,7 @@
         c.append(review);
       }
       const audit=reportDisclosure('预测来源与数据说明');
-      if(adminIntelSlot)loadAdminOverseasIntel(row,adminIntelSlot);
+
       if(reportHas(row.frozenAt))reportLine(audit,'模型版本时间',fmtStamp(row.frozenAt));
       if(reportHas(row.dq))reportLine(audit,'数据质量',row.dq);
       if(reportHas(row.handicapSourceLabel))reportLine(audit,'让球数据来源',row.handicapSourceLabel);
