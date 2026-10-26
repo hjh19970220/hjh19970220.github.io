@@ -4189,7 +4189,7 @@
             .find(item=>String(item?.no||'').padStart(3,'0')===String(row.no).padStart(3,'0'));
           if(zoneResponse.ok&&zonePayload?.ok===true&&entry&&
             String(entry.home)===String(row.home)&&String(entry.away)===String(row.away)){
-            const original=entry.coldRecognition?.gate?.shadowAnalysis;
+            const original=entry.shadowAnalysis??entry.coldRecognition?.gate?.shadowAnalysis??null;
             if(original&&typeof original==='object'&&!Array.isArray(original)&&normalizeShadowAnalysis(original).available){
               const base=data.analysis&&typeof data.analysis==='object'?data.analysis:{};
               const merged={...base};
