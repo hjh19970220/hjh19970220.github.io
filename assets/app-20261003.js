@@ -4067,62 +4067,61 @@
       }
       holder.append(panel);
     }
-    function legacyMemberZoneIntel(payload,row){
+    function verifiedReportMarket(payload,row){
+      const report=payload?.report;
       const no=String(row.no).padStart(3,'0');
-      const entry=(Array.isArray(payload?.zone?.rows)?payload.zone.rows:[])
-        .find(item=>String(item?.no||'').padStart(3,'0')===no);
-      if(!entry)throw Error('MATCH_NOT_FOUND');
-      const original=entry?.coldRecognition?.gate?.shadowAnalysis;
-      const analysis=original&&typeof original==='object'&&!Array.isArray(original)
-        ?{...original,summary:original.summary||entry.summary||null}:null;
-      return {ok:true,match:{no,home:entry.home,away:entry.away,league:entry.league},
-        analysis,legacyZone:entry,market:{
-          william:{initial:entry.market?.initialOdds??null,current:entry.market?.currentOdds??null},
-          official:{had:entry.officialMarket?.had?.odds??null,
-            hhad:entry.officialMarket?.hhad?.odds??null,
-            hhadLine:entry.officialMarket?.hhad?.line??null},
-          asian:Array.isArray(entry.asianHandicap)?entry.asianHandicap:[],
-          capturedAt:entry.market?.capturedAt??null
+      if(!report||String(report.no).padStart(3,'0')!==no||
+        String(report.date)!==String(row.date||state.selectedDate)||
+        String(report.home)!==String(row.home)||String(report.away)!==String(row.away))
+        throw Error('REPORT_MATCH_MISMATCH');
+      const european=report.market?.european||{};
+      const odds=item=>item&&[item.home,item.draw,item.away].every(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)))
+        ?[item.home,item.draw,item.away]:null;
+      const asian=(Array.isArray(report.market?.asian)?report.market.asian:[]).map(item=>({
+        institution:item.institution,
+        initialLine:item.initial?.lineText??item.initial?.line??null,
+        currentLine:item.current?.lineText??item.current?.line??null,
+        initialHomeWater:item.initial?.homeWater??null,
+        initialAwayWater:item.initial?.awayWater??null,
+        currentHomeWater:item.current?.homeWater??null,
+        currentAwayWater:item.current?.awayWater??null,
+        capturedAt:item.current?.capturedAt??item.initial?.capturedAt??null
+      }));
+      return {ok:true,match:{no,home:report.home,away:report.away,league:row.league},
+        analysis:null,market:{
+          william:{initial:odds(european.initial),current:odds(european.current),
+            fair:Array.isArray(european.fairProbability)&&european.fairProbability.length===3
+              ?Object.fromEntries(['home','draw','away'].map((k,i)=>[k,european.fairProbability[i]])):null},
+          official:{had:row.officialMarket?.had?.odds??null,
+            hhad:row.officialMarket?.hhad?.odds??null,
+            hhadLine:row.officialMarket?.hhad?.line??null},
+          asian,capturedAt:european.current?.capturedAt??null
         }};
     }
     async function loadDeepMarketAnalysis(row,holder){
-      // The deep market endpoint requires authenticated monthly VIP or admin access.
       const key=String(row.date||state.selectedDate)+'|'+String(row.no).padStart(3,'0');
       const cached=okoooShadowCache.get(key);
-      const usableCached=cached&&cached.token===authSession.access_token&&cached.data?.ok===true;
-      // Keep the last verified payload visible while a refresh happens. A transient
-      // cross-project/CORS failure must not blank an already valid VIP analysis.
+      const usableCached=cached&&cached.token===authSession?.access_token&&cached.data?.ok===true;
       if(usableCached){
         renderDeepMarketAnalysis(holder,cached.data,row);
         if(Date.now()-cached.at<2*60*1000)return;
-      }else{
-        holder.replaceChildren(el('p','report-loading','正在读取深度市场分析…'));
-      }
+      }else holder.replaceChildren(el('p','report-loading','正在读取深度市场分析…'));
       try{
-        const url=customerApiUrl({view:'member-zone',date:String(row.date||state.selectedDate)});
-        let response,data;
-        // Mobile Safari can occasionally abort the first cross-project request.
-        // Retry once, but never replace a verified cached panel with an error state.
-        for(let attempt=0;attempt<2;attempt++){
-          try{
-            response=authSession?.access_token?await authorizedApiFetch(url,{cache:'no-store',signal:timeoutSignal(12000)}):await fetch(url,{cache:'no-store',signal:timeoutSignal(12000)});
-            data=await response.json().catch(()=>null);
-            if(response.ok&&data?.ok===true){data=legacyMemberZoneIntel(data,row);break;}
-            if(response.status===401||response.status===403)break;
-          }catch(error){
-            if(attempt===1)throw error;
-          }
-          if(attempt===0)await new Promise(resolve=>setTimeout(resolve,350));
-        }
-        if(!response?.ok||data?.ok!==true)throw Error(String(data?.error||'HTTP '+(response?.status||0)));
+        const url=customerApiUrl({view:'report',date:String(row.date||state.selectedDate),
+          no:String(row.no).padStart(3,'0')});
+        const response=await authorizedApiFetch(url,{cache:'no-store',signal:timeoutSignal(12000)});
+        const payload=await response.json().catch(()=>null);
+        if(!response.ok||payload?.ok!==true)
+          throw Error(String(payload?.error||'HTTP '+response.status));
+        const data=verifiedReportMarket(payload,row);
         if(state.selected!==row||(!SHADOW_MODE&&memberInfo?.vipActive!==true))return;
         okoooShadowCache.set(key,{token:authSession.access_token,at:Date.now(),data});
         while(okoooShadowCache.size>20)okoooShadowCache.delete(okoooShadowCache.keys().next().value);
         renderDeepMarketAnalysis(holder,data,row);
       }catch(error){
         if(state.selected!==row||!holder.isConnected)return;
-        // Stale-while-refresh: preserve the most recent verified analysis instead
-        // of flashing "temporarily unavailable" during transient endpoint failures.
+        clientDiag('deep_market_read_failed',{reason:String(error?.message||error).slice(0,80),
+          date:String(row.date||state.selectedDate),no:String(row.no).padStart(3,'0')});
         if(usableCached)renderDeepMarketAnalysis(holder,cached.data,row);
         else holder.replaceChildren(el('p','report-loading','深度市场分析暂不可用，请稍后重试'));
       }
