@@ -4190,7 +4190,29 @@
           if(zoneResponse.ok&&zonePayload?.ok===true&&entry&&
             String(entry.home)===String(row.home)&&String(entry.away)===String(row.away)){
             const original=entry.coldRecognition?.gate?.shadowAnalysis;
-            if(original&&typeof original==='object'&&!Array.isArray(original)&&normalizeShadowAnalysis(original).available){data.analysis=original;}
+            if(original&&typeof original==='object'&&!Array.isArray(original)&&normalizeShadowAnalysis(original).available){
+              const base=data.analysis&&typeof data.analysis==='object'?data.analysis:{};
+              const merged={...base};
+              // Preserve independently verified report fields; fill gaps from the
+              // original member-zone analysis without replacing entire sections.
+              for(const section of ['market_99','market99','betfair','kelly','intelligence']){
+                const incoming=original[section];
+                if(incoming&&typeof incoming==='object'&&!Array.isArray(incoming)){
+                  merged[section]={...incoming,...(base[section]&&typeof base[section]==='object'?base[section]:{})};
+                  for(const [field,value] of Object.entries(incoming)){
+                    const existing=merged[section][field];
+                    if(existing===null||existing===undefined||existing==='')merged[section][field]=value;
+                    else if(value&&typeof value==='object'&&!Array.isArray(value)&&existing&&typeof existing==='object'&&!Array.isArray(existing)){
+                      merged[section][field]={...value,...existing};
+                    }
+                  }
+                }
+              }
+              for(const [field,value] of Object.entries(original)){
+                if(merged[field]===null||merged[field]===undefined||merged[field]==='')merged[field]=value;
+              }
+              data.analysis=merged;
+            }
             // Restore verified Okooo exchange data already mapped into the member-zone API.
             // Keep market-average probability separate from true 99-bookmaker evidence.
             const behavior=entry.behavior;
