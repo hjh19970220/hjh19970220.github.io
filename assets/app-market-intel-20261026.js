@@ -4191,6 +4191,20 @@
             String(entry.home)===String(row.home)&&String(entry.away)===String(row.away)){
             const original=entry.coldRecognition?.gate?.shadowAnalysis;
             if(original&&typeof original==='object'&&!Array.isArray(original)&&normalizeShadowAnalysis(original).available){data.analysis=original;}
+            // Restore verified Okooo exchange data already mapped into the member-zone API.
+            // Keep market-average probability separate from true 99-bookmaker evidence.
+            const behavior=entry.behavior;
+            if(behavior&&typeof behavior==='object'){
+              const values=key=>Array.isArray(behavior[key])&&behavior[key].length===3&&behavior[key].every(v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v)))
+                ?{home:Number(behavior[key][0]),draw:Number(behavior[key][1]),away:Number(behavior[key][2])}:null;
+              const share=values('betfairShare'),heat=values('betfairHotCold'),profit=values('betfairProfitIndex');
+              if(share||heat||profit){
+                const base=data.analysis&&typeof data.analysis==='object'?data.analysis:{};
+                data.analysis={...base,betfair:{...(base.betfair||{}),
+                  ...(share?{share_pct:share}:{}),...(heat?{cold_heat:heat}:{}),...(profit?{profit_index:profit}:{})},
+                  capturedAt:behavior.capturedAt||base.capturedAt||null};
+              }
+            }
             data.legacyZone=entry;
             if(state.selected===row&&holder.isConnected){
               okoooShadowCache.set(key,{token:authSession.access_token,at:Date.now(),data});
