@@ -4024,7 +4024,7 @@
           }
         }
       }else{
-        panel.append(el('div','shadow-admin-status','本场深度市场分析暂无可展示数据。'));
+        panel.append(el('div','shadow-admin-status',data?.legacyZone?'已读取旧库核验的赛前市场数据；未采集的项目保持空白。':'本场深度市场分析暂无可展示数据。'));
         if(market){
           const marketText=market.status==='ok'&&Number(market.bookmakerCount)>0
             ?'市场数据采集成功 · '+market.bookmakerCount+' 家机构'
@@ -4053,7 +4053,37 @@
       if(Array.isArray(market?.asian)&&market.asian.length)
         reportLine(panel,'亚洲盘口',market.asian.map(x=>String(x.institution)+
           ' '+String(x.initialLine??'—')+'→'+String(x.currentLine??'—')).join('；'));
+      if(data?.legacyZone){
+        const behavior=data.legacyZone.behavior;
+        if(behavior&&Array.isArray(behavior.betfairShare)&&behavior.betfairShare.length===3
+          &&behavior.betfairShare.every(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)))){
+          reportLine(panel,'必发资金 主 / 平 / 客',behavior.betfairShare.map(v=>Number(v).toFixed(1)+'%').join(' / '));
+        }
+        const intel=data.legacyZone.intelligence;
+        if(intel?.impactSide||intel?.riskReasons?.length){
+          const note=[intel.impactSide,...(Array.isArray(intel.riskReasons)?intel.riskReasons.slice(0,2):[])].filter(Boolean).join('；');
+          if(note)reportLine(panel,'赛前情报',note);
+        }
+      }
       holder.append(panel);
+    }
+    function legacyMemberZoneIntel(payload,row){
+      const no=String(row.no).padStart(3,'0');
+      const entry=(Array.isArray(payload?.zone?.rows)?payload.zone.rows:[])
+        .find(item=>String(item?.no||'').padStart(3,'0')===no);
+      if(!entry)throw Error('MATCH_NOT_FOUND');
+      const original=entry?.coldRecognition?.gate?.shadowAnalysis;
+      const analysis=original&&typeof original==='object'&&!Array.isArray(original)
+        ?{...original,summary:original.summary||entry.summary||null}:null;
+      return {ok:true,match:{no,home:entry.home,away:entry.away,league:entry.league},
+        analysis,legacyZone:entry,market:{
+          william:{initial:entry.market?.initialOdds??null,current:entry.market?.currentOdds??null},
+          official:{had:entry.officialMarket?.had?.odds??null,
+            hhad:entry.officialMarket?.hhad?.odds??null,
+            hhadLine:entry.officialMarket?.hhad?.line??null},
+          asian:Array.isArray(entry.asianHandicap)?entry.asianHandicap:[],
+          capturedAt:entry.market?.capturedAt??null
+        }};
     }
     async function loadDeepMarketAnalysis(row,holder){
       // The deep market endpoint requires authenticated monthly VIP or admin access.
@@ -4069,8 +4099,7 @@
         holder.replaceChildren(el('p','report-loading','正在读取深度市场分析…'));
       }
       try{
-        const params=new URLSearchParams({view:'member-intel',context:'detail',date:String(row.date||state.selectedDate),no:String(row.no).padStart(3,'0')});
-        const url=OKOOO_SHADOW_API+'?'+params.toString();
+        const url=customerApiUrl({view:'member-zone',date:String(row.date||state.selectedDate)});
         let response,data;
         // Mobile Safari can occasionally abort the first cross-project request.
         // Retry once, but never replace a verified cached panel with an error state.
@@ -4078,7 +4107,7 @@
           try{
             response=authSession?.access_token?await authorizedApiFetch(url,{cache:'no-store',signal:timeoutSignal(12000)}):await fetch(url,{cache:'no-store',signal:timeoutSignal(12000)});
             data=await response.json().catch(()=>null);
-            if(response.ok&&data?.ok===true)break;
+            if(response.ok&&data?.ok===true){data=legacyMemberZoneIntel(data,row);break;}
             if(response.status===401||response.status===403)break;
           }catch(error){
             if(attempt===1)throw error;
