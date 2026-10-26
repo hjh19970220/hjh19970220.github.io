@@ -4006,7 +4006,7 @@
           if(normalized.flags.length)return normalized.flags.slice(0,2).join('；');
           return betfairComplete?'市场与情报证据已采集，当前以分项指标为主要参考':'机构赔率与情报可参考，必发资金尚未确认';
         })();
-        const level=(derivedSummary||marketFallback)&&!normalized.available?'机构赔率已采集 · 综合市场参考':(!betfairComplete&&normalized.available?'机构数据已采集 · 必发待确认':(explicitLevel?brandSafe(explicitLevel):(normalized.available?'证据已采集':'数据不足')));
+
         const validMarketOdds=v=>Array.isArray(v)&&v.length===3&&v.every(x=>x!==null&&x!==undefined&&Number.isFinite(Number(x))&&Number(x)>1);
         const currentMarketOdds=validMarketOdds(market?.william?.current)?market.william.current:(validMarketOdds(row?.market?.currentOdds)?row.market.currentOdds:null);
         const initialMarketOdds=validMarketOdds(market?.william?.initial)?market.william.initial:(validMarketOdds(row?.market?.initialOdds)?row.market.initialOdds:null);
@@ -4021,6 +4021,7 @@
         })();
         const explicitText=explicitSummary?brandSafe(explicitSummary):'';
         const summary=explicitText&&!/^(暂无|数据不足|未形成|无综合|未确认)/.test(explicitText)?explicitText:brandSafe(derivedSummary||marketFallback||'暂无综合结论');
+        const level=(derivedSummary||marketFallback)&&!normalized.available?'机构赔率已采集 · 综合市场参考':(!betfairComplete&&normalized.available?'机构数据已采集 · 必发待确认':(explicitLevel?brandSafe(explicitLevel):(normalized.available?'证据已采集':'数据不足')));
         const status=el('div','shadow-admin-status');
         status.append(el('b','',level),document.createTextNode(' · '+summary));
         panel.append(status);
@@ -4087,6 +4088,10 @@
         if(behavior&&Array.isArray(behavior.betfairShare)&&behavior.betfairShare.length===3
           &&behavior.betfairShare.every(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)))){
           reportLine(panel,'必发资金 主 / 平 / 客',behavior.betfairShare.map(v=>Number(v).toFixed(1)+'%').join(' / '));
+          const triple=(key,digits=1,suffix='')=>Array.isArray(behavior[key])&&behavior[key].length===3&&behavior[key].every(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)))?behavior[key].map(v=>Number(v).toFixed(digits)+suffix).join(' / '):null;
+          const exchangeLines=[['必发冷热 主 / 平 / 客','betfairHotCold',0,''],['必发盈亏指数 主 / 平 / 客','betfairProfitIndex',0,''],['必发盈亏 主 / 平 / 客','betfairProfitLoss',0,''],['竞彩交易占比 主 / 平 / 客','jcSavedShare',1,'%'],['机构平均概率 主 / 平 / 客','avgProbability',1,'%']];
+          for(const [label,key,digits,suffix] of exchangeLines){const values=triple(key,digits,suffix);if(values)reportLine(panel,label,values);}
+
         }
         const intel=data.legacyZone.intelligence;
         if(intel?.impactSide||intel?.riskReasons?.length){
