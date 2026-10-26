@@ -4006,7 +4006,7 @@
           if(normalized.flags.length)return normalized.flags.slice(0,2).join('；');
           return betfairComplete?'市场与情报证据已采集，当前以分项指标为主要参考':'机构赔率与情报可参考，必发资金尚未确认';
         })();
-        const level=!betfairComplete&&normalized.available?'机构数据已采集 · 必发待确认':(explicitLevel?brandSafe(explicitLevel):(normalized.available?'证据已采集':'数据不足'));
+        const level=derivedSummary&&!normalized.available?'机构赔率已采集 · 综合市场参考':(!betfairComplete&&normalized.available?'机构数据已采集 · 必发待确认':(explicitLevel?brandSafe(explicitLevel):(normalized.available?'证据已采集':'数据不足')));
         const summary=explicitSummary?brandSafe(explicitSummary):brandSafe(derivedSummary||'暂无综合结论');
         const status=el('div','shadow-admin-status');
         status.append(el('b','',level),document.createTextNode(' · '+summary));
@@ -4131,7 +4131,7 @@
         capturedAt:item.current?.capturedAt??item.initial?.capturedAt??null
       }));
       return {ok:true,match:{no,home:report.home,away:report.away,league:row.league},
-        analysis:null,verifiedIntel:report.intelligence||null,market:{status:'verified_prematch',
+        analysis:(report.analysis&&typeof report.analysis==='object'&&!Array.isArray(report.analysis)?report.analysis:(payload?.analysis&&typeof payload.analysis==='object'&&!Array.isArray(payload.analysis)?payload.analysis:null)),verifiedIntel:report.intelligence||null,market:{status:'verified_prematch',
           william:{initial:odds(european.initial),current:odds(european.current),
             fair:Array.isArray(european.fairProbability)&&european.fairProbability.length===3
               ?Object.fromEntries(['home','draw','away'].map((k,i)=>[k,european.fairProbability[i]])):null},
