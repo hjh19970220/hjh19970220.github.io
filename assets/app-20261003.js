@@ -4029,6 +4029,7 @@
           const marketText=market.status==='ok'&&Number(market.bookmakerCount)>0
             ?'市场数据采集成功 · '+market.bookmakerCount+' 家机构'
             :market.status==='login_required'?'部分市场数据暂受来源访问限制'
+            :market.status==='verified_prematch'?'已核验赛前市场快照；未采集项不参与判断'
             :'市场数据状态：'+String(market.status||'未确认');
           panel.append(el('div','shadow-admin-status',marketText));
         }
@@ -4088,7 +4089,7 @@
         capturedAt:item.current?.capturedAt??item.initial?.capturedAt??null
       }));
       return {ok:true,match:{no,home:report.home,away:report.away,league:row.league},
-        analysis:null,market:{
+        analysis:null,market:{status:'verified_prematch',
           william:{initial:odds(european.initial),current:odds(european.current),
             fair:Array.isArray(european.fairProbability)&&european.fairProbability.length===3
               ?Object.fromEntries(['home','draw','away'].map((k,i)=>[k,european.fairProbability[i]])):null},
